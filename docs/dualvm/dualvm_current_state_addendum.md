@@ -67,6 +67,8 @@ Current live truth:
 Therefore any Track 2 or architecture wording should describe the PVM posture honestly as parity / bounded computation unless and until live cross-VM invocation is proven.
 Canonical wording source:
 - `docs/dualvm/dualvm_pvm_posture.md`
+- Exact code location: `dualvm/contracts/pvm/PvmRiskEngine.sol`
+- Exact artifact path: `dualvm/pvm-artifacts/PvmRiskEngine.json`
 
 
 ## 5. Accounting fix applied after original spec parity review

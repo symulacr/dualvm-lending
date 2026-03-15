@@ -13,6 +13,9 @@ DualVM Lending is a public-RPC-first isolated lending market on Polkadot Hub Tes
 - Current live deployed lending path is not yet proven as live cross-VM PVM execution
 - Submission wording must not imply stronger cross-VM proof than what exists
 - Canonical wording is frozen in `docs/dualvm/dualvm_pvm_posture.md`
+- Exact code location: `dualvm/contracts/pvm/PvmRiskEngine.sol`
+- Exact artifact path: `dualvm/pvm-artifacts/PvmRiskEngine.json`
+- Exact live limitation: the deployed `LendingCore` path is still REVM-centric and should not be described as proven live REVM -> PVM execution
 
 ### OpenZeppelin sponsor fit
 - `AccessManager`
