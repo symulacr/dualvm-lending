@@ -110,6 +110,10 @@ From `dualvm/`:
 - `npm run liquidate:testnet`
 - `./init.sh`
 
+## CI
+- `.github/workflows/ci.yml` runs `npm ci`, `npm test`, and `npm run build` in `dualvm/` on every push and pull request.
+
+
 ## Current local test coverage
 - deposit, borrow, repay, and liquidation happy path
 - bad-debt liquidation accounting when accrued interest remains

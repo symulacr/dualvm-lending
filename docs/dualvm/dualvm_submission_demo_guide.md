@@ -91,6 +91,16 @@ Fresh current proof tx set from `dualvm/deployments/polkadot-hub-testnet-recent-
 Note: the liquidation tx above is the fresh live proof anchor. The `liveLiquidationSmoke.ts` script remains an operator-grade script and should not be treated as a judge-click-safe one-button demo path without operator supervision.
 
 
+## Operator-only script safety
+- `dualvm/scripts/liveLiquidationSmoke.ts` mutates the oracle and risk-engine path during the run; use it only with dedicated demo accounts and a restore check afterward.
+- `dualvm/scripts/liveRiskAdminSmoke.ts` temporarily changes the live risk engine and oracle price before restoring them.
+- `dualvm/scripts/liveOracleSmoke.ts` temporarily widens the oracle circuit breaker and steps the oracle price before restoring it.
+- `dualvm/scripts/applyRoleSeparation.ts` changes live role holders and delays; do not run it casually once the judge-facing deployment is settled.
+- `dualvm/scripts/upgradeOracle.ts` swaps the live oracle contract used by LendingCore.
+- `dualvm/scripts/liveSmoke.ts` and `dualvm/scripts/liveRepaySmoke.ts` create fresh live positions and balances; they are proof scripts, not no-op health checks.
+- Safest judge path: use the hosted frontend plus the Blockscout tx links in this guide, and keep operator scripts for pre-demo proof refreshes under controlled wallets.
+
+
 ## Truthful limitations to state publicly
 - single market only
 - manual oracle with configurable bounds and max-move circuit breaker

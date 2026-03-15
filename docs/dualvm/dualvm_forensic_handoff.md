@@ -961,16 +961,16 @@ Important environment variables in use include:
 
 Good:
 - `.env` is gitignored
-- `wallets/*.txt` is gitignored
+- `dualvm/.env.example` now documents the expected environment variables without checking in any secrets
 - manifests and proof artifacts store addresses and tx hashes, not private keys
+- the generated wallet text files have been moved out of the repo tree into `/home/kpa/.dualvm-secrets/` so they are no longer repo-adjacent
 
 Bad:
-- the repo still contains local wallet text files with private keys and mnemonics under `dualvm/wallets/`
-- these are gitignored but still present in the working tree
+- the private keys and mnemonics still exist on disk outside the repo and still need careful operator handling
 - commands were historically run with private keys passed inline via shell env assignments
 - there is still no dedicated secret management pattern beyond “set env vars manually”
 
-This is acceptable for local hackathon execution but weak for a cleaner shared engineering workflow.
+This is better than the earlier state and is acceptable for hackathon execution, but it is still weak compared with a cleaner shared engineering workflow.
 
 ---
 
