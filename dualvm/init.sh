@@ -2,7 +2,7 @@
 set -euo pipefail
 
 if [ ! -d node_modules ]; then
-  npm install
+  npm ci
 fi
 
 npm test

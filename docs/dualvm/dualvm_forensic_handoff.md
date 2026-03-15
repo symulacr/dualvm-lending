@@ -253,7 +253,7 @@ dualvm/
   - Current state and remaining long-horizon concerns.
 
 - `init.sh`
-  - Minimal reproducibility script: if `node_modules` is absent, it runs `npm install`, then runs tests and build.
+  - Minimal reproducibility script: if `node_modules` is absent, it runs `npm ci`, then runs tests and build.
 
 - `package.json`
   - Central command index. This matters because operational workflow is script-driven.
@@ -877,13 +877,13 @@ That means:
 ### 7.1 Install / bootstrap
 
 Manual install:
-- `cd dualvm && npm install`
+- `cd dualvm && npm ci`
 
 Bootstrap script:
 - `cd dualvm && ./init.sh`
 
 `init.sh` behavior:
-- if `node_modules` is missing, run `npm install`
+- if `node_modules` is missing, run `npm ci`
 - run `npm test`
 - run `npm run build`
 
@@ -965,8 +965,7 @@ Bad:
 - the repo still contains local wallet text files with private keys and mnemonics under `dualvm/wallets/`
 - these are gitignored but still present in the working tree
 - commands were historically run with private keys passed inline via shell env assignments
-- there is no `.env.example`
-- there is no dedicated secret management pattern beyond “set env vars manually”
+- there is still no dedicated secret management pattern beyond “set env vars manually”
 
 This is acceptable for local hackathon execution but weak for a cleaner shared engineering workflow.
 

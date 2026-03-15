@@ -76,6 +76,16 @@ Important current limits:
 - Workflow artifacts: `dualvm/SPEC.md`, `dualvm/features.json`, `dualvm/progress.md`, `dualvm/init.sh`
 - Asset path decision: `docs/dualvm/dualvm_asset_path_decision.md`
 
+## Bootstrap and environment
+1. `cd dualvm`
+2. `cp .env.example .env`
+3. Fill only the variables you need for the command you plan to run.
+4. Run `npm ci` for a deterministic install, or use `./init.sh` to install-if-missing, test, and build.
+
+Notes:
+- `npm test` and `npm run build` do not require funded wallets.
+- deploy and live-smoke commands do require funded private keys in `.env`.
+
 ## Local developer commands
 From `dualvm/`:
 - `npm test`
