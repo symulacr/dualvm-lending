@@ -62,6 +62,17 @@ Live scripts:
 - `PvmRiskEngine` provides a bounded risk-computation module; the current live path is still REVM-centric and should not be described as proven live cross-VM execution.
 - Final PVM wording is frozen in `docs/dualvm/dualvm_pvm_posture.md`.
 
+```text
+Hosted frontend
+  -> public ETH RPC on Polkadot Hub TestNet
+  -> live REVM contracts (WPAS, USDCMock, DebtPool, LendingCore, ManualOracle, AccessManager)
+  -> Blockscout proof links
+
+Track 2 truth:
+  PvmRiskEngine source + PVM artifact exist
+  but the deployed solvency path is still not presented as proven live REVM -> PVM execution
+```
+
 ## Current truth and limitations
 This is a production-minded MVP, not a production-ready protocol.
 
@@ -75,6 +86,18 @@ Important current limits:
 - the observer layer now uses a short-TTL cache and a recent-events snapshot fallback for resilience against public-RPC hiccups
 - the PVM story is parity-oriented, not yet proven as live cross-VM execution
 - no XCM in the critical lending path
+
+## Roadmap after submission
+- replace single-admin control with multisig or timelocked governance
+- move from the hardened manual oracle to a multi-source oracle path
+- replace `USDC-test` with a metadata-safe real debt-asset integration
+- add true browser wallet write flows if product scope expands beyond observer-first judging
+- prove real live cross-VM execution before strengthening the Track 2 claim
+
+## Submission package
+- DoraHacks package doc: `docs/dualvm/dualvm_dorahacks_submission.md`
+- Screenshot assets: `docs/dualvm/screenshots/`
+- Canonical demo guide: `docs/dualvm/dualvm_submission_demo_guide.md`
 
 ## Repository map
 - Live app and contracts: `dualvm/`
