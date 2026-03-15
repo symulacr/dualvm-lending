@@ -26,6 +26,29 @@ const scopeGuardrails = [
   "Public-RPC-first deployment; no local Polkadot node requirement.",
 ];
 
+const demoModeNotes = [
+  "Observer-first frontend: this page is for live state, proof links, and tracked-address inspection.",
+  "No hidden backend, indexer cluster, or local Polkadot node is required for judges.",
+  "Public RPC failures are normal on a shared testnet; retry and use the recent-activity proof links when reads stall.",
+];
+
+const writePathTruth = [
+  "The browser build does not yet submit borrow or repay transactions directly.",
+  "Write-path proof comes from live operator-run transactions plus Blockscout links, not from fake-complete buttons.",
+  "The canonical demo sequence lives in docs/dualvm/dualvm_submission_demo_guide.md and the repo README.",
+];
+
+function humanizeReadError(message: string) {
+  const normalized = message.toLowerCase();
+  if (normalized.includes("429") || normalized.includes("rate")) {
+    return "Public RPC rate-limited the request. Wait a few seconds and refresh; recent activity falls back to the last captured snapshot.";
+  }
+  if (normalized.includes("fetch") || normalized.includes("network") || normalized.includes("timeout")) {
+    return "Public RPC did not answer cleanly. Refresh to retry; contract addresses and recent-activity proof links remain valid below.";
+  }
+  return message;
+}
+
 export default function App() {
   const [snapshot, setSnapshot] = useState<MarketSnapshot | null>(null);
   const [readError, setReadError] = useState<string | null>(null);
@@ -79,7 +102,7 @@ export default function App() {
     ? isLoading
       ? "Loading live Polkadot Hub TestNet reads"
       : readError
-        ? `Read failed: ${readError}`
+        ? `Read failed: ${humanizeReadError(readError)}`
         : snapshot
           ? "Live Polkadot Hub TestNet reads enabled"
           : "No live data returned"
@@ -111,6 +134,30 @@ export default function App() {
           </span>
           <span className="status-pill status-pill-muted">Generated {formatTimestamp(deploymentManifest.generatedAt)}</span>
         </div>
+      </section>
+
+      <section className="panel-grid panel-grid-two">
+        <article className="panel-card">
+          <div className="section-header">
+            <h2>Frontend demo mode</h2>
+          </div>
+          <ul className="bullet-list">
+            {demoModeNotes.map((item) => (
+              <li key={item}>{item}</li>
+            ))}
+          </ul>
+        </article>
+
+        <article className="panel-card">
+          <div className="section-header">
+            <h2>Write-path truth</h2>
+          </div>
+          <ul className="bullet-list">
+            {writePathTruth.map((item) => (
+              <li key={item}>{item}</li>
+            ))}
+          </ul>
+        </article>
       </section>
 
       <section className="panel-grid panel-grid-two">
@@ -182,9 +229,15 @@ export default function App() {
           {contractRows.map((row) => (
             <article className="address-card" key={row.name}>
               <p className="address-label">{row.name}</p>
-              <p className="address-value" title={row.address}>
+              <a
+                className="address-value"
+                href={`${deploymentManifest.polkadotHubTestnet.explorerUrl.replace(/\/$/, "")}/address/${row.address}`}
+                target="_blank"
+                rel="noreferrer"
+                title={row.address}
+              >
                 {formatAddress(row.address)}
-              </p>
+              </a>
             </article>
           ))}
         </div>
@@ -236,9 +289,9 @@ export default function App() {
         ) : (
           <div className="empty-state">
             <p>
-              The UI is ready for live Polkadot Hub TestNet reads, but the current manifest was generated from a local
-              dry-run deployment. Run the deploy script against Polkadot Hub TestNet and keep the generated
-              `deployments/polkadot-hub-testnet.json` file to activate these cards.
+              Live data has not populated yet. On public RPC this usually means the read request is still pending or
+              failed transiently. Use Refresh, contract explorer links, and the Recent activity section below while
+              the shared testnet catches up.
             </p>
           </div>
         )}

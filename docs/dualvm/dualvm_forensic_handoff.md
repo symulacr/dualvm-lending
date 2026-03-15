@@ -721,14 +721,17 @@ Current entries:
 This is valuable because reviewers and judges can see the asset honesty directly in the UI and code.
 The watchlist-backed observer scope is also deliberately narrow: the repo's watchlist file contains only four explicit addresses, so neither the UI nor the operator scripts should be read as a complete market-wide actor inventory. They are selected-address tools, not a general discovery layer.
 
-### 5.6 Vercel assumptions
+### 5.6 Hosting reality
 
-The project assumes a front-end-only hosting model that could fit on Vercel, but there is no concrete Vercel project config in the repo:
+The repo now has a live hosted frontend at:
+- `http://eyawa.me/dualvm-lending/`
+
+That hosting surface is real and judge-usable, but it is not a Vercel-configured repository deployment target. The codebase still has:
 - no `vercel.json`
 - no `.vercel/` project folder
-- no deployment hooks or explicit environment mapping
+- no Vercel-specific deployment hooks or environment mapping
 
-So Vercel is still an assumed hosting target, not a configured repository deployment target. That matters. The docs talk about Vercel as a suitable platform, but the codebase does not yet carry Vercel-specific deployment files. This would not block a manual Vercel deployment of a plain Vite app, but it means Vercel is not “operationally configured” inside the repository.
+So the current hosting truth is narrower and more precise than the earlier docs implied: the frontend is hosted, but the repository is not operationally configured for Vercel specifically. That distinction matters because a reviewer should not infer that a Vercel pipeline exists in the repo when the actual deployed proof currently comes from the GitHub Pages-style hosted surface above.
 
 ---
 

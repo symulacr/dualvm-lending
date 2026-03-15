@@ -45,7 +45,7 @@ Status legend:
 |---|---|---|---|---|---|
 | Public-RPC-first runtime | No local Polkadot node required | Live deployment and smoke use public RPC only | DONE | `dualvm/hardhat.config.ts`, live manifest | Medium public-RPC rate-limit exposure |
 | Official public testnet target | Original spec named Passet Hub `420420422` | Implementation retargeted to current official Polkadot Hub TestNet `420420417` | DRIFTED | `dualvm/hardhat.config.ts`, `dualvm/scripts/marketConfig.ts`, `CLAUDE.md` | Low if documented honestly |
-| Frontend-only hosted story | Thin client-side read layer, no backend requirement | Frontend reads chain directly; no backend service added | PARTIAL | `dualvm/src/App.tsx`, `dualvm/src/lib/readModel.ts` | Medium UX/RPC fragility |
+| Frontend-only hosted story | Thin client-side read layer, no backend requirement | Frontend is now hosted and still reads the chain directly without a backend service; the UI explicitly states observer-first/write-path truth | DONE | `dualvm/src/App.tsx`, `dualvm/src/lib/readModel.ts`, `README.md`, `docs/dualvm/dualvm_submission_demo_guide.md` | Medium UX/RPC fragility because browser writes still rely on documented operator proof rather than in-browser submission |
 | Demoability on public infra | Judges can inspect same public chain/explorer | Live deployment exists on public testnet | DONE | live manifest, successful `eth_getCode` verification | Low |
 
 ## Contract architecture parity

@@ -11,6 +11,7 @@ This repository currently contains a live public-testnet deployment, smoke-teste
 - Fallback RPC: `https://services.polkadothub-rpc.com/testnet/`
 - Explorer: `https://blockscout-testnet.polkadot.io/`
 - Faucet: `https://faucet.polkadot.io/`
+- Hosted frontend: `http://eyawa.me/dualvm-lending/`
   - Network: `Polkadot testnet (Paseo)`
   - Chain: `Hub (smart contracts)`
 

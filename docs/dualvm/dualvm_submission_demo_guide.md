@@ -43,6 +43,7 @@ Explorer verification artifact:
 - ETH RPC: `https://eth-rpc-testnet.polkadot.io/`
 - Explorer: `https://blockscout-testnet.polkadot.io/`
 - Faucet: `https://faucet.polkadot.io/`
+- Hosted frontend: `http://eyawa.me/dualvm-lending/`
   - Network: `Polkadot testnet (Paseo)`
   - Chain: `Hub (smart contracts)`
 
