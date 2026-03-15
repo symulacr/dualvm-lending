@@ -59,6 +59,7 @@ Write-path truth tonight:
 - Frontend home: `docs/dualvm/screenshots/frontend-home.png`
 - Borrow transaction page: `docs/dualvm/screenshots/borrow-tx.png`
 - Liquidation transaction page: `docs/dualvm/screenshots/liquidation-tx.png`
+- Final media mode tonight: screenshot-only package (no narrated video included in the repo)
 
 ## Known limitations
 - single market only
@@ -92,3 +93,10 @@ The repo cannot prove these because they are external team/operator tasks:
 - final narrated demo video upload
 
 Those external items should be marked complete by the submitting team, not guessed by the codebase.
+
+External blocker evidence captured during finalization:
+- `docs/dualvm/submission_evidence/external_submission_blockers.md`
+- `docs/dualvm/submission_evidence/dorahacks-event-screen.png`
+- `docs/dualvm/submission_evidence/dorahacks-login-blocker.png`
+- `docs/dualvm/submission_evidence/discord-login-blocker.png`
+- `docs/dualvm/submission_evidence/polkassembly-identity-screen.png`

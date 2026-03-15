@@ -99,6 +99,7 @@ Important current limits:
 - Screenshot assets: `docs/dualvm/screenshots/`
 - Canonical demo guide: `docs/dualvm/dualvm_submission_demo_guide.md`
 - Final scoring rehearsal: `docs/dualvm/dualvm_final_scoring_rehearsal.md`
+- Final completion report: `docs/dualvm/dualvm_final_submission_completion_report.md`
 
 ## Repository map
 - Live app and contracts: `dualvm/`

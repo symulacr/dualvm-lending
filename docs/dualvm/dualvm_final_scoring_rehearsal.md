@@ -26,11 +26,13 @@ Current result:
 - first six answers = `YES, YES, NO, YES, YES, YES`
 - therefore **the repo is not fully done by the manual's strict gate**
 
-## Exact blocker
-The remaining blocker is external to the repo:
+## Exact blockers
+The remaining blockers are external to the repo:
 - `On-chain identity ready = NO`
+- DoraHacks account / submission session not authenticated in this agent session
+- Discord / team verification state not authenticated in this agent session
 
-This is not a code or documentation gap. It is an operator/submission gap that the repository cannot prove on its own.
+These are not code or documentation gaps. They are operator/submission gaps that the repository cannot prove or complete on its own without the real human-controlled accounts.
 
 ## What is submission-ready from the repo side
 - public repo
@@ -43,7 +45,8 @@ This is not a code or documentation gap. It is an operator/submission gap that t
 - CI workflow
 
 ## What still requires manual operator action outside the repo
-- complete the required Polkadot on-chain identity step for the submitting team/account
+- complete the required Polkadot on-chain identity step for the actual submitting team/account
+- log into the actual DoraHacks submission account and create or finalize the submission entry
 - ensure DoraHacks / Discord / team identity verification is complete
 - optionally add a narrated demo video if the team wants stronger presentation than screenshots alone
 
@@ -54,3 +57,10 @@ From the full overnight manual side, it is blocked only by external identity rea
 
 ## Operator decision
 The user chose the conservative path: leave on-chain identity as an external manual submission step and stop at repo-complete state rather than registering a placeholder identity automatically from the agent session.
+
+Further blocker evidence captured during the finalization run:
+- `docs/dualvm/submission_evidence/external_submission_blockers.md`
+- `docs/dualvm/submission_evidence/dorahacks-event-screen.png`
+- `docs/dualvm/submission_evidence/dorahacks-login-blocker.png`
+- `docs/dualvm/submission_evidence/discord-login-blocker.png`
+- `docs/dualvm/submission_evidence/polkassembly-identity-screen.png`
