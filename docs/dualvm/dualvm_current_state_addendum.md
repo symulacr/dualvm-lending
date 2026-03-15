@@ -47,6 +47,14 @@ Completed on live chain:
 - fixed bad-debt liquidation path
 - hardened oracle upgrade and circuit-breaker proof
 
+Latest captured public-proof bundle:
+- collateral deposit tx: `0x5bb5a89323efb7bdb56656b20c68ea01457ddfe9506f2534c116a6ac2863a602`
+- borrow tx: `0x658ce8b5e631c3e77d970678e14da986a87a464eca274b1a8585baa65d846ba0`
+- repay tx: `0x924ef9d6e5e5e69de37ffcaaf6c81593b1bc496a03ec049802d80392f247e43a`
+- liquidation tx: `0xe8d1f4e36cbbb4c829f2b4d8ee19afc48acc2975e7a29804db9b28099932cef5`
+- snapshot artifact refreshed at `2026-03-15T20:16:48.142Z` in `dualvm/deployments/polkadot-hub-testnet-recent-events.json`
+
+
 ## 4. Architectural truth note on PVM
 The architectural intent remains:
 - REVM is the source of truth for custody and solvency.

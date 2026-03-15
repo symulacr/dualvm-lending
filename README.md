@@ -43,6 +43,14 @@ Live scripts:
 - Repay smoke: `dualvm/scripts/liveRepaySmoke.ts`
 - Liquidation smoke: `dualvm/scripts/liveLiquidationSmoke.ts`
 
+## Fresh live proof links
+- Collateral deposit: https://blockscout-testnet.polkadot.io/tx/0x5bb5a89323efb7bdb56656b20c68ea01457ddfe9506f2534c116a6ac2863a602
+- Borrow: https://blockscout-testnet.polkadot.io/tx/0x658ce8b5e631c3e77d970678e14da986a87a464eca274b1a8585baa65d846ba0
+- Repay: https://blockscout-testnet.polkadot.io/tx/0x924ef9d6e5e5e69de37ffcaaf6c81593b1bc496a03ec049802d80392f247e43a
+- Liquidation: https://blockscout-testnet.polkadot.io/tx/0xe8d1f4e36cbbb4c829f2b4d8ee19afc48acc2975e7a29804db9b28099932cef5
+- Snapshot source: `dualvm/deployments/polkadot-hub-testnet-recent-events.json` generated at `2026-03-15T20:16:48.142Z`
+
+
 ## Architecture in one paragraph
 - `WPAS` wraps native PAS into ERC-20 semantics.
 - `USDCMock` is the metadata-stable debt asset for the MVP.

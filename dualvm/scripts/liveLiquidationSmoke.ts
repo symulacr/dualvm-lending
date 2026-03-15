@@ -24,6 +24,59 @@ async function waitFor(txPromise: Promise<{ wait(): Promise<{ hash?: string }>; 
   console.log(`${label}: ${receipt.hash ?? tx.hash ?? "mined"}`);
 }
 
+async function normalizeOracleToBaseline(
+  accessManager: any,
+  riskAdmin: any,
+  oracle: any,
+  riskDelay: number,
+  targetPriceWad: bigint,
+ ) {
+  await executeManagedCall(
+    accessManager,
+    riskAdmin,
+    oracle,
+    "setCircuitBreaker",
+    [1n * WAD, 20_000n * WAD, 10_000n],
+    "prepare oracle baseline restore range",
+    riskDelay,
+  );
+
+  let price = BigInt(await oracle.priceWad());
+  if (price === 0n) {
+    await executeManagedCall(accessManager, riskAdmin, oracle, "setPrice", [targetPriceWad], "seed oracle baseline price", riskDelay);
+    return;
+  }
+
+  while (price < targetPriceWad) {
+    const nextPrice = price * 2n > targetPriceWad ? targetPriceWad : price * 2n;
+    await executeManagedCall(
+      accessManager,
+      riskAdmin,
+      oracle,
+      "setPrice",
+      [nextPrice],
+      `restore oracle price to ${formatUnits(nextPrice)}`,
+      riskDelay,
+    );
+    price = nextPrice;
+  }
+
+  while (price > targetPriceWad) {
+    const halvedPrice = price / 2n;
+    const nextPrice = halvedPrice < targetPriceWad ? targetPriceWad : halvedPrice;
+    await executeManagedCall(
+      accessManager,
+      riskAdmin,
+      oracle,
+      "setPrice",
+      [nextPrice],
+      `restore oracle price to ${formatUnits(nextPrice)}`,
+      riskDelay,
+    );
+    price = nextPrice;
+  }
+}
+
 async function main() {
   const manifestPath = path.join(process.cwd(), "deployments", "polkadot-hub-testnet.json");
   const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
@@ -53,10 +106,11 @@ async function main() {
   const minterDelay = manifest.governance?.executionDelaySeconds?.minter ?? 0;
   const riskDelay = manifest.governance?.executionDelaySeconds?.riskAdmin ?? 0;
   const originalRiskEngine = manifest.contracts.riskEngine;
-  const originalBreaker = {
-    minPriceWad: await oracle.minPriceWad(),
-    maxPriceWad: await oracle.maxPriceWad(),
-    maxPriceChangeBps: await oracle.maxPriceChangeBps(),
+  const baselineOraclePrice = 1_000n * WAD;
+  const baselineBreaker = {
+    minPriceWad: ORACLE_CIRCUIT_BREAKER_DEFAULTS.minPriceWad,
+    maxPriceWad: ORACLE_CIRCUIT_BREAKER_DEFAULTS.maxPriceWad,
+    maxPriceChangeBps: ORACLE_CIRCUIT_BREAKER_DEFAULTS.maxPriceChangeBps,
   };
 
   const tempRiskEngine = await riskEngineFactory.deploy(
@@ -81,24 +135,7 @@ async function main() {
     "set temporary high-rate risk engine",
     riskDelay,
   );
-  await executeManagedCall(
-    accessManagerRisk,
-    riskAdmin,
-    oracle,
-    "setPrice",
-    [1_000n * WAD],
-    "reset oracle price",
-    riskDelay,
-  );
-  await executeManagedCall(
-    accessManagerRisk,
-    riskAdmin,
-    oracle,
-    "setCircuitBreaker",
-    [ORACLE_CIRCUIT_BREAKER_DEFAULTS.minPriceWad, ORACLE_CIRCUIT_BREAKER_DEFAULTS.maxPriceWad, 10_000n],
-    "widen oracle circuit breaker for liquidation smoke",
-    riskDelay,
-  );
+  await normalizeOracleToBaseline(accessManagerRisk, riskAdmin, oracle, riskDelay, baselineOraclePrice);
 
   const lenderSeed = ethers.parseUnits("20000", 18);
   const liquidatorSeed = ethers.parseUnits("10000", 18);
@@ -154,24 +191,16 @@ async function main() {
     "restore original risk engine",
     riskDelay,
   );
-  await executeManagedCall(
-    accessManagerRisk,
-    riskAdmin,
-    oracle,
-    "setPrice",
-    [1_000n * WAD],
-    "restore oracle price",
-    riskDelay,
-  );
+  await normalizeOracleToBaseline(accessManagerRisk, riskAdmin, oracle, riskDelay, baselineOraclePrice);
   await executeManagedCall(
     accessManagerRisk,
     riskAdmin,
     oracle,
     "setCircuitBreaker",
     [
-      originalBreaker.minPriceWad,
-      originalBreaker.maxPriceWad,
-      originalBreaker.maxPriceChangeBps,
+      baselineBreaker.minPriceWad,
+      baselineBreaker.maxPriceWad,
+      baselineBreaker.maxPriceChangeBps,
     ],
     "restore oracle circuit breaker",
     riskDelay,

@@ -1,127 +1,61 @@
 {
-  "generatedAt": "2026-03-15T17:10:55.986Z",
-  "fromBlock": 6429182,
-  "toBlock": 6434182,
+  "generatedAt": "2026-03-15T20:16:48.142Z",
+  "fromBlock": 6434174,
+  "toBlock": 6439174,
   "items": [
     {
       "label": "Collateral deposited",
-      "detail": "0x1c63…dd85 deposited 20.00 WPAS",
-      "txHash": "0x03e72b7e6f158520b952eb74224d2ba0acd64e0f8e7e03e174815600bc8c483a",
-      "blockNumber": "6433223"
-    },
-    {
-      "label": "Collateral deposited",
       "detail": "0x8fC7…6070 deposited 20.00 WPAS",
-      "txHash": "0x49b52df68127057a98ea722013afb02ec2502caeab531196d0a7e4709e927dc4",
-      "blockNumber": "6432907"
-    },
-    {
-      "label": "Repaid",
-      "detail": "0x31FA…D080 repaid 50.00 USDC-test",
-      "txHash": "0x160a9b7dcbf78d1bd391b864c7517fbe6a97540ba8985ec0947889a17659cdf4",
-      "blockNumber": "6431664"
-    },
-    {
-      "label": "Borrowed",
-      "detail": "0x31FA…D080 borrowed 200.00 USDC-test",
-      "txHash": "0x310dd7d43cc2b11065d44fa2a671d157d7044447082033805a00b53948bb7629",
-      "blockNumber": "6431661"
-    },
-    {
-      "label": "Collateral deposited",
-      "detail": "0x31FA…D080 deposited 2.00 WPAS",
-      "txHash": "0xdc4341aa9ac3530369f727faec91890dfe534baa28d28e3aa43a96901839ed49",
-      "blockNumber": "6431660"
-    },
-    {
-      "label": "Repaid",
-      "detail": "0x31FA…D080 repaid 50.00 USDC-test",
-      "txHash": "0xae007fc31a240c76a4a0d460fca0bc788067a3bd5817de0de20071b4b67ddaab",
-      "blockNumber": "6430745"
-    },
-    {
-      "label": "Borrowed",
-      "detail": "0x31FA…D080 borrowed 200.00 USDC-test",
-      "txHash": "0x01bea88ec194aa6d5ff686cf7bafb990eb8e5c7a0dd82600ae913ee9ecc55263",
-      "blockNumber": "6430741"
-    },
-    {
-      "label": "Collateral deposited",
-      "detail": "0x31FA…D080 deposited 2.00 WPAS",
-      "txHash": "0x3b07853c60c74630330b241bce14567c4db32c68b46baec9e781176949b733dd",
-      "blockNumber": "6430740"
+      "txHash": "0xec622ea9181b926346a5c2e4396e42e0e3221af1ca9a59df369872d906272f2e",
+      "blockNumber": "6439131"
     },
     {
       "label": "Liquidated",
       "detail": "0x8fC7…6070 liquidated by 0x7cbE…f000",
-      "txHash": "0xff230b14e2db0a127ca7c75479675518643899af3cedcb4d7941f712e4885db3",
-      "blockNumber": "6429962"
+      "txHash": "0xe8d1f4e36cbbb4c829f2b4d8ee19afc48acc2975e7a29804db9b28099932cef5",
+      "blockNumber": "6438678"
     },
     {
       "label": "Borrowed",
       "detail": "0x8fC7…6070 borrowed 10000.00 USDC-test",
-      "txHash": "0xb1baa844a91550b8a00eac759a081863973b59ee17564f27ac09bbad04c74ac9",
-      "blockNumber": "6429947"
+      "txHash": "0xe68350970120f15a544a824a1def431cdc5af1f446a3b21fdb627f548fa46c84",
+      "blockNumber": "6438657"
     },
     {
       "label": "Collateral deposited",
       "detail": "0x8fC7…6070 deposited 20.00 WPAS",
-      "txHash": "0x7e8bc5ab92c84232940ac759708c70635ea93541d9830782244284a01446f612",
-      "blockNumber": "6429946"
+      "txHash": "0x3fae2df0ce6fadde586591a114dbf8db65ec1e7f855206266836b3d928c00d46",
+      "blockNumber": "6438655"
     },
     {
-      "label": "Collateral deposited",
-      "detail": "0x7cbE…f000 deposited 20.00 WPAS",
-      "txHash": "0x65ef676103d0723a01fb49ab9b40b438f79494c052cc37f4cc2468fee86e1576",
-      "blockNumber": "6429918"
-    },
-    {
-      "label": "Collateral deposited",
-      "detail": "0x7cbE…f000 deposited 20.00 WPAS",
-      "txHash": "0x4d57ec401477b83eb0bddd325dd56f06dcf7aea75ebd10018e53a83cd73d1724",
-      "blockNumber": "6429868"
-    },
-    {
-      "label": "Collateral deposited",
-      "detail": "0x1c63…dd85 deposited 20.00 WPAS",
-      "txHash": "0x7ddc801a1df9ed0abd08c5f1576461a8a27ac5b16868e36a9dc52cfca18dcc96",
-      "blockNumber": "6429831"
-    },
-    {
-      "label": "Collateral deposited",
-      "detail": "0x31FA…D080 deposited 20.00 WPAS",
-      "txHash": "0x2db3299457867d7c541184008f2611302e4fe84b55be21d0077d8f748402d517",
-      "blockNumber": "6429813"
-    },
-    {
-      "label": "Liquidated",
-      "detail": "0x31FA…D080 liquidated by 0x8fC7…6070",
-      "txHash": "0xc5c412cd197adb0ccd853caa158f744c4c6a5fae23e9c1821297d33002d4f203",
-      "blockNumber": "6429755"
+      "label": "Repaid",
+      "detail": "0x8fC7…6070 repaid 50.00 USDC-test",
+      "txHash": "0x924ef9d6e5e5e69de37ffcaaf6c81593b1bc496a03ec049802d80392f247e43a",
+      "blockNumber": "6438586"
     },
     {
       "label": "Borrowed",
-      "detail": "0x31FA…D080 borrowed 13000.00 USDC-test",
-      "txHash": "0x5a0ae9670eb203388fd913679f3ef15a59c6f2136275e864cabc9bbc30c41b94",
-      "blockNumber": "6429750"
+      "detail": "0x8fC7…6070 borrowed 200.00 USDC-test",
+      "txHash": "0x658ce8b5e631c3e77d970678e14da986a87a464eca274b1a8585baa65d846ba0",
+      "blockNumber": "6438582"
     },
     {
       "label": "Collateral deposited",
-      "detail": "0x31FA…D080 deposited 20.00 WPAS",
-      "txHash": "0x3a090181f404351ddcd692c5559fcf144e4b5d79d6f44725dc18077c66a2b917",
-      "blockNumber": "6429749"
+      "detail": "0x8fC7…6070 deposited 2.00 WPAS",
+      "txHash": "0x5bb5a89323efb7bdb56656b20c68ea01457ddfe9506f2534c116a6ac2863a602",
+      "blockNumber": "6438581"
     },
     {
       "label": "Borrowed",
       "detail": "0x3799…3b10 borrowed 100.00 USDC-test",
-      "txHash": "0xc86b9a19823a10591dad69f62fd2ff50ca6d53984122284f21ae883dcba8edd4",
-      "blockNumber": "6429666"
+      "txHash": "0x7146d1eb98dd22749c07c290d721769bf20b11b83d5eb43894297231d145df52",
+      "blockNumber": "6438563"
     },
     {
       "label": "Collateral deposited",
       "detail": "0x3799…3b10 deposited 2.00 WPAS",
-      "txHash": "0x7cd2ae6f856faac65cda232b3dc9c5c363e2126409148efe1704cce1d04b1914",
-      "blockNumber": "6429665"
+      "txHash": "0xd43ec1be7efa4c79e0413064625bbb3ad41a632f37d144efc4061e4094d3e24b",
+      "blockNumber": "6438562"
     }
   ]
 }
