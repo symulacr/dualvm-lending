@@ -98,6 +98,7 @@ Important current limits:
 - DoraHacks package doc: `docs/dualvm/dualvm_dorahacks_submission.md`
 - Screenshot assets: `docs/dualvm/screenshots/`
 - Canonical demo guide: `docs/dualvm/dualvm_submission_demo_guide.md`
+- Final scoring rehearsal: `docs/dualvm/dualvm_final_scoring_rehearsal.md`
 
 ## Repository map
 - Live app and contracts: `dualvm/`
