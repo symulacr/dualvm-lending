@@ -1,0 +1,30 @@
+{
+  "network": {
+    "name": "Polkadot Hub TestNet",
+    "chainId": 420420417,
+    "explorerUrl": "https://blockscout-testnet.polkadot.io"
+  },
+  "oracleAddress": "0x7627582B2183bf8327f0ead9aA1D352201c7De06",
+  "circuitBreakerDefaults": {
+    "minPriceWad": "1000000000000000000",
+    "maxPriceWad": "10000000000000000000000",
+    "maxPriceChangeBps": "2500"
+  },
+  "upgradeProof": {
+    "configureOracleRiskRole": "0xde5141adc43f1efc1b8afc33d3ce843027418f929127d586f32c7723a32197e9",
+    "configureOracleEmergencyRole": "0x25f22df72ca35bd2a05d424917323ea811a60ded10b8c2bd812b3cd7852623e3",
+    "setOracleAdminDelay": "0x232483ac081ad741b69b489848785f2679f584ccb70080ee1587b4cfcb2355e1",
+    "setOracleOnLendingCoreSchedule": "0x8ea6d68c7934b91174e125eae73b5927cadf3e2bbdfb855424c82d47ad21d6d7",
+    "setOracleOnLendingCoreExecute": "0x3cd21784aa3d1ff245a37c561b3d5f94f7c42215baa640db5949912043cb42e6"
+  },
+  "oracleSmokeProof": {
+    "widenCircuitBreakerSchedule": "0x4cf5afefeed5295ea6a74119f8676ac63837bfb93378c64f1dfb0effb8ea6bc3",
+    "widenCircuitBreakerExecute": "0x1404d1cfa32b7570effc506b2b8d563a874ec201cf0e6bcf22aab76858023fa5",
+    "setIntermediatePriceSchedule": "0x6f6c007afe8f9edceee045e5f1c04ecf2e80861dc9dd776410e84013788c8317",
+    "setIntermediatePriceExecute": "0x6fba9ff70eb90f7261e0b02e343cd8d41308f96b9d455d292eb88ad197eac183",
+    "restoreBaselinePriceSchedule": "0x0430c68bac767e7df43e470b0a33b7eed0671b49482db1307f7252ff51912938",
+    "restoreBaselinePriceExecute": "0xb29d48a643268124464a05d5de818e143f8b28a5bd48aaee08938391a7f8fbb2",
+    "restoreCircuitBreakerSchedule": "0x069e84ad2a84e6a3c552a93e3d0829b4e87c3103ec672cfdeaf362e3dbc24d17",
+    "restoreCircuitBreakerExecute": "0x83e7264782969e1bc956ccadcc8944c7c538b0c161f7558839268cadae950392"
+  }
+}

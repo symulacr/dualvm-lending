@@ -1,0 +1,56 @@
+{
+  "idleTimeoutMs": 900000,
+  "servers": {
+    "typescript-language-server": {
+      "rootMarkers": [".lsp.json", "dualvm/package.json", "dualvm/tsconfig.json"]
+    },
+    "vscode-json-language-server": {
+      "rootMarkers": [".lsp.json"]
+    },
+    "vscode-css-language-server": {
+      "rootMarkers": [".lsp.json"]
+    },
+    "vscode-html-language-server": {
+      "command": "vscode-html-language-server",
+      "args": ["--stdio"],
+      "fileTypes": [".html", ".htm"],
+      "rootMarkers": [".lsp.json"],
+      "initOptions": {
+        "provideFormatter": true
+      }
+    },
+    "yaml-language-server": {
+      "command": "yaml-language-server",
+      "args": ["--stdio"],
+      "fileTypes": [".yaml", ".yml"],
+      "rootMarkers": [".lsp.json"]
+    },
+    "bash-language-server": {
+      "command": "bash-language-server",
+      "args": ["start"],
+      "fileTypes": [".sh", ".bash", ".zsh"],
+      "rootMarkers": [".lsp.json"]
+    },
+    "pyright": {
+      "rootMarkers": [".lsp.json"]
+    },
+    "ruff": {
+      "rootMarkers": [".lsp.json"]
+    },
+    "rust-analyzer": {
+      "rootMarkers": [".lsp.json"]
+    },
+    "taplo": {
+      "command": "taplo",
+      "args": ["lsp", "stdio"],
+      "fileTypes": [".toml"],
+      "rootMarkers": [".lsp.json"]
+    },
+    "nomicfoundation-solidity-language-server": {
+      "command": "nomicfoundation-solidity-language-server",
+      "args": ["--stdio"],
+      "fileTypes": [".sol"],
+      "rootMarkers": [".lsp.json", "dualvm/hardhat.config.ts", "dualvm/package.json"]
+    }
+  }
+}

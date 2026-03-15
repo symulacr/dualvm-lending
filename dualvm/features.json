@@ -1,0 +1,113 @@
+{
+  "network": {
+    "name": "Polkadot Hub TestNet",
+    "chainId": 420420417,
+    "manifest": "deployments/polkadot-hub-testnet.json"
+  },
+  "features": [
+    {
+      "id": "live-deploy",
+      "title": "Live deployment on Polkadot Hub TestNet",
+      "status": "done",
+      "evidence": [
+        "deployments/polkadot-hub-testnet.json",
+        "deployments/polkadot-hub-testnet-verification.json"
+      ]
+    },
+    {
+      "id": "borrow-flow",
+      "title": "Live borrow smoke",
+      "status": "done",
+      "evidence": [
+        "scripts/liveSmoke.ts"
+      ]
+    },
+    {
+      "id": "repay-flow",
+      "title": "Live repay smoke",
+      "status": "done",
+      "evidence": [
+        "scripts/liveRepaySmoke.ts"
+      ]
+    },
+    {
+      "id": "liquidation-flow",
+      "title": "Live liquidation smoke with bad-debt fix",
+      "status": "done",
+      "evidence": [
+        "scripts/liveLiquidationSmoke.ts",
+        "test/LendingCore.ts"
+      ]
+    },
+    {
+      "id": "governance-separation",
+      "title": "Operational role separation with delayed actions",
+      "status": "done",
+      "evidence": [
+        "scripts/applyRoleSeparation.ts",
+        "scripts/liveRiskAdminSmoke.ts",
+        "scripts/liveMinterSmoke.ts",
+        "deployments/polkadot-hub-testnet-governance-proof.json"
+      ]
+    },
+    {
+      "id": "frontend-observer",
+      "title": "Observer-mode frontend with health factor and recent events",
+      "status": "done",
+      "evidence": [
+        "src/App.tsx",
+        "src/lib/readModel.ts",
+        "src/lib/assetRegistry.ts"
+      ]
+    },
+    {
+      "id": "pvm-posture",
+      "title": "Frozen parity-only PVM wording",
+      "status": "done",
+      "evidence": [
+        "../docs/dualvm/dualvm_pvm_posture.md"
+      ]
+    },
+    {
+      "id": "production-oracle",
+      "title": "Hardened manual oracle with live circuit-breaker proof",
+      "status": "done",
+      "evidence": [
+        "contracts/ManualOracle.sol",
+        "scripts/upgradeOracle.ts",
+        "scripts/liveOracleSmoke.ts",
+        "deployments/polkadot-hub-testnet-oracle-proof.json"
+      ]
+    },
+    {
+      "id": "asset-realism",
+      "title": "Explicit asset-path truth for the mock debt asset",
+      "status": "done",
+      "evidence": [
+        "src/lib/assetRegistry.ts",
+        "src/App.tsx",
+        "../docs/dualvm/dualvm_asset_path_decision.md"
+      ]
+    },
+    {
+      "id": "ops-automation",
+      "title": "Watchlist-based monitoring and guarded liquidator operator scripts",
+      "status": "done",
+      "evidence": [
+        "ops/watchlist.json",
+        "scripts/liquidationWatch.mjs",
+        "scripts/executeLiquidation.ts"
+      ]
+    },
+    {
+      "id": "rpc-resilience",
+      "title": "Cached reads and recent-events snapshot fallback",
+      "status": "done",
+      "evidence": [
+        "scripts/snapshotRecentEvents.mjs",
+        "deployments/polkadot-hub-testnet-recent-events.json",
+        "src/lib/readModel.ts"
+      ]
+    }
+  ]
+}

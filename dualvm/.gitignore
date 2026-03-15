@@ -1,0 +1,10 @@
+node_modules/
+dist/
+artifacts/
+cache/
+coverage/
+typechain-types/
+pvm-artifacts/
+ignition/deployments/
+.env
+wallets/*.txt
