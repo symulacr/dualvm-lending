@@ -983,10 +983,14 @@ Current test cases:
 2. liquidation clears bad debt when accrued interest remains
 3. rejects excessive oracle jumps until the circuit breaker is widened
 4. rejects borrow attempts when the oracle is stale
-5. prevents non-admin minting of the debt asset
+5. rejects stale-oracle collateral withdrawals
+6. rejects unsafe collateral withdrawals
+7. blocks new borrows while paused but still allows repayment
+8. rejects liquidations that would leave dust debt below the minimum borrow amount
+9. restricts reserve claims to the treasury role
+10. prevents non-admin minting of the debt asset
 
-This is decent focused coverage for a small MVP, but it is not broad coverage.
-More specifically, local tests do not directly cover collateral withdrawal branches, pause/unpause behavior, reserve claiming, or the residual-debt floor after partial liquidation. Those are real state-machine branches in the current contracts even though they are not covered by a dedicated local test case.
+This is now solid focused coverage for a small MVP, but it is still not broad coverage. The highest-risk lending branches called out during review are no longer completely untested locally: stale-oracle withdrawal rejection, unsafe withdrawal rejection, reserve claiming, pause semantics, and the residual minimum-debt floor after partial liquidation now all have dedicated local assertions. What remains missing is wider system-level coverage, not the complete absence of those branches.
 
 What is not covered locally in a dedicated test file:
 - frontend behavior

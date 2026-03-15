@@ -101,6 +101,18 @@ From `dualvm/`:
 - `npm run liquidate:testnet`
 - `./init.sh`
 
+## Current local test coverage
+- deposit, borrow, repay, and liquidation happy path
+- bad-debt liquidation accounting when accrued interest remains
+- oracle circuit-breaker enforcement
+- stale-oracle rejection on both borrow and collateral withdrawal
+- unsafe collateral-withdrawal rejection
+- pause semantics: borrow blocked while paused, repay still allowed
+- minimum-debt floor enforcement after partial liquidation
+- treasury-only reserve claims
+- admin-gated debt-token minting
+
+
 ## Demo path
 1. Fund a wallet with PAS from the official faucet.
 2. Wrap PAS into WPAS.

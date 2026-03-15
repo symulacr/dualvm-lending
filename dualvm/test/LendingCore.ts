@@ -135,6 +135,79 @@ describe("DualVM isolated market", function () {
     );
   });
 
+  it("rejects stale-oracle collateral withdrawals", async function () {
+    const { borrower, oracle, core, collateralAmount } = await loadFixture(deployFixture);
+
+    await time.increase(ORACLE_DEFAULTS.maxAgeSeconds + 1);
+    await expect(core.connect(borrower).withdrawCollateral(collateralAmount / 2n)).to.be.revertedWithCustomError(
+      oracle,
+      "OraclePriceStale",
+    );
+  });
+
+  it("rejects unsafe collateral withdrawals", async function () {
+    const { borrower, core } = await loadFixture(deployFixture);
+
+    await core.connect(borrower).borrow(5_000n * WAD);
+
+    await expect(core.connect(borrower).withdrawCollateral(15n * WAD)).to.be.revertedWithCustomError(
+      core,
+      "InsufficientCollateral",
+    );
+  });
+
+  it("blocks new borrows while paused but still allows repayment", async function () {
+    const { deployer, borrower, core } = await loadFixture(deployFixture);
+
+    await core.connect(borrower).borrow(1_000n * WAD);
+    await core.connect(deployer).pause();
+
+    await expect(core.connect(borrower).borrow(CORE_DEFAULTS.minBorrowAmount)).to.be.revertedWithCustomError(
+      core,
+      "EnforcedPause",
+    );
+
+    const debtBeforeRepay = await core.currentDebt(borrower.address);
+    await expect(core.connect(borrower).repay(100n * WAD)).to.emit(core, "Repaid");
+    expect(await core.currentDebt(borrower.address)).to.be.lt(debtBeforeRepay);
+  });
+
+  it("rejects liquidations that would leave dust debt below the minimum borrow amount", async function () {
+    const { borrower, liquidator, oracle, core } = await loadFixture(deployFixture);
+
+    await core.connect(borrower).borrow(150n * WAD);
+    await oracle.setCircuitBreaker(
+      ORACLE_CIRCUIT_BREAKER_DEFAULTS.minPriceWad,
+      ORACLE_CIRCUIT_BREAKER_DEFAULTS.maxPriceWad,
+      10_000n,
+    );
+    await oracle.setPrice(4n * WAD);
+
+    await expect(core.connect(liquidator).liquidate(borrower.address, 60n * WAD))
+      .to.be.revertedWithCustomError(core, "DebtBelowMinimum")
+      .withArgs(anyValue, CORE_DEFAULTS.minBorrowAmount);
+  });
+
+  it("restricts reserve claims to the treasury role", async function () {
+    const { deployer, outsider, borrower, usdc, pool, core } = await loadFixture(deployFixture);
+
+    await core.connect(borrower).borrow(1_000n * WAD);
+    await time.increase(30 * 24 * 60 * 60);
+    await core.connect(borrower).repay(200n * WAD);
+
+    const reserveBalance = await pool.reserveBalance();
+    expect(reserveBalance).to.be.gt(0n);
+
+    await expect(pool.connect(outsider).claimReserves(outsider.address, reserveBalance)).to.be.reverted;
+
+    const treasuryBalanceBefore = await usdc.balanceOf(deployer.address);
+    await expect(pool.connect(deployer).claimReserves(deployer.address, reserveBalance))
+      .to.emit(pool, "ReservesClaimed")
+      .withArgs(deployer.address, reserveBalance);
+    expect(await usdc.balanceOf(deployer.address)).to.equal(treasuryBalanceBefore + reserveBalance);
+    expect(await pool.reserveBalance()).to.equal(0n);
+  });
+
   it("prevents non-admin minting of the debt asset", async function () {
     const { outsider, usdc } = await loadFixture(deployFixture);
 
