@@ -1,0 +1,34 @@
+{
+  "featureId": "lending-test-hardening",
+  "reviewedAt": "2026-03-16T21:57:37.126923Z",
+  "commitId": "ad5b12e5c4b6f85535c0ffa459d9f11e220f26fa",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "fail",
+  "codeReview": {
+    "summary": "The new lending and oracle scenarios are mostly covered, but the two OpenZeppelin validation assertions are not actually exercised. The ReentrancyGuard and ERC4626 inflation-attack tests are superficial and would still pass on vulnerable implementations, so the feature does not fully satisfy its contract.",
+    "issues": [
+      {
+        "file": "/home/kpa/polkadot/dualvm/test/LendingHardened.ts",
+        "line": 236,
+        "severity": "blocking",
+        "description": "VAL-OZ-001 is not actually tested. This case only checks that ABI entries like `borrow`, `repay`, `liquidate`, `depositCollateral`, `withdrawCollateral`, `deposit`, `withdraw`, and `redeem` exist in the interfaces, but the validation contract requires evidence that a reentrancy attempt reverts. Those selectors would still exist even if the `nonReentrant` modifiers were removed from the protected implementations in `dualvm/contracts/LendingCore.sol` (lines 310, 340, 372, 415, 454) and `dualvm/contracts/DebtPool.sol` (lines 70, 81, 93, 104), so this test can pass on a vulnerable build and does not satisfy VAL-OZ-001."
+      },
+      {
+        "file": "/home/kpa/polkadot/dualvm/test/LendingHardened.ts",
+        "line": 260,
+        "severity": "blocking",
+        "description": "VAL-OZ-002 is not meaningfully exercised. The test performs a 1-wei first deposit and then a normal second deposit, but it never simulates the inflation-attack path that OZ's virtual-offset defense is meant to stop (for example, an attacker seeding tiny shares and then donating assets to skew the exchange rate before a victim deposit). The current assertions (`> 0`, conversion consistency, and redeeming close to the second deposit) are generic ERC4626 properties that a vulnerable implementation would also satisfy, so this does not prove inflation-attack protection or 'no rounding exploit is possible'."
+      }
+    ]
+  },
+  "sharedStateObservations": [
+    {
+      "area": "skills",
+      "observation": "The Solidity worker skill's mandatory 'Write tests FIRST (red)' step is too rigid for pure test-hardening features that only add coverage for already-implemented behavior. This worker completed the feature without a real red phase and explicitly called out that mismatch in handoff feedback.",
+      "evidence": "`/home/kpa/polkadot/.factory/skills/solidity-worker/SKILL.md:28-32` requires failing tests before implementation, while `/home/kpa/.factory/missions/dc664f26-9086-4d9b-896d-ba8f3bde8d71/handoffs/2026-03-16T21-51-19-623Z__lending-test-hardening__db1edf02-5430-4f2c-8f90-c93773b9d953.json:80-83` records the worker's note that this step does not fit a test-only feature."
+    }
+  ],
+  "addressesFailureFrom": null,
+  "summary": "Reviewed the `lending-test-hardening` diff, handoff, transcript skeleton, and supporting contracts. Result: fail, because the new tests do not actually validate the promised OpenZeppelin reentrancy and ERC4626 inflation-attack assertions."
+}

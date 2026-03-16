@@ -1,0 +1,33 @@
+{
+  "featureId": "xcm-precompile-contract",
+  "reviewedAt": "2026-03-16T21:57:43.213768Z",
+  "commitId": "2482310",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "pass",
+  "codeReview": {
+    "summary": "The feature correctly adds the IXcm interface and a lightweight CrossChainQuoteEstimator wrapper at the documented XCM precompile address. The Solidity matches the current Polkadot docs and the wrapper is minimal and safe. I found one non-blocking coverage gap: the new interface test reconstructs an ABI in TypeScript instead of asserting against the compiled IXcm artifact, so it would not catch future drift in contracts/precompiles/IXcm.sol.",
+    "issues": [
+      {
+        "file": "dualvm/test/CrossChainQuoteEstimator.ts",
+        "line": 64,
+        "severity": "non_blocking",
+        "description": "The 'IXcm interface matches the Polkadot XCM precompile spec' test builds a fresh ethers.Interface from hard-coded ABI strings instead of asserting against the compiled ABI for contracts/precompiles/IXcm.sol. If IXcm.sol drifts from the Polkadot docs, this test can still pass, so it does not fully verify the local interface implementation the feature was meant to guard."
+      }
+    ]
+  },
+  "sharedStateObservations": [
+    {
+      "area": "skills",
+      "observation": "The solidity-worker skill's mandatory 'write tests FIRST (red)' step does not fit doc-defined precompile/interface wrapper work very well. In this feature the worker had to fetch the official XCM docs and create IXcm.sol/CrossChainQuoteEstimator.sol before the test, and the handoff itself suggested relaxing that rule for this class of work.",
+      "evidence": "Skill file /home/kpa/polkadot/.factory/skills/solidity-worker/SKILL.md step 3 says 'Write tests FIRST (red)'. Transcript skeleton for worker session 87837355-655e-4541-a303-fbe9dccb4009 shows WebSearch/FetchUrl for the XCM docs, then creation of dualvm/contracts/precompiles/IXcm.sol and dualvm/contracts/precompiles/CrossChainQuoteEstimator.sol, and only afterward creation of dualvm/test/CrossChainQuoteEstimator.ts. The handoff skillFeedback.suggestedChanges repeats this friction explicitly."
+    },
+    {
+      "area": "knowledge",
+      "observation": "Shared library context does not record the canonical XCM precompile address/interface or the official docs page, so the worker had to rediscover them from the web during implementation. A short library note would make future Track 2 precompile work cheaper.",
+      "evidence": "/home/kpa/polkadot/.factory/library/architecture.md and environment.md mention PVM probes and network endpoints but not the XCM precompile details. The transcript skeleton shows a WebSearch for 'Polkadot XCM precompile weighMessage interface 0x00000000000000000000000000000000000a0000 Solidity 2025 2026' followed by FetchUrl of https://docs.polkadot.com/develop/smart-contracts/precompiles/xcm-precompile/ before implementation."
+    }
+  ],
+  "addressesFailureFrom": null,
+  "summary": "Pass. The commit correctly adds IXcm.sol and CrossChainQuoteEstimator.sol at the documented precompile address, and the wrapper contract is minimal and safe. The only issue I found is non-blocking: the new test checks a manually reconstructed ABI instead of the compiled IXcm artifact, so it would miss future drift in the local interface file."
+}
