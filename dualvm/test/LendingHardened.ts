@@ -6,6 +6,7 @@ import {
   ORACLE_CIRCUIT_BREAKER_DEFAULTS,
   ORACLE_DEFAULTS,
   POOL_DEFAULTS,
+  RISK_ENGINE_DEFAULTS,
   WAD,
 } from "../lib/config/marketConfig";
 import { deployDualVmSystem } from "../lib/deployment/deploySystem";
@@ -270,6 +271,116 @@ describe("Lending hardened coverage", function () {
     // ReentrancyGuard should cause the entire transaction to revert with ReentrancyGuardReentrantCall
     await expect(testPool.connect(deployer).deposit(depositAmount, deployer.address))
       .to.be.revertedWithCustomError(testPool, "ReentrancyGuardReentrantCall");
+  });
+
+  // VAL-OZ-001 (LendingCore path): ReentrancyGuard blocks reentrant borrow during depositCollateral
+  it("ReentrancyGuard blocks reentrant borrow via malicious collateral during depositCollateral", async function () {
+    const { deployer } = await loadFixture(deployFixture);
+
+    // Deploy a fresh AccessManager for the isolated test
+    const amFactory = await ethers.getContractFactory("DualVMAccessManager", deployer);
+    const testAm = await amFactory.deploy(deployer.address);
+    await testAm.waitForDeployment();
+
+    // Deploy a malicious collateral token (ReentrantCollateral)
+    const maliciousCollateralFactory = await ethers.getContractFactory("ReentrantCollateral", deployer);
+    const maliciousCollateral = (await maliciousCollateralFactory.deploy()) as any;
+    await maliciousCollateral.waitForDeployment();
+
+    // Deploy real USDC mock for debt asset
+    const usdcFactory = await ethers.getContractFactory("USDCMock", deployer);
+    const testUsdc = (await usdcFactory.deploy(await testAm.getAddress())) as any;
+    await testUsdc.waitForDeployment();
+
+    // Grant deployer MINTER role on USDC
+    const mintSelector = testUsdc.interface.getFunction("mint")!.selector;
+    await testAm.setTargetFunctionRole(await testUsdc.getAddress(), [mintSelector], 4); // ROLE_IDS.MINTER = 4
+    await testAm.grantRole(4, deployer.address, 0);
+
+    // Deploy oracle
+    const oracleFactory = await ethers.getContractFactory("ManualOracle", deployer);
+    const testOracle = await oracleFactory.deploy(
+      await testAm.getAddress(),
+      ORACLE_DEFAULTS.initialPriceWad,
+      ORACLE_DEFAULTS.maxAgeSeconds,
+      ORACLE_CIRCUIT_BREAKER_DEFAULTS.minPriceWad,
+      ORACLE_CIRCUIT_BREAKER_DEFAULTS.maxPriceWad,
+      ORACLE_CIRCUIT_BREAKER_DEFAULTS.maxPriceChangeBps,
+    );
+    await testOracle.waitForDeployment();
+
+    // Grant deployer RISK_ADMIN for oracle
+    const oracleSelectors = ["setPrice", "setMaxAge", "setCircuitBreaker"].map(
+      (name) => testOracle.interface.getFunction(name)!.selector,
+    );
+    await testAm.setTargetFunctionRole(await testOracle.getAddress(), oracleSelectors, 2); // ROLE_IDS.RISK_ADMIN = 2
+    await testAm.grantRole(2, deployer.address, 0);
+
+    // Deploy risk engine (PvmRiskEngine as quote engine)
+    const quoteEngineFactory = await ethers.getContractFactory("PvmRiskEngine", deployer);
+    const quoteEngine = await quoteEngineFactory.deploy(
+      RISK_ENGINE_DEFAULTS.baseRateBps,
+      RISK_ENGINE_DEFAULTS.slope1Bps,
+      RISK_ENGINE_DEFAULTS.slope2Bps,
+      RISK_ENGINE_DEFAULTS.kinkBps,
+      RISK_ENGINE_DEFAULTS.healthyMaxLtvBps,
+      RISK_ENGINE_DEFAULTS.stressedMaxLtvBps,
+      RISK_ENGINE_DEFAULTS.healthyLiquidationThresholdBps,
+      RISK_ENGINE_DEFAULTS.stressedLiquidationThresholdBps,
+      RISK_ENGINE_DEFAULTS.staleBorrowRatePenaltyBps,
+      RISK_ENGINE_DEFAULTS.stressedCollateralRatioBps,
+    );
+    await quoteEngine.waitForDeployment();
+    const riskAdapterFactory = await ethers.getContractFactory("RiskAdapter", deployer);
+    const testRiskEngine = await riskAdapterFactory.deploy(await quoteEngine.getAddress());
+    await testRiskEngine.waitForDeployment();
+
+    // Deploy DebtPool backed by USDC
+    const poolFactory = await ethers.getContractFactory("DebtPool", deployer);
+    const testPool = (await poolFactory.deploy(
+      await testUsdc.getAddress(),
+      await testAm.getAddress(),
+      POOL_DEFAULTS.supplyCap,
+    )) as any;
+    await testPool.waitForDeployment();
+
+    // Deploy LendingCore with malicious collateral
+    const coreFactory = await ethers.getContractFactory("LendingCore", deployer);
+    const testCore = (await coreFactory.deploy(
+      await testAm.getAddress(),
+      await maliciousCollateral.getAddress(),
+      await testUsdc.getAddress(),
+      await testPool.getAddress(),
+      await testOracle.getAddress(),
+      await testRiskEngine.getAddress(),
+      CORE_DEFAULTS,
+    )) as any;
+    await testCore.waitForDeployment();
+
+    // Wire lending core to debt pool
+    await testPool.setLendingCore(await testCore.getAddress());
+
+    // Seed pool with liquidity so borrow is possible
+    const poolLiquidity = 50_000n * WAD;
+    await testUsdc.mint(deployer.address, poolLiquidity);
+    await testUsdc.connect(deployer).approve(await testPool.getAddress(), ethers.MaxUint256);
+    await testPool.connect(deployer).deposit(poolLiquidity, deployer.address);
+
+    // Mint malicious collateral to deployer and approve LendingCore
+    const collateralAmount = 20n * WAD;
+    await maliciousCollateral.mint(deployer.address, collateralAmount);
+    await maliciousCollateral.connect(deployer).approve(await testCore.getAddress(), ethers.MaxUint256);
+
+    // Arm the attack: when depositCollateral triggers transferFrom,
+    // the malicious token will try to call borrow() on LendingCore
+    const borrowAmount = 1_000n * WAD;
+    await maliciousCollateral.armAttack(await testCore.getAddress(), borrowAmount);
+
+    // depositCollateral → transferFrom → ReentrantCollateral._update → borrow()
+    // The reentrant borrow() call should be blocked by ReentrancyGuard,
+    // causing the entire transaction to revert with ReentrancyGuardReentrantCall
+    await expect(testCore.connect(deployer).depositCollateral(collateralAmount))
+      .to.be.revertedWithCustomError(testCore, "ReentrancyGuardReentrantCall");
   });
 
   // VAL-OZ-002: ERC4626 inflation attack protection on first deposit

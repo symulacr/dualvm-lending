@@ -101,6 +101,16 @@ export async function deployGovernedSystem(overrides: DeployGovernedOverrides) {
     "renounce timelock admin role",
   );
 
+  // Wire GovernanceToken.mint to MINTER role so that only MINTER-role holders can mint
+  await waitForTransaction(
+    accessManager.setTargetFunctionRole(
+      await governanceToken.getAddress(),
+      [selector(governanceToken, "mint")],
+      ROLE_IDS.MINTER,
+    ),
+    "set governance token mint role",
+  );
+
   // Wire governance role on MarketVersionRegistry through AccessManager
   await waitForTransaction(
     accessManager.setTargetFunctionRole(

@@ -380,51 +380,45 @@ describe("Governor lifecycle", function () {
     expect(timelockIsGovernance).to.equal(true);
   });
 
-  it("GovernanceToken.mint via AccessManager MINTER role succeeds, direct mint reverts", async function () {
-    const { deployer, outsider, governanceToken, accessManager, timelock } = await loadFixture(deployFixture);
+  it("GovernanceToken.mint via governed deployment: non-MINTER reverts, MINTER with delay succeeds after schedule", async function () {
+    const { deployer, outsider, governanceToken, accessManager, voter1 } =
+      await loadFixture(deployFixture);
 
-    // The GovernanceToken's mint() is `restricted` (AccessManaged).
-    // In the governed setup, the deployer lost admin role, but the timelock is admin.
-    // We need to grant MINTER role to deployer (via timelock) to test minting.
-    // For simplicity, we'll use a fresh governance token deployed with deployer as admin
-    // of a fresh AccessManager so we can directly test the MINTER role grant.
+    // After deployGovernedSystem(), governanceToken.mint is wired to ROLE_IDS.MINTER
+    // in the AccessManager. Deployer holds MINTER role from the base deployment with
+    // an execution delay (LIVE_ROLE_EXECUTION_DELAYS_SECONDS.minter = 60s).
 
-    // Deploy a fresh AccessManager where deployer is admin
-    const freshAmFactory = await ethers.getContractFactory("DualVMAccessManager", deployer);
-    const freshAm = await freshAmFactory.deploy(deployer.address);
-    await freshAm.waitForDeployment();
+    const tokenAddress = await governanceToken.getAddress();
+    const mintAmount = 1_000n * WAD;
 
-    // Deploy GovernanceToken with fresh AccessManager
-    const tokenFactory = await ethers.getContractFactory("GovernanceToken", deployer);
-    const token = (await tokenFactory.deploy(
-      await freshAm.getAddress(),
-      deployer.address,
-      INITIAL_SUPPLY,
-    )) as any;
-    await token.waitForDeployment();
+    // 1. Direct mint from outsider (no MINTER role) should revert with AccessManagedUnauthorized
+    await expect(governanceToken.connect(outsider).mint(outsider.address, mintAmount))
+      .to.be.revertedWithCustomError(governanceToken, "AccessManagedUnauthorized");
 
-    // Set up MINTER role (ROLE_IDS.MINTER = 4) on the token's mint function
-    const mintSelector = token.interface.getFunction("mint")!.selector;
-    await freshAm.setTargetFunctionRole(await token.getAddress(), [mintSelector], ROLE_IDS.MINTER);
+    // 2. voter1 (no MINTER role) also cannot mint
+    await expect(governanceToken.connect(voter1).mint(voter1.address, mintAmount))
+      .to.be.revertedWithCustomError(governanceToken, "AccessManagedUnauthorized");
 
-    // Direct mint from outsider (no role) should revert
-    await expect(token.connect(outsider).mint(outsider.address, 1_000n * WAD))
-      .to.be.revertedWithCustomError(token, "AccessManagedUnauthorized");
+    // 3. Deployer has MINTER role but with execution delay — direct mint requires scheduling
+    //    The first call should revert with AccessManagerNotScheduled (not AccessManagedUnauthorized)
+    //    because deployer IS authorized but the call needs to go through the schedule→execute flow.
+    const mintCalldata = governanceToken.interface.encodeFunctionData("mint", [outsider.address, mintAmount]);
+    await expect(governanceToken.connect(deployer).mint(outsider.address, mintAmount))
+      .to.be.revertedWithCustomError(accessManager, "AccessManagerNotScheduled");
 
-    // Direct mint from deployer (admin, but mint requires MINTER role) should also revert
-    // because admin role doesn't automatically grant function-level access
-    await expect(token.connect(deployer).mint(deployer.address, 1_000n * WAD))
-      .to.be.revertedWithCustomError(token, "AccessManagedUnauthorized");
+    // 4. Schedule the mint via AccessManager (when=0 means "as soon as delay allows")
+    const scheduleTx = await accessManager.connect(deployer).schedule(tokenAddress, mintCalldata, 0);
+    await scheduleTx.wait();
 
-    // Grant MINTER role to deployer
-    await freshAm.grantRole(ROLE_IDS.MINTER, deployer.address, 0);
+    // Wait for the minter execution delay (60s)
+    await time.increase(LIVE_ROLE_EXECUTION_DELAYS_SECONDS.minter + 1);
 
-    // Now mint should succeed
-    const supplyBefore = await token.totalSupply();
-    await token.connect(deployer).mint(outsider.address, 1_000n * WAD);
-    const supplyAfter = await token.totalSupply();
-    expect(supplyAfter - supplyBefore).to.equal(1_000n * WAD);
-    expect(await token.balanceOf(outsider.address)).to.equal(1_000n * WAD);
+    // 5. Now the scheduled mint should succeed via the target contract call
+    const supplyBefore = await governanceToken.totalSupply();
+    await governanceToken.connect(deployer).mint(outsider.address, mintAmount);
+    const supplyAfter = await governanceToken.totalSupply();
+    expect(supplyAfter - supplyBefore).to.equal(mintAmount);
+    expect(await governanceToken.balanceOf(outsider.address)).to.equal(mintAmount);
   });
 
   it("version activation requires full governance proposal flow", async function () {
