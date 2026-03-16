@@ -1,0 +1,102 @@
+{
+  "surface": "terminal-hardhat",
+  "group": "governance-admin-chain",
+  "assertions": [
+    {
+      "id": "VAL-GOV-008",
+      "status": "pass",
+      "reason": "Targeted governor lifecycle tests and the governed deployment role snapshot show AccessManager admin role 0 belongs to the timelock and not the deployer.",
+      "evidence": [
+        "evidence/governance-overhaul/governance-admin-chain/gov-admin-chain-tests.log :: deployer holds no admin roles after governed setup",
+        "evidence/governance-overhaul/governance-admin-chain/gov-admin-chain-tests.log :: governance chain-of-trust: accessManager admin is timelock, timelock proposer is governor, deployer has no admin, non-zero delays configured",
+        "evidence/governance-overhaul/governance-admin-chain/role-snapshot.log :: timelock admin role 0: hasRole=true delay=0",
+        "evidence/governance-overhaul/governance-admin-chain/role-snapshot.log :: deployer admin role 0: hasRole=false delay=0"
+      ]
+    },
+    {
+      "id": "VAL-GOV-009",
+      "status": "pass",
+      "reason": "Direct EOA activation reverts, while a full propose\u2192vote\u2192queue\u2192execute governor flow successfully activates the new market version.",
+      "evidence": [
+        "evidence/governance-overhaul/governance-admin-chain/version-activation-flow-tests.log :: direct version activation from EOA reverts",
+        "evidence/governance-overhaul/governance-admin-chain/version-activation-flow-tests.log :: version activation requires full governance proposal flow",
+        "evidence/governance-overhaul/governance-admin-chain/role-snapshot.log :: voter1 -> MarketVersionRegistry.activateVersion: immediate=false delay=0",
+        "evidence/governance-overhaul/governance-admin-chain/role-snapshot.log :: timelock -> MarketVersionRegistry.activateVersion: immediate=true delay=0"
+      ]
+    },
+    {
+      "id": "VAL-GOV-011",
+      "status": "fail",
+      "reason": "The deployer no longer has admin/governance root, but the governed deployment snapshot shows the deployer still retains privileged EMERGENCY, RISK_ADMIN, TREASURY, and MINTER roles, so the validation contract's stricter no-residual-privilege requirement is not met.",
+      "evidence": [
+        "evidence/governance-overhaul/governance-admin-chain/gov-admin-chain-tests.log :: governance chain-of-trust: accessManager admin is timelock, timelock proposer is governor, deployer has no admin, non-zero delays configured",
+        "evidence/governance-overhaul/governance-admin-chain/role-snapshot.log :: deployer emergency role: hasRole=true delay=0",
+        "evidence/governance-overhaul/governance-admin-chain/role-snapshot.log :: deployer risk admin role: hasRole=true delay=60",
+        "evidence/governance-overhaul/governance-admin-chain/role-snapshot.log :: deployer treasury role: hasRole=true delay=60",
+        "evidence/governance-overhaul/governance-admin-chain/role-snapshot.log :: deployer minter role: hasRole=true delay=60"
+      ]
+    },
+    {
+      "id": "VAL-OZ-003",
+      "status": "pass",
+      "reason": "AccessManager role-function mappings are present for LendingCore, DebtPool, and ManualOracle, outsider canCall checks are false for representative restricted functions, and the treasury-role enforcement test passes.",
+      "evidence": [
+        "evidence/governance-overhaul/governance-admin-chain/role-snapshot.log :: LendingCore.pause: role=1",
+        "evidence/governance-overhaul/governance-admin-chain/role-snapshot.log :: DebtPool.claimReserves: role=3",
+        "evidence/governance-overhaul/governance-admin-chain/role-snapshot.log :: ManualOracle.setPrice: role=2",
+        "evidence/governance-overhaul/governance-admin-chain/role-snapshot.log :: outsider -> DebtPool.claimReserves: immediate=false delay=0",
+        "evidence/governance-overhaul/governance-admin-chain/role-snapshot.log :: outsider -> ManualOracle.setPrice: immediate=false delay=0",
+        "evidence/governance-overhaul/governance-admin-chain/role-snapshot.log :: outsider -> LendingCore.pause: immediate=false delay=0",
+        "evidence/governance-overhaul/governance-admin-chain/treasury-role-enforcement-test.log :: restricts reserve claims to the treasury role"
+      ]
+    },
+    {
+      "id": "VAL-CROSS-002",
+      "status": "blocked",
+      "reason": "The terminal-hardhat assignment proved the governance activation flow on MarketVersionRegistry, but the required frontend reflection evidence could not be exercised on this terminal-only surface.",
+      "evidence": [
+        "evidence/governance-overhaul/governance-admin-chain/version-activation-flow-tests.log :: version activation requires full governance proposal flow"
+      ]
+    }
+  ],
+  "commandsRun": [
+    {
+      "command": "cd \"/home/kpa/polkadot/dualvm\" && \"./node_modules/.bin/hardhat\" test --no-compile test/GovernorLifecycle.ts --grep \"deployer holds no admin roles after governed setup|governor has proposer and canceller roles on timelock|governance chain-of-trust: accessManager admin is timelock, timelock proposer is governor, deployer has no admin, non-zero delays configured\" > \"/home/kpa/.factory/missions/dc664f26-9086-4d9b-896d-ba8f3bde8d71/evidence/governance-overhaul/governance-admin-chain/gov-admin-chain-tests.log\" 2>&1",
+      "exitCode": 0,
+      "observation": "All 3 targeted admin-chain tests passed."
+    },
+    {
+      "command": "cd \"/home/kpa/polkadot/dualvm\" && \"./node_modules/.bin/hardhat\" test --no-compile test/GovernorLifecycle.ts --grep \"direct version activation from EOA reverts|version activation requires full governance proposal flow\" > \"/home/kpa/.factory/missions/dc664f26-9086-4d9b-896d-ba8f3bde8d71/evidence/governance-overhaul/governance-admin-chain/version-activation-flow-tests.log\" 2>&1",
+      "exitCode": 0,
+      "observation": "Both targeted version-activation governance tests passed."
+    },
+    {
+      "command": "cd \"/home/kpa/polkadot/dualvm\" && \"./node_modules/.bin/hardhat\" test --no-compile test/GovernorLifecycle.ts --grep \"GovernanceToken.mint via governed deployment: non-MINTER reverts, MINTER with delay succeeds after schedule\" > \"/home/kpa/.factory/missions/dc664f26-9086-4d9b-896d-ba8f3bde8d71/evidence/governance-overhaul/governance-admin-chain/governance-token-minter-test.log\" 2>&1",
+      "exitCode": 0,
+      "observation": "The governed MINTER-role scheduling test passed."
+    },
+    {
+      "command": "cd \"/home/kpa/polkadot/dualvm\" && \"./node_modules/.bin/hardhat\" test --no-compile test/LendingCore.ts --grep \"restricts reserve claims to the treasury role\" > \"/home/kpa/.factory/missions/dc664f26-9086-4d9b-896d-ba8f3bde8d71/evidence/governance-overhaul/governance-admin-chain/treasury-role-enforcement-test.log\" 2>&1",
+      "exitCode": 0,
+      "observation": "The treasury-only reserve-claim enforcement test passed."
+    },
+    {
+      "command": "cd \"/home/kpa/polkadot/dualvm\" && node -r ts-node/register - <<'NODE' > \"/home/kpa/.factory/missions/dc664f26-9086-4d9b-896d-ba8f3bde8d71/evidence/governance-overhaul/governance-admin-chain/role-snapshot.log\" 2>&1 [deployGovernedSystem role snapshot script] NODE",
+      "exitCode": 0,
+      "observation": "The governed deployment snapshot showed timelock/governor root roles, concrete function-role mappings, outsider canCall denial, and residual deployer operational roles."
+    }
+  ],
+  "toolsUsed": [
+    "Execute",
+    "Read"
+  ],
+  "frictions": [],
+  "blockers": [
+    {
+      "description": "VAL-CROSS-002 requires frontend reflection evidence, but this assignment was limited to the terminal-hardhat surface.",
+      "affectedAssertions": [
+        "VAL-CROSS-002"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,130 @@
+{
+  "surface": "terminal-hardhat",
+  "group": "lending-hardening",
+  "assertions": [
+    {
+      "id": "VAL-LEND-016",
+      "status": "pass",
+      "reason": "The passing test 'ERC4626 share exchange rate increases after interest repayment' borrows, advances 90 days, repays full interest-bearing debt, and asserts pool.convertToAssets(WAD) increases after repayment.",
+      "evidence": [
+        "command: cd /home/kpa/polkadot/dualvm && npx hardhat test --no-compile test/LendingHardened.ts --grep \"ERC4626 share exchange rate increases after interest repayment|supply cap enforcement on DebtPool deposits|collateral withdrawal blocked when it would push LTV above maxLtvBps|interest accrues over time and currentDebt exceeds principal|freezeNewDebt blocks new borrows but repay and liquidate still work\"",
+        "test: ERC4626 share exchange rate increases after interest repayment",
+        "file: test/LendingHardened.ts:52",
+        "evidence/governance-overhaul/lending-hardening/hardhat-lending-output.txt"
+      ]
+    },
+    {
+      "id": "VAL-LEND-017",
+      "status": "pass",
+      "reason": "The passing test 'supply cap enforcement on DebtPool deposits' computes remaining capacity from POOL_DEFAULTS.supplyCap, then verifies deposit(remaining + 1) reverts with SupplyCapExceeded while deposit(remaining) succeeds.",
+      "evidence": [
+        "command: cd /home/kpa/polkadot/dualvm && npx hardhat test --no-compile test/LendingHardened.ts --grep \"ERC4626 share exchange rate increases after interest repayment|supply cap enforcement on DebtPool deposits|collateral withdrawal blocked when it would push LTV above maxLtvBps|interest accrues over time and currentDebt exceeds principal|freezeNewDebt blocks new borrows but repay and liquidate still work\"",
+        "test: supply cap enforcement on DebtPool deposits",
+        "file: test/LendingHardened.ts:80",
+        "evidence/governance-overhaul/lending-hardening/hardhat-lending-output.txt"
+      ]
+    },
+    {
+      "id": "VAL-LEND-018",
+      "status": "pass",
+      "reason": "The passing test 'collateral withdrawal blocked when it would push LTV above maxLtvBps' opens debt and then verifies withdrawCollateral(collateralAmount - 1 WAD) reverts with InsufficientCollateral.",
+      "evidence": [
+        "command: cd /home/kpa/polkadot/dualvm && npx hardhat test --no-compile test/LendingHardened.ts --grep \"ERC4626 share exchange rate increases after interest repayment|supply cap enforcement on DebtPool deposits|collateral withdrawal blocked when it would push LTV above maxLtvBps|interest accrues over time and currentDebt exceeds principal|freezeNewDebt blocks new borrows but repay and liquidate still work\"",
+        "test: collateral withdrawal blocked when it would push LTV above maxLtvBps",
+        "file: test/LendingHardened.ts:105",
+        "evidence/governance-overhaul/lending-hardening/hardhat-lending-output.txt"
+      ]
+    },
+    {
+      "id": "VAL-LEND-019",
+      "status": "pass",
+      "reason": "The passing test 'interest accrues over time and currentDebt exceeds principal' borrows, snapshots debt, advances 30 days and then 60 more days, and asserts currentDebt strictly increases over both checkpoints.",
+      "evidence": [
+        "command: cd /home/kpa/polkadot/dualvm && npx hardhat test --no-compile test/LendingHardened.ts --grep \"ERC4626 share exchange rate increases after interest repayment|supply cap enforcement on DebtPool deposits|collateral withdrawal blocked when it would push LTV above maxLtvBps|interest accrues over time and currentDebt exceeds principal|freezeNewDebt blocks new borrows but repay and liquidate still work\"",
+        "test: interest accrues over time and currentDebt exceeds principal",
+        "file: test/LendingHardened.ts:120",
+        "evidence/governance-overhaul/lending-hardening/hardhat-lending-output.txt"
+      ]
+    },
+    {
+      "id": "VAL-LEND-020",
+      "status": "pass",
+      "reason": "The passing test 'freezeNewDebt blocks new borrows but repay and liquidate still work' freezes debt issuance, verifies borrow() reverts with NewDebtDisabled, confirms repay lowers debt, and confirms liquidation still emits Liquidated after the position is pushed underwater.",
+      "evidence": [
+        "command: cd /home/kpa/polkadot/dualvm && npx hardhat test --no-compile test/LendingHardened.ts --grep \"ERC4626 share exchange rate increases after interest repayment|supply cap enforcement on DebtPool deposits|collateral withdrawal blocked when it would push LTV above maxLtvBps|interest accrues over time and currentDebt exceeds principal|freezeNewDebt blocks new borrows but repay and liquidate still work\"",
+        "test: freezeNewDebt blocks new borrows but repay and liquidate still work",
+        "file: test/LendingHardened.ts:144",
+        "evidence/governance-overhaul/lending-hardening/hardhat-lending-output.txt"
+      ]
+    },
+    {
+      "id": "VAL-ORACLE-001",
+      "status": "pass",
+      "reason": "The passing test 'oracle circuit breaker rejects out-of-bounds prices' narrows the circuit breaker bounds and verifies setPrice() reverts with OraclePriceOutOfBounds for both below-min and above-max prices while allowing the exact upper bound.",
+      "evidence": [
+        "command: cd /home/kpa/polkadot/dualvm && npx hardhat test --no-compile test/LendingHardened.ts --grep \"oracle circuit breaker rejects out-of-bounds prices|oracle circuit breaker rejects too-large price deltas\"",
+        "test: oracle circuit breaker rejects out-of-bounds prices",
+        "file: test/LendingHardened.ts:174",
+        "evidence/governance-overhaul/lending-hardening/hardhat-oracle-output.txt"
+      ]
+    },
+    {
+      "id": "VAL-ORACLE-002",
+      "status": "pass",
+      "reason": "The passing test 'oracle circuit breaker rejects too-large price deltas' verifies the default maxPriceChangeBps rejects a 30% jump and a ~33% drop with OraclePriceDeltaTooLarge while allowing a 20% move.",
+      "evidence": [
+        "command: cd /home/kpa/polkadot/dualvm && npx hardhat test --no-compile test/LendingHardened.ts --grep \"oracle circuit breaker rejects out-of-bounds prices|oracle circuit breaker rejects too-large price deltas\"",
+        "test: oracle circuit breaker rejects too-large price deltas",
+        "file: test/LendingHardened.ts:218",
+        "evidence/governance-overhaul/lending-hardening/hardhat-oracle-output.txt"
+      ]
+    },
+    {
+      "id": "VAL-OZ-001",
+      "status": "pass",
+      "reason": "Two passing tests cover both contracts: one proves DebtPool.deposit reentrancy reverts with ReentrancyGuardReentrantCall via MaliciousERC20, and another proves LendingCore blocks a reentrant borrow triggered during depositCollateral via ReentrantCollateral with the same guard.",
+      "evidence": [
+        "command: cd /home/kpa/polkadot/dualvm && npx hardhat test --no-compile test/LendingHardened.ts --grep \"ReentrancyGuard is active on LendingCore and DebtPool|ReentrancyGuard blocks reentrant borrow via malicious collateral during depositCollateral|ERC4626 inflation attack protection on first deposit\"",
+        "test: ReentrancyGuard is active on LendingCore and DebtPool",
+        "test: ReentrancyGuard blocks reentrant borrow via malicious collateral during depositCollateral",
+        "file: test/LendingHardened.ts:236",
+        "file: test/LendingHardened.ts:276",
+        "evidence/governance-overhaul/lending-hardening/hardhat-oz-output.txt"
+      ]
+    },
+    {
+      "id": "VAL-OZ-002",
+      "status": "pass",
+      "reason": "The passing test 'ERC4626 inflation attack protection on first deposit' simulates a first-deposit donation attack and verifies the victim still receives non-zero shares and the attacker redeemable value stays less than or equal to attacker cost, matching OZ virtual-offset protection.",
+      "evidence": [
+        "command: cd /home/kpa/polkadot/dualvm && npx hardhat test --no-compile test/LendingHardened.ts --grep \"ReentrancyGuard is active on LendingCore and DebtPool|ReentrancyGuard blocks reentrant borrow via malicious collateral during depositCollateral|ERC4626 inflation attack protection on first deposit\"",
+        "test: ERC4626 inflation attack protection on first deposit",
+        "file: test/LendingHardened.ts:386",
+        "evidence/governance-overhaul/lending-hardening/hardhat-oz-output.txt"
+      ]
+    }
+  ],
+  "commandsRun": [
+    {
+      "command": "cd /home/kpa/polkadot/dualvm && npx hardhat test --no-compile test/LendingHardened.ts --grep \"ERC4626 share exchange rate increases after interest repayment|supply cap enforcement on DebtPool deposits|collateral withdrawal blocked when it would push LTV above maxLtvBps|interest accrues over time and currentDebt exceeds principal|freezeNewDebt blocks new borrows but repay and liquidate still work\"",
+      "exitCode": 0,
+      "observation": "5 targeted lending-hardening tests passed: ERC4626 share exchange rate increases after interest repayment; supply cap enforcement on DebtPool deposits; collateral withdrawal blocked when it would push LTV above maxLtvBps; interest accrues over time and currentDebt exceeds principal; freezeNewDebt blocks new borrows but repay and liquidate still work."
+    },
+    {
+      "command": "cd /home/kpa/polkadot/dualvm && npx hardhat test --no-compile test/LendingHardened.ts --grep \"oracle circuit breaker rejects out-of-bounds prices|oracle circuit breaker rejects too-large price deltas\"",
+      "exitCode": 0,
+      "observation": "2 targeted oracle circuit-breaker tests passed: oracle circuit breaker rejects out-of-bounds prices; oracle circuit breaker rejects too-large price deltas."
+    },
+    {
+      "command": "cd /home/kpa/polkadot/dualvm && npx hardhat test --no-compile test/LendingHardened.ts --grep \"ReentrancyGuard is active on LendingCore and DebtPool|ReentrancyGuard blocks reentrant borrow via malicious collateral during depositCollateral|ERC4626 inflation attack protection on first deposit\"",
+      "exitCode": 0,
+      "observation": "3 targeted OpenZeppelin integration tests passed: ReentrancyGuard is active on LendingCore and DebtPool; ReentrancyGuard blocks reentrant borrow via malicious collateral during depositCollateral; ERC4626 inflation attack protection on first deposit."
+    }
+  ],
+  "toolsUsed": [
+    "Execute",
+    "Read"
+  ],
+  "frictions": [],
+  "blockers": []
+}
