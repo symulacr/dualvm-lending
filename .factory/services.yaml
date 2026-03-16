@@ -5,7 +5,7 @@ commands:
   build: cd dualvm && npm run build
   compile: cd dualvm && npx hardhat compile
   compile_pvm: cd dualvm && npm run build:pvm:probes
-  lint: cd dualvm && npx eslint . --ext .ts,.tsx || true
+  lint: echo "ESLint not configured yet — lint is a no-op until ci-enhancement feature adds it"
 
 services:
   vite-dev:
