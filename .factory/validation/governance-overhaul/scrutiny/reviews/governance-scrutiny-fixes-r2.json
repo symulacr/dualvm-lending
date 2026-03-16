@@ -1,0 +1,15 @@
+{
+  "featureId": "governance-scrutiny-fixes-r2",
+  "reviewedAt": "2026-03-16T22:33:22Z",
+  "commitId": "96b32315540630258d1d734b960a16cb35872033",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "pass",
+  "codeReview": {
+    "summary": "The rerun fix closes both remaining round-2 blockers. `deployGovernedSystem()` now wires `GovernanceToken.mint` to `ROLE_IDS.MINTER`, and `GovernorLifecycle.ts` verifies the real governed deployment path by checking outsider/non-minter reverts plus the deployer's delayed AccessManager schedule→execute mint flow. `LendingHardened.ts` also adds a real LendingCore reentrancy test using `ReentrantCollateral`, which re-enters `borrow()` during `depositCollateral()` and correctly expects `ReentrancyGuardReentrantCall`.",
+    "issues": []
+  },
+  "sharedStateObservations": [],
+  "addressesFailureFrom": "/home/kpa/polkadot/.factory/validation/governance-overhaul/scrutiny/reviews/governance-scrutiny-fixes.json",
+  "summary": "Reviewed the prior failed review/synthesis, both feature handoffs, transcript skeleton context for the fix worker, the original and rerun commit diffs, and the touched Solidity/TypeScript files. Result: pass. The governed mint path is now wired and exercised through the real deployment helper, and LendingCore now has concrete reentrancy coverage in addition to the existing DebtPool test."
+}
