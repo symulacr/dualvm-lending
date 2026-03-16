@@ -27,6 +27,14 @@ export interface DeployGovernedOverrides extends DeployDualVmOverrides {
 }
 
 export async function deployGovernedSystem(overrides: DeployGovernedOverrides) {
+  // ── Bootstrap-then-transfer pattern ──
+  // We first deploy the full DualVM system via `deployDualVmSystem()` using the deployer EOA
+  // as the initial admin/owner. This is intentional: the Governor and TimelockController
+  // cannot exist yet at this stage, so the deployer must temporarily hold admin power.
+  // After the Governor stack is deployed below, we transfer AccessManager admin to the
+  // TimelockController, grant the Governor PROPOSER/CANCELLER roles on the timelock,
+  // and revoke all deployer admin privileges — completing the handoff to on-chain governance.
+
   // Governed deployments default to LIVE execution delays (non-zero for sensitive roles)
   const governedOverrides: DeployGovernedOverrides = {
     ...overrides,
@@ -116,8 +124,16 @@ export async function deployGovernedSystem(overrides: DeployGovernedOverrides) {
   );
   await waitForTransaction(accessManager.revokeRole(0, await deployer.getAddress()), "revoke deployer admin role");
 
+  // Return corrected governance metadata: admin is now the timelock (not the deployer).
+  // The base deployment's governance.admin still points to the deployer, so we override it
+  // here to reflect the post-transfer state of the system.
+  const timelockAddress = await timelock.getAddress();
   return {
     ...base,
+    governance: {
+      ...base.governance,
+      admin: timelockAddress,
+    },
     governanceRoot: {
       governanceToken,
       governor,

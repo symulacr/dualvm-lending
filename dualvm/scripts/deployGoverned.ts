@@ -22,7 +22,7 @@ export async function main() {
     initialLiquidity: process.env.INITIAL_LIQUIDITY ? BigInt(process.env.INITIAL_LIQUIDITY) : undefined,
     oraclePriceWad: process.env.INITIAL_ORACLE_PRICE_WAD ? BigInt(process.env.INITIAL_ORACLE_PRICE_WAD) : undefined,
     oracleMaxAgeSeconds: process.env.ORACLE_MAX_AGE_SECONDS ? Number(process.env.ORACLE_MAX_AGE_SECONDS) : undefined,
-    adminDelaySeconds: process.env.ADMIN_DELAY_SECONDS ? Number(process.env.ADMIN_DELAY_SECONDS) : LIVE_ROLE_EXECUTION_DELAYS_SECONDS.riskAdmin,
+    adminDelaySeconds: process.env.ADMIN_DELAY_SECONDS ? Number(process.env.ADMIN_DELAY_SECONDS) : 3600,
     emergencyExecutionDelaySeconds: process.env.EMERGENCY_EXECUTION_DELAY_SECONDS
       ? Number(process.env.EMERGENCY_EXECUTION_DELAY_SECONDS)
       : LIVE_ROLE_EXECUTION_DELAYS_SECONDS.emergency,
@@ -49,10 +49,7 @@ export async function main() {
     networkName: network.name,
     polkadotHubTestnet: deployment.network,
     roles: deployment.roles as DeploymentManifest["roles"],
-    governance: {
-      ...(deployment.governance as DeploymentManifest["governance"]),
-      admin: (await deployment.governanceRoot.timelock.getAddress()) as HexAddress,
-    },
+    governance: deployment.governance as DeploymentManifest["governance"],
     config: {
       ...deployment.config,
       oraclePriceWad: deployment.config.oraclePriceWad.toString(),

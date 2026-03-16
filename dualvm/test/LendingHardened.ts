@@ -234,73 +234,115 @@ describe("Lending hardened coverage", function () {
 
   // VAL-OZ-001: ReentrancyGuard active on LendingCore and DebtPool
   it("ReentrancyGuard is active on LendingCore and DebtPool", async function () {
-    const { pool, core } = await loadFixture(deployFixture);
+    const { deployer } = await loadFixture(deployFixture);
 
-    // We verify indirectly that ReentrancyGuard is present by checking that the contracts
-    // inherit from ReentrancyGuard (they have nonReentrant on state-changing functions).
-    // Direct reentrancy attack requires a malicious contract which is overkill for this assertion.
-    // Instead, we verify the contracts exist and their key functions work normally
-    // (if ReentrancyGuard were broken, normal calls would also fail).
+    // Deploy a MaliciousERC20 that re-enters DebtPool.deposit() during transferFrom().
+    // This proves ReentrancyGuard blocks the reentrant call.
+    const maliciousFactory = await ethers.getContractFactory("MaliciousERC20", deployer);
+    const maliciousToken = (await maliciousFactory.deploy()) as any;
+    await maliciousToken.waitForDeployment();
 
-    // Verify LendingCore has ReentrancyGuard by checking its function selectors exist
-    // (borrow, repay, liquidate, depositCollateral, withdrawCollateral all have nonReentrant)
-    expect(core.interface.getFunction("borrow")).to.not.be.null;
-    expect(core.interface.getFunction("repay")).to.not.be.null;
-    expect(core.interface.getFunction("liquidate")).to.not.be.null;
-    expect(core.interface.getFunction("depositCollateral")).to.not.be.null;
-    expect(core.interface.getFunction("withdrawCollateral")).to.not.be.null;
+    // Deploy a fresh AccessManager for the test pool
+    const amFactory = await ethers.getContractFactory("DualVMAccessManager", deployer);
+    const testAm = await amFactory.deploy(deployer.address);
+    await testAm.waitForDeployment();
 
-    // DebtPool: deposit, withdraw, drawDebt all have nonReentrant
-    expect(pool.interface.getFunction("deposit")).to.not.be.null;
-    expect(pool.interface.getFunction("withdraw")).to.not.be.null;
-    expect(pool.interface.getFunction("redeem")).to.not.be.null;
+    // Deploy a DebtPool backed by the malicious token
+    const poolFactory = await ethers.getContractFactory("DebtPool", deployer);
+    const testPool = (await poolFactory.deploy(
+      await maliciousToken.getAddress(),
+      await testAm.getAddress(),
+      ethers.MaxUint256, // large supply cap
+    )) as any;
+    await testPool.waitForDeployment();
+
+    // Mint tokens to the deployer and approve the pool
+    const depositAmount = 1_000n * WAD;
+    const reentrantAmount = 500n * WAD;
+    await maliciousToken.mint(deployer.address, depositAmount + reentrantAmount);
+    await maliciousToken.connect(deployer).approve(await testPool.getAddress(), ethers.MaxUint256);
+
+    // Arm the attack: when the pool calls transferFrom (during deposit),
+    // the malicious token tries to call deposit() again
+    await maliciousToken.armAttack(await testPool.getAddress(), reentrantAmount);
+
+    // The outer deposit triggers transferFrom → MaliciousERC20._update → re-enters deposit()
+    // ReentrancyGuard should cause the entire transaction to revert with ReentrancyGuardReentrantCall
+    await expect(testPool.connect(deployer).deposit(depositAmount, deployer.address))
+      .to.be.revertedWithCustomError(testPool, "ReentrancyGuardReentrantCall");
   });
 
   // VAL-OZ-002: ERC4626 inflation attack protection on first deposit
   it("ERC4626 inflation attack protection on first deposit", async function () {
-    // Deploy a fresh system with no initial liquidity to test first deposit
-    const [deployer, firstDepositor, secondDepositor] = await ethers.getSigners();
+    // Simulate the classic ERC4626 inflation attack and verify OZ's virtual offset
+    // protection (with _decimalsOffset() = 0, the vault uses +1 virtual share / +1 virtual asset).
+    //
+    // Attack steps:
+    // 1. Attacker deposits 1 wei to become the sole shareholder
+    // 2. Attacker donates a large amount directly to the vault (inflating assets/share)
+    // 3. Victim deposits a moderate amount
+    //
+    // With OZ's +1 virtual offset:
+    // - victim shares = victimDeposit * (totalSupply + 1) / (totalAssets + 1)
+    // - The +1 terms ensure the victim gets non-zero shares even after donation,
+    //   provided the victim's deposit is at least as large as the donation.
+    // - The attack becomes unprofitable: the attacker's donation cost exceeds
+    //   the value they can extract from rounding.
+
+    const [deployer, attacker, victim] = await ethers.getSigners();
     const freshDeployment = await deployDualVmSystem();
     const { usdc, debtPool: pool } = freshDeployment.contracts as any;
+    const poolAddress = await pool.getAddress();
 
     // Pool should be empty
     expect(await pool.totalSupply()).to.equal(0n);
     expect(await pool.totalAssets()).to.equal(0n);
 
-    // Mint tokens for depositors
-    const firstDepositAmount = 1n; // Tiny first deposit (1 wei)
-    const secondDepositAmount = 1_000n * WAD; // Normal second deposit
+    // Step 1: Attacker deposits 1 wei to become sole shareholder
+    await usdc.mint(attacker.address, 1n);
+    await usdc.connect(attacker).approve(poolAddress, ethers.MaxUint256);
+    await pool.connect(attacker).deposit(1n, attacker.address);
 
-    await usdc.mint(deployer.address, firstDepositAmount);
-    await usdc.connect(deployer).approve(await pool.getAddress(), ethers.MaxUint256);
+    const attackerShares = await pool.balanceOf(attacker.address);
+    expect(attackerShares).to.be.gt(0n);
 
-    // First deposit: thanks to OZ's virtual offset (decimals offset = 0 by default),
-    // the shares are computed with a +1 virtual offset preventing inflation attacks
-    await pool.connect(deployer).deposit(firstDepositAmount, deployer.address);
-    const firstShares = await pool.balanceOf(deployer.address);
-    expect(firstShares).to.be.gt(0n);
+    // Step 2: Attacker donates directly to the vault to inflate the exchange rate.
+    // With offset 0, the attacker can at most steal ~(donation) from the victim via rounding,
+    // but they LOSE the donated tokens, making the attack net-negative.
+    // Use a donation equal to the victim's intended deposit to maximize the attack.
+    const victimDeposit = 1_000n * WAD;
+    const donationAmount = victimDeposit; // Same size as victim deposit for maximum attack
+    await usdc.mint(attacker.address, donationAmount);
+    await usdc.connect(attacker).transfer(poolAddress, donationAmount);
 
-    // Verify convertToAssets and convertToShares are consistent
-    const assetsForOneShare = await pool.convertToAssets(WAD);
-    const sharesForOneAsset = await pool.convertToShares(WAD);
+    // State: totalAssets = donationAmount + 1, totalSupply = 1
+    // Victim shares = victimDeposit * (1 + 1) / (donationAmount + 1 + 1)
+    // = victimDeposit * 2 / (victimDeposit + 2) ≈ 2 (for large victimDeposit)
 
-    // OZ ERC4626 guarantees no rounding exploit: shares > 0 for non-zero deposit
-    expect(assetsForOneShare).to.be.gt(0n);
-    expect(sharesForOneAsset).to.be.gt(0n);
+    // Step 3: Victim deposits
+    await usdc.mint(victim.address, victimDeposit);
+    await usdc.connect(victim).approve(poolAddress, ethers.MaxUint256);
+    await pool.connect(victim).deposit(victimDeposit, victim.address);
 
-    // Second depositor makes a normal-sized deposit
-    await usdc.mint(secondDepositor.address, secondDepositAmount);
-    await usdc.connect(secondDepositor).approve(await pool.getAddress(), ethers.MaxUint256);
-    await pool.connect(secondDepositor).deposit(secondDepositAmount, secondDepositor.address);
+    // Step 4: Verify victim received non-zero shares
+    const victimShares = await pool.balanceOf(victim.address);
+    expect(victimShares).to.be.gt(0n);
 
-    const secondShares = await pool.balanceOf(secondDepositor.address);
-    expect(secondShares).to.be.gt(0n);
+    // Step 5: Compute the maximum value the attacker could extract.
+    // The attacker has `attackerShares` which now represent a portion of the enlarged pool.
+    // The attacker's redeemable assets should be LESS than (donation + 1 wei),
+    // proving the attack is not profitable.
+    const attackerRedeemable = await pool.convertToAssets(attackerShares);
+    const attackerCost = donationAmount + 1n; // 1 wei initial deposit + donation
+    // The attacker cannot profit: redeemable ≤ cost (they lose the donation)
+    expect(attackerRedeemable).to.be.lte(attackerCost);
 
-    // The second depositor's shares should be non-trivial (no inflation attack)
-    // If vulnerable, second depositor would get 0 shares for a large deposit
-    // OZ's virtual offset ensures proportional share minting
-    const secondDepositorAssets = await pool.convertToAssets(secondShares);
-    // The second depositor should be able to redeem close to their deposit amount
-    expect(secondDepositorAssets).to.be.gte(secondDepositAmount - 1n); // Allow 1 wei rounding
+    // Step 6: Verify victim can redeem a meaningful fraction of their deposit.
+    // With the +1 virtual offset, the victim loses at most ~50% in the worst case
+    // (donation == victim deposit), but critically the shares are non-zero.
+    // This makes the attack unprofitable for the attacker (they donated victimDeposit
+    // to steal at most ~victimDeposit/2 from the victim, net loss ≈ victimDeposit/2).
+    const victimRedeemable = await pool.convertToAssets(victimShares);
+    expect(victimRedeemable).to.be.gt(0n);
   });
 });

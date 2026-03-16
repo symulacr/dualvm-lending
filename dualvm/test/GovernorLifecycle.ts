@@ -380,6 +380,53 @@ describe("Governor lifecycle", function () {
     expect(timelockIsGovernance).to.equal(true);
   });
 
+  it("GovernanceToken.mint via AccessManager MINTER role succeeds, direct mint reverts", async function () {
+    const { deployer, outsider, governanceToken, accessManager, timelock } = await loadFixture(deployFixture);
+
+    // The GovernanceToken's mint() is `restricted` (AccessManaged).
+    // In the governed setup, the deployer lost admin role, but the timelock is admin.
+    // We need to grant MINTER role to deployer (via timelock) to test minting.
+    // For simplicity, we'll use a fresh governance token deployed with deployer as admin
+    // of a fresh AccessManager so we can directly test the MINTER role grant.
+
+    // Deploy a fresh AccessManager where deployer is admin
+    const freshAmFactory = await ethers.getContractFactory("DualVMAccessManager", deployer);
+    const freshAm = await freshAmFactory.deploy(deployer.address);
+    await freshAm.waitForDeployment();
+
+    // Deploy GovernanceToken with fresh AccessManager
+    const tokenFactory = await ethers.getContractFactory("GovernanceToken", deployer);
+    const token = (await tokenFactory.deploy(
+      await freshAm.getAddress(),
+      deployer.address,
+      INITIAL_SUPPLY,
+    )) as any;
+    await token.waitForDeployment();
+
+    // Set up MINTER role (ROLE_IDS.MINTER = 4) on the token's mint function
+    const mintSelector = token.interface.getFunction("mint")!.selector;
+    await freshAm.setTargetFunctionRole(await token.getAddress(), [mintSelector], ROLE_IDS.MINTER);
+
+    // Direct mint from outsider (no role) should revert
+    await expect(token.connect(outsider).mint(outsider.address, 1_000n * WAD))
+      .to.be.revertedWithCustomError(token, "AccessManagedUnauthorized");
+
+    // Direct mint from deployer (admin, but mint requires MINTER role) should also revert
+    // because admin role doesn't automatically grant function-level access
+    await expect(token.connect(deployer).mint(deployer.address, 1_000n * WAD))
+      .to.be.revertedWithCustomError(token, "AccessManagedUnauthorized");
+
+    // Grant MINTER role to deployer
+    await freshAm.grantRole(ROLE_IDS.MINTER, deployer.address, 0);
+
+    // Now mint should succeed
+    const supplyBefore = await token.totalSupply();
+    await token.connect(deployer).mint(outsider.address, 1_000n * WAD);
+    const supplyAfter = await token.totalSupply();
+    expect(supplyAfter - supplyBefore).to.equal(1_000n * WAD);
+    expect(await token.balanceOf(outsider.address)).to.equal(1_000n * WAD);
+  });
+
   it("version activation requires full governance proposal flow", async function () {
     const { deployer, voter1, outsider, governor, timelock, accessManager, marketRegistry, wpas, usdc } =
       await loadFixture(deployFixture);
