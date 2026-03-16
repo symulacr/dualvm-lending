@@ -25,13 +25,17 @@ interface LendingCoreLike {
 export async function seedDebtPoolLiquidity(
   managedMinterContext: ManagedCallContext,
   usdcAdmin: any,
+  usdcLiquidityProvider: { approve(spender: string, amount: bigint): Promise<{ wait(): Promise<{ hash?: string }>; hash?: string }> },
   debtPool: DebtPoolLike,
   lenderAddress: string,
   seedAmount: bigint,
   labelPrefix: string,
-) {
+ ) {
   await managedMintUsdc(managedMinterContext, usdcAdmin, lenderAddress, seedAmount, `${labelPrefix} mint lender usdc-test`);
-  await waitForTransaction(usdcAdmin.approve(await debtPool.getAddress(), MAX_UINT256), `${labelPrefix} approve debt pool`);
+  await waitForTransaction(
+    usdcLiquidityProvider.approve(await debtPool.getAddress(), MAX_UINT256),
+    `${labelPrefix} approve debt pool`,
+  );
   await waitForTransaction(debtPool.deposit(seedAmount, lenderAddress), `${labelPrefix} deposit pool liquidity`);
 }
 

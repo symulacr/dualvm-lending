@@ -1,32 +1,25 @@
-import hre from "hardhat";
-import { managedSetTreasury, type ManagedCallContext } from "../lib/ops/managedAccess";
 import { LIVE_ROLE_EXECUTION_DELAYS_SECONDS, ROLE_IDS } from "../lib/config/marketConfig";
 import { loadDeploymentManifest, writeDeploymentManifest } from "../lib/deployment/manifestStore";
-import { requireEnv } from "../lib/runtime/env";
+import type { HexAddress } from "../lib/shared/deploymentManifest";
+import { loadActors } from "../lib/runtime/actors";
+import { attachManifestContract } from "../lib/runtime/contracts";
 import { waitForTransaction } from "../lib/runtime/transactions";
 import { runEntrypoint } from "../lib/runtime/entrypoint";
 
-const { ethers } = hre;
-
 export async function main() {
   const manifest = loadDeploymentManifest();
-  const provider = ethers.provider;
+  const { admin, emergency, riskAdmin, treasury, minter } = loadActors(
+    ["admin", "emergency", "riskAdmin", "treasury", "minter"] as const,
+  );
 
-  const admin = new ethers.Wallet(requireEnv("ADMIN_PRIVATE_KEY"), provider);
-  const emergency = new ethers.Wallet(requireEnv("EMERGENCY_PRIVATE_KEY"), provider);
-  const risk = new ethers.Wallet(requireEnv("RISK_PRIVATE_KEY"), provider);
-  const treasury = new ethers.Wallet(requireEnv("TREASURY_PRIVATE_KEY"), provider);
-  const minter = new ethers.Wallet(requireEnv("MINTER_PRIVATE_KEY"), provider);
-
-  const accessManager = (await ethers.getContractFactory("DualVMAccessManager", admin)).attach(manifest.contracts.accessManager);
-  const lendingCoreRisk = (await ethers.getContractFactory("LendingCore", risk)).attach(manifest.contracts.lendingCore);
+  const accessManager = await attachManifestContract(manifest, "accessManager", "DualVMAccessManager", admin);
 
   await waitForTransaction(
     accessManager.grantRole(ROLE_IDS.EMERGENCY, emergency.address, LIVE_ROLE_EXECUTION_DELAYS_SECONDS.emergency),
     "grant emergency role",
   );
   await waitForTransaction(
-    accessManager.grantRole(ROLE_IDS.RISK_ADMIN, risk.address, LIVE_ROLE_EXECUTION_DELAYS_SECONDS.riskAdmin),
+    accessManager.grantRole(ROLE_IDS.RISK_ADMIN, riskAdmin.address, LIVE_ROLE_EXECUTION_DELAYS_SECONDS.riskAdmin),
     "grant risk role",
   );
   await waitForTransaction(
@@ -38,18 +31,12 @@ export async function main() {
     "grant minter role",
   );
 
-  const managedRiskContext: ManagedCallContext = {
-    accessManager: accessManager.connect(risk) as any,
-    signer: risk,
-    executionDelaySeconds: LIVE_ROLE_EXECUTION_DELAYS_SECONDS.riskAdmin,
-  };
-  await managedSetTreasury(managedRiskContext, lendingCoreRisk as any, treasury.address, "set live treasury address");
 
   const previousRoles = manifest.roles;
   if (previousRoles.emergencyAdmin.toLowerCase() !== emergency.address.toLowerCase()) {
     await waitForTransaction(accessManager.revokeRole(ROLE_IDS.EMERGENCY, previousRoles.emergencyAdmin), "revoke old emergency role");
   }
-  if (previousRoles.riskAdmin.toLowerCase() !== risk.address.toLowerCase()) {
+  if (previousRoles.riskAdmin.toLowerCase() !== riskAdmin.address.toLowerCase()) {
     await waitForTransaction(accessManager.revokeRole(ROLE_IDS.RISK_ADMIN, previousRoles.riskAdmin), "revoke old risk role");
   }
   if (previousRoles.treasuryOperator.toLowerCase() !== treasury.address.toLowerCase()) {
@@ -60,14 +47,14 @@ export async function main() {
   }
 
   manifest.roles = {
-    treasury: treasury.address,
-    emergencyAdmin: emergency.address,
-    riskAdmin: risk.address,
-    treasuryOperator: treasury.address,
-    minter: minter.address,
+    treasury: treasury.address as HexAddress,
+    emergencyAdmin: emergency.address as HexAddress,
+    riskAdmin: riskAdmin.address as HexAddress,
+    treasuryOperator: treasury.address as HexAddress,
+    minter: minter.address as HexAddress,
   };
   manifest.governance = {
-    admin: admin.address,
+    admin: admin.address as HexAddress,
     executionDelaySeconds: LIVE_ROLE_EXECUTION_DELAYS_SECONDS,
   };
   writeDeploymentManifest(manifest);

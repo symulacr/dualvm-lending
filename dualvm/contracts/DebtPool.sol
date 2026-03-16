@@ -17,19 +17,21 @@ contract DebtPool is ERC20, ERC4626, AccessManaged, Pausable, ReentrancyGuard {
 
     address public lendingCore;
     uint256 public outstandingPrincipal;
-    uint256 public supplyCap;
+    uint256 public immutable supplyCap;
     uint256 public reserveBalance;
 
     error InvalidConfiguration();
     error SupplyCapExceeded(uint256 attempted, uint256 cap);
     error InsufficientLiquidity(uint256 requested, uint256 available);
     error OnlyLendingCore();
+    error LendingCoreAlreadySet();
 
     event LendingCoreSet(address indexed lendingCore);
-    event SupplyCapUpdated(uint256 supplyCap);
     event DebtDrawn(address indexed receiver, uint256 amount);
     event RepaymentRecorded(uint256 principalPaid, uint256 interestPaid, uint256 reserveCut);
     event LossRecorded(uint256 principalLoss);
+    event PrincipalMigratedOut(uint256 principalAmount);
+    event PrincipalMigratedIn(uint256 principalAmount);
     event ReservesClaimed(address indexed treasury, uint256 amount);
 
     constructor(IERC20 asset_, address authority_, uint256 supplyCap_)
@@ -52,14 +54,9 @@ contract DebtPool is ERC20, ERC4626, AccessManaged, Pausable, ReentrancyGuard {
 
     function setLendingCore(address lendingCore_) external restricted {
         if (lendingCore_ == address(0)) revert InvalidConfiguration();
+        if (lendingCore != address(0)) revert LendingCoreAlreadySet();
         lendingCore = lendingCore_;
         emit LendingCoreSet(lendingCore_);
-    }
-
-    function setSupplyCap(uint256 newSupplyCap) external restricted {
-        if (newSupplyCap == 0) revert InvalidConfiguration();
-        supplyCap = newSupplyCap;
-        emit SupplyCapUpdated(newSupplyCap);
     }
 
     function pause() external restricted {
@@ -175,6 +172,17 @@ contract DebtPool is ERC20, ERC4626, AccessManaged, Pausable, ReentrancyGuard {
         if (principalLoss > outstandingPrincipal) revert InvalidConfiguration();
         outstandingPrincipal -= principalLoss;
         emit LossRecorded(principalLoss);
+    }
+
+    function migratePrincipalOut(uint256 principalAmount) external onlyLendingCore {
+        if (principalAmount > outstandingPrincipal) revert InvalidConfiguration();
+        outstandingPrincipal -= principalAmount;
+        emit PrincipalMigratedOut(principalAmount);
+    }
+
+    function migratePrincipalIn(uint256 principalAmount) external onlyLendingCore {
+        outstandingPrincipal += principalAmount;
+        emit PrincipalMigratedIn(principalAmount);
     }
 
     function claimReserves(address treasury, uint256 amount) external restricted nonReentrant {

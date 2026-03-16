@@ -2,7 +2,8 @@ import hre from "hardhat";
 import type { ManagedCallContext } from "../lib/ops/managedAccess";
 import { openBorrowPosition, seedDebtPoolLiquidity } from "../lib/ops/liveScenario";
 import { loadDeploymentManifest } from "../lib/deployment/manifestStore";
-import { requireEnv } from "../lib/runtime/env";
+import { loadActors } from "../lib/runtime/actors";
+import { attachManifestContract } from "../lib/runtime/contracts";
 import { formatWad } from "../lib/runtime/transactions";
 import { runEntrypoint } from "../lib/runtime/entrypoint";
 
@@ -10,15 +11,15 @@ const { ethers } = hre;
 
 export async function main() {
   const manifest = loadDeploymentManifest();
-  const provider = ethers.provider;
+  const { admin, minter } = loadActors(["admin", "minter"] as const);
 
-  const admin = new ethers.Wallet(requireEnv("ADMIN_PRIVATE_KEY"), provider);
-  const minter = new ethers.Wallet(requireEnv("MINTER_PRIVATE_KEY"), provider);
-  const accessManager = (await ethers.getContractFactory("DualVMAccessManager", minter)).attach(manifest.contracts.accessManager) as any;
-  const wpas = (await ethers.getContractFactory("WPAS", admin)).attach(manifest.contracts.wpas) as any;
-  const usdcAdmin = (await ethers.getContractFactory("USDCMock", admin)).attach(manifest.contracts.usdc) as any;
-  const debtPool = (await ethers.getContractFactory("DebtPool", admin)).attach(manifest.contracts.debtPool) as any;
-  const lendingCore = (await ethers.getContractFactory("LendingCore", admin)).attach(manifest.contracts.lendingCore) as any;
+  const [accessManager, wpas, usdcAdmin, debtPool, lendingCore] = await Promise.all([
+    attachManifestContract(manifest, "accessManager", "DualVMAccessManager", minter),
+    attachManifestContract(manifest, "wpas", "WPAS", admin),
+    attachManifestContract(manifest, "usdc", "USDCMock", admin),
+    attachManifestContract(manifest, "debtPool", "DebtPool", admin),
+    attachManifestContract(manifest, "lendingCore", "LendingCore", admin),
+  ]);
 
   const managedMinterContext: ManagedCallContext = {
     accessManager,
@@ -30,7 +31,7 @@ export async function main() {
   const collateralPas = ethers.parseUnits("2", 18);
   const borrowAmount = ethers.parseUnits("100", 18);
 
-  await seedDebtPoolLiquidity(managedMinterContext, usdcAdmin, debtPool, admin.address, poolSeed, "deployer");
+  await seedDebtPoolLiquidity(managedMinterContext, usdcAdmin, usdcAdmin, debtPool, admin.address, poolSeed, "deployer");
   await openBorrowPosition({
     wpas,
     lendingCore,

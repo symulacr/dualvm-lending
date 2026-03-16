@@ -1,77 +1,46 @@
-import hre from "hardhat";
-import {
-  managedMintUsdc,
-  managedSetOracleCircuitBreaker,
-  managedSetOraclePrice,
-  managedSetRiskEngine,
-  type ManagedCallContext,
-} from "../lib/ops/managedAccess";
+import { managedActivateVersion, managedRegisterVersion, type ManagedCallContext } from "../lib/ops/managedAccess";
+import { managedMintUsdc } from "../lib/ops/managedAccess";
 import { openBorrowPosition, seedDebtPoolLiquidity, waitForDebtToAccrue } from "../lib/ops/liveScenario";
-import { ORACLE_CIRCUIT_BREAKER_DEFAULTS, WAD } from "../lib/config/marketConfig";
+import { ORACLE_CIRCUIT_BREAKER_DEFAULTS, ORACLE_DEFAULTS, WAD } from "../lib/config/marketConfig";
+import { deployMarketVersion } from "../lib/deployment/deployMarketVersion";
 import { loadDeploymentManifest } from "../lib/deployment/manifestStore";
-import { requireEnv } from "../lib/runtime/env";
+import { loadActors } from "../lib/runtime/actors";
+import { attachManifestContract } from "../lib/runtime/contracts";
 import { formatWad, waitForTransaction } from "../lib/runtime/transactions";
 import { runEntrypoint } from "../lib/runtime/entrypoint";
 
-const { ethers } = hre;
-
-async function normalizeOracleToBaseline(
-  context: ManagedCallContext,
-  oracle: any,
-  targetPriceWad: bigint,
-) {
-  await managedSetOracleCircuitBreaker(
-    context,
-    oracle,
-    1n * WAD,
-    20_000n * WAD,
-    10_000n,
-    "prepare oracle baseline restore range",
-  );
-
-  let price = BigInt(await oracle.priceWad());
-  if (price === 0n) {
-    await managedSetOraclePrice(context, oracle, targetPriceWad, "seed oracle baseline price");
-    return;
-  }
-
-  while (price < targetPriceWad) {
-    const nextPrice = price * 2n > targetPriceWad ? targetPriceWad : price * 2n;
-    await managedSetOraclePrice(context, oracle, nextPrice, `restore oracle price to ${formatWad(nextPrice)}`);
-    price = nextPrice;
-  }
-
-  while (price > targetPriceWad) {
-    const halvedPrice = price / 2n;
-    const nextPrice = halvedPrice < targetPriceWad ? targetPriceWad : halvedPrice;
-    await managedSetOraclePrice(context, oracle, nextPrice, `restore oracle price to ${formatWad(nextPrice)}`);
-    price = nextPrice;
-  }
-}
+const HIGH_RATE_CONFIG = {
+  baseRateBps: 15_000_000_000n,
+  slope1Bps: 0n,
+  slope2Bps: 0n,
+  kinkBps: 8_000n,
+  healthyMaxLtvBps: 7_500n,
+  stressedMaxLtvBps: 6_500n,
+  healthyLiquidationThresholdBps: 8_500n,
+  stressedLiquidationThresholdBps: 7_800n,
+  staleBorrowRatePenaltyBps: 0n,
+  stressedCollateralRatioBps: 14_000n,
+} as const;
 
 export async function main() {
   const manifest = loadDeploymentManifest();
-  const provider = ethers.provider;
+  if (!manifest.contracts.marketRegistry) {
+    throw new Error("Deployment manifest does not include marketRegistry");
+  }
 
-  const admin = new ethers.Wallet(requireEnv("ADMIN_PRIVATE_KEY"), provider);
-  const minter = new ethers.Wallet(requireEnv("MINTER_PRIVATE_KEY"), provider);
-  const riskAdmin = new ethers.Wallet(requireEnv("RISK_PRIVATE_KEY"), provider);
-  const lender = new ethers.Wallet(requireEnv("LENDER_PRIVATE_KEY"), provider);
-  const borrower = new ethers.Wallet(requireEnv("BORROWER_PRIVATE_KEY"), provider);
-  const liquidator = new ethers.Wallet(requireEnv("LIQUIDATOR_PRIVATE_KEY"), provider);
+  const { admin, minter, riskAdmin, lender, borrower, liquidator } = loadActors(
+    ["admin", "minter", "riskAdmin", "lender", "borrower", "liquidator"] as const,
+  );
 
-  const accessManagerMinter = (await ethers.getContractFactory("DualVMAccessManager", minter)).attach(manifest.contracts.accessManager) as any;
-  const accessManagerRisk = (await ethers.getContractFactory("DualVMAccessManager", riskAdmin)).attach(manifest.contracts.accessManager) as any;
-  const wpas = (await ethers.getContractFactory("WPAS", borrower)).attach(manifest.contracts.wpas) as any;
-  const usdcAdmin = (await ethers.getContractFactory("USDCMock", admin)).attach(manifest.contracts.usdc) as any;
+  const [accessManagerMinter, accessManagerRisk, marketRegistry, wpas, usdcAdmin] = await Promise.all([
+    attachManifestContract(manifest, "accessManager", "DualVMAccessManager", minter),
+    attachManifestContract(manifest, "accessManager", "DualVMAccessManager", riskAdmin),
+    attachManifestContract(manifest, "marketRegistry", "MarketVersionRegistry", riskAdmin),
+    attachManifestContract(manifest, "wpas", "WPAS", borrower),
+    attachManifestContract(manifest, "usdc", "USDCMock", admin),
+  ]);
   const usdcLiquidator = usdcAdmin.connect(liquidator) as any;
-  const oracle = (await ethers.getContractFactory("ManualOracle", riskAdmin)).attach(manifest.contracts.oracle) as any;
-  const debtPoolLender = (await ethers.getContractFactory("DebtPool", lender)).attach(manifest.contracts.debtPool) as any;
-  const debtPoolAdmin = debtPoolLender.connect(admin) as any;
-  const lendingCoreAdmin = (await ethers.getContractFactory("LendingCore", admin)).attach(manifest.contracts.lendingCore) as any;
-  const lendingCoreBorrower = lendingCoreAdmin.connect(borrower) as any;
-  const lendingCoreLiquidator = lendingCoreAdmin.connect(liquidator) as any;
-  const riskEngineFactory = await ethers.getContractFactory("PvmRiskEngine", admin);
+  const usdcLender = usdcAdmin.connect(lender) as any;
 
   const managedMinterContext: ManagedCallContext = {
     accessManager: accessManagerMinter,
@@ -83,42 +52,51 @@ export async function main() {
     signer: riskAdmin,
     executionDelaySeconds: manifest.governance?.executionDelaySeconds?.riskAdmin ?? 0,
   };
+  const originalVersionId = await marketRegistry.activeVersionId();
+  const temporaryVersion = await deployMarketVersion({
+    deployer: admin,
+    authority: manifest.contracts.accessManager,
+    collateralAsset: manifest.contracts.wpas,
+    debtAsset: manifest.contracts.usdc,
+    autoWireLendingCore: false,
+    oraclePriceWad: ORACLE_DEFAULTS.initialPriceWad,
+    oracleMaxAgeSeconds: manifest.config.oracleMaxAgeSeconds,
+    oracleMinPriceWad: ORACLE_CIRCUIT_BREAKER_DEFAULTS.minPriceWad,
+    oracleMaxPriceWad: 20_000n * WAD,
+    oracleMaxPriceChangeBps: 10_000n,
+    riskEngineConfig: HIGH_RATE_CONFIG,
+  });
 
-  const originalRiskEngine = manifest.contracts.riskEngine;
-  const baselineOraclePrice = 1_000n * WAD;
-  const baselineBreaker = {
-    minPriceWad: ORACLE_CIRCUIT_BREAKER_DEFAULTS.minPriceWad,
-    maxPriceWad: ORACLE_CIRCUIT_BREAKER_DEFAULTS.maxPriceWad,
-    maxPriceChangeBps: ORACLE_CIRCUIT_BREAKER_DEFAULTS.maxPriceChangeBps,
-  };
-
-  const tempRiskEngine = await riskEngineFactory.deploy(
-    15_000_000_000n,
-    0n,
-    0n,
-    8_000n,
-    7_500n,
-    6_500n,
-    8_500n,
-    7_800n,
-    0n,
-    14_000n,
-  );
-  await tempRiskEngine.waitForDeployment();
-  await managedSetRiskEngine(
+  await managedRegisterVersion(
     managedRiskContext,
-    lendingCoreAdmin,
-    await tempRiskEngine.getAddress(),
-    "set temporary high-rate risk engine",
+    marketRegistry,
+    await temporaryVersion.lendingCore.getAddress(),
+    await temporaryVersion.debtPool.getAddress(),
+    await temporaryVersion.oracle.getAddress(),
+    await temporaryVersion.riskEngine.getAddress(),
+    "register temporary liquidation market version",
   );
-  await normalizeOracleToBaseline(managedRiskContext, oracle, baselineOraclePrice);
+  const temporaryVersionId = await marketRegistry.latestVersionId();
+  await managedActivateVersion(
+    managedRiskContext,
+    marketRegistry,
+    temporaryVersionId,
+    "activate temporary liquidation market version",
+  );
 
-  const lenderSeed = ethers.parseUnits("20000", 18);
-  const liquidatorSeed = ethers.parseUnits("10000", 18);
-  const collateralPas = ethers.parseUnits("20", 18);
-  const borrowAmount = ethers.parseUnits("10000", 18);
+  const debtPoolLender = temporaryVersion.debtPool.connect(lender) as any;
+  const debtPoolAdmin = temporaryVersion.debtPool.connect(admin) as any;
+  const lendingCoreAdmin = temporaryVersion.lendingCore.connect(admin) as any;
+  const lendingCoreBorrower = temporaryVersion.lendingCore.connect(borrower) as any;
+  const lendingCoreLiquidator = temporaryVersion.lendingCore.connect(liquidator) as any;
+  const oracle = temporaryVersion.oracle.connect(riskAdmin) as any;
 
-  await seedDebtPoolLiquidity(managedMinterContext, usdcAdmin, debtPoolLender, lender.address, lenderSeed, "lender");
+  const lenderSeed = 20_000n * WAD;
+  const liquidatorSeed = 10_000n * WAD;
+  const collateralPas = 20n * WAD;
+  const borrowAmount = 10_000n * WAD;
+
+  await seedDebtPoolLiquidity(managedMinterContext, usdcAdmin, usdcLender, debtPoolLender, lender.address, lenderSeed, "lender");
   await managedMintUsdc(managedMinterContext, usdcAdmin, liquidator.address, liquidatorSeed, "mint liquidator usdc-test");
   await openBorrowPosition({
     wpas,
@@ -134,8 +112,9 @@ export async function main() {
     borrowAmount,
     "wait for liquidation scenario debt growth",
   );
-  await managedSetOraclePrice(managedRiskContext, oracle, 21n * WAD, "drop oracle price");
-  await waitForTransaction(usdcLiquidator.approve(await lendingCoreAdmin.getAddress(), ethers.MaxUint256), "liquidator approve core");
+  const dropOracleTx = await oracle.setPrice(21n * WAD);
+  await dropOracleTx.wait();
+  await waitForTransaction(usdcLiquidator.approve(await lendingCoreAdmin.getAddress(), 2n ** 256n - 1n), "liquidator approve core");
 
   const [debtBefore, principalBefore, liquidatorCollateralBefore] = await Promise.all([
     lendingCoreAdmin.currentDebt(borrower.address),
@@ -143,25 +122,16 @@ export async function main() {
     wpas.balanceOf(liquidator.address),
   ]);
 
-  await waitForTransaction(lendingCoreLiquidator.liquidate(borrower.address, ethers.MaxUint256), "liquidator execute liquidation");
+  await waitForTransaction(lendingCoreLiquidator.liquidate(borrower.address, 2n ** 256n - 1n), "liquidator execute liquidation");
 
-  const [debtAfter, principalAfter, liquidatorCollateralAfter, riskEngineAfter] = await Promise.all([
+  const [debtAfter, principalAfter, liquidatorCollateralAfter] = await Promise.all([
     lendingCoreAdmin.currentDebt(borrower.address),
     debtPoolAdmin.outstandingPrincipal(),
     wpas.balanceOf(liquidator.address),
-    lendingCoreAdmin.riskEngine(),
   ]);
 
-  await managedSetRiskEngine(managedRiskContext, lendingCoreAdmin, originalRiskEngine, "restore original risk engine");
-  await normalizeOracleToBaseline(managedRiskContext, oracle, baselineOraclePrice);
-  await managedSetOracleCircuitBreaker(
-    managedRiskContext,
-    oracle,
-    baselineBreaker.minPriceWad,
-    baselineBreaker.maxPriceWad,
-    baselineBreaker.maxPriceChangeBps,
-    "restore oracle circuit breaker",
-  );
+  await managedActivateVersion(managedRiskContext, marketRegistry, originalVersionId, "restore original market version");
+  const restoredVersion = await marketRegistry.activeVersion();
 
   console.log(
     JSON.stringify(
@@ -176,7 +146,14 @@ export async function main() {
         },
         deployment: manifest.contracts,
         governance: manifest.governance,
-        temporaryRiskEngine: await tempRiskEngine.getAddress(),
+        temporaryVersionId: temporaryVersionId.toString(),
+        temporaryDeployment: {
+          oracle: await temporaryVersion.oracle.getAddress(),
+          quoteEngine: await temporaryVersion.quoteEngine.getAddress(),
+          riskEngine: await temporaryVersion.riskEngine.getAddress(),
+          debtPool: await temporaryVersion.debtPool.getAddress(),
+          lendingCore: await temporaryVersion.lendingCore.getAddress(),
+        },
         checks: {
           debtBefore: formatWad(debtBefore),
           principalBefore: formatWad(principalBefore),
@@ -184,7 +161,8 @@ export async function main() {
           debtAfter: formatWad(debtAfter),
           principalAfter: formatWad(principalAfter),
           liquidatorCollateralGain: formatWad(BigInt(liquidatorCollateralAfter) - BigInt(liquidatorCollateralBefore)),
-          riskEngineWasTemporaryDuringRun: riskEngineAfter.toLowerCase() === (await tempRiskEngine.getAddress()).toLowerCase(),
+          restoredVersionId: (await marketRegistry.activeVersionId()).toString(),
+          restoreWorked: restoredVersion.lendingCore.toLowerCase() === manifest.contracts.lendingCore.toLowerCase(),
         },
       },
       null,

@@ -11,6 +11,7 @@ import {
   TARGET_ADMIN_DELAY_SECONDS,
 } from "../config/marketConfig";
 import { waitForTransaction } from "../runtime/transactions";
+import { deployMarketVersion } from "./deployMarketVersion";
 
 export interface DeployDualVmOverrides {
   treasury?: string;
@@ -29,6 +30,7 @@ export interface DeployDualVmOverrides {
   riskAdminExecutionDelaySeconds?: number;
   treasuryExecutionDelaySeconds?: number;
   minterExecutionDelaySeconds?: number;
+  riskQuoteEngineAddress?: string;
 }
 
 function selector(contract: { interface: { getFunction(name: string): { selector: string } | null } }, name: string) {
@@ -65,6 +67,7 @@ export async function deployDualVmSystem(overrides: DeployDualVmOverrides = {}) 
   const riskAdminExecutionDelaySeconds = overrides.riskAdminExecutionDelaySeconds ?? 0;
   const treasuryExecutionDelaySeconds = overrides.treasuryExecutionDelaySeconds ?? 0;
   const minterExecutionDelaySeconds = overrides.minterExecutionDelaySeconds ?? 0;
+  const riskQuoteEngineAddress = overrides.riskQuoteEngineAddress;
 
   const accessManagerFactory = await ethers.getContractFactory("DualVMAccessManager");
   const accessManager = await accessManagerFactory.deploy(deployerAddress);
@@ -78,59 +81,35 @@ export async function deployDualVmSystem(overrides: DeployDualVmOverrides = {}) 
   const usdc = await usdcFactory.deploy(await accessManager.getAddress());
   await usdc.waitForDeployment();
 
-  const oracleFactory = await ethers.getContractFactory("ManualOracle");
-  const oracle = await oracleFactory.deploy(
-    await accessManager.getAddress(),
+  const { oracle, quoteEngine, riskEngine, debtPool, lendingCore } = await deployMarketVersion({
+    deployer,
+    authority: await accessManager.getAddress(),
+    collateralAsset: await wpas.getAddress(),
+    debtAsset: await usdc.getAddress(),
+    riskQuoteEngineAddress,
     oraclePriceWad,
     oracleMaxAgeSeconds,
     oracleMinPriceWad,
     oracleMaxPriceWad,
     oracleMaxPriceChangeBps,
-  );
-  await oracle.waitForDeployment();
+    poolSupplyCap: POOL_DEFAULTS.supplyCap,
+    marketConfig: CORE_DEFAULTS,
+    riskEngineConfig: RISK_ENGINE_DEFAULTS,
+  });
 
-  const riskFactory = await ethers.getContractFactory("PvmRiskEngine");
-  const riskEngine = await riskFactory.deploy(
-    RISK_ENGINE_DEFAULTS.baseRateBps,
-    RISK_ENGINE_DEFAULTS.slope1Bps,
-    RISK_ENGINE_DEFAULTS.slope2Bps,
-    RISK_ENGINE_DEFAULTS.kinkBps,
-    RISK_ENGINE_DEFAULTS.healthyMaxLtvBps,
-    RISK_ENGINE_DEFAULTS.stressedMaxLtvBps,
-    RISK_ENGINE_DEFAULTS.healthyLiquidationThresholdBps,
-    RISK_ENGINE_DEFAULTS.stressedLiquidationThresholdBps,
-    RISK_ENGINE_DEFAULTS.staleBorrowRatePenaltyBps,
-    RISK_ENGINE_DEFAULTS.stressedCollateralRatioBps,
-  );
-  await riskEngine.waitForDeployment();
+  const marketRegistryFactory = await ethers.getContractFactory("MarketVersionRegistry");
+  const marketRegistry = await marketRegistryFactory.deploy(await accessManager.getAddress());
+  await marketRegistry.waitForDeployment();
 
-  const debtPoolFactory = await ethers.getContractFactory("DebtPool");
-  const debtPool = await debtPoolFactory.deploy(
-    await usdc.getAddress(),
-    await accessManager.getAddress(),
-    POOL_DEFAULTS.supplyCap,
+  await waitFor(
+    marketRegistry.registerVersion(
+      await lendingCore.getAddress(),
+      await debtPool.getAddress(),
+      await oracle.getAddress(),
+      await riskEngine.getAddress(),
+    ),
   );
-  await debtPool.waitForDeployment();
-
-  const lendingCoreFactory = await ethers.getContractFactory("LendingCore");
-  const lendingCore = await lendingCoreFactory.deploy(
-    await accessManager.getAddress(),
-    await wpas.getAddress(),
-    await usdc.getAddress(),
-    await debtPool.getAddress(),
-    await oracle.getAddress(),
-    await riskEngine.getAddress(),
-    treasury,
-    {
-      borrowCap: CORE_DEFAULTS.borrowCap,
-      minBorrowAmount: CORE_DEFAULTS.minBorrowAmount,
-      reserveFactorBps: CORE_DEFAULTS.reserveFactorBps,
-      maxLtvBps: CORE_DEFAULTS.maxLtvBps,
-      liquidationThresholdBps: CORE_DEFAULTS.liquidationThresholdBps,
-      liquidationBonusBps: CORE_DEFAULTS.liquidationBonusBps,
-    },
-  );
-  await lendingCore.waitForDeployment();
+  await waitFor(marketRegistry.activateVersion(1));
 
   await waitFor(accessManager.labelRole(ROLE_IDS.EMERGENCY, "EMERGENCY_ROLE"));
   await waitFor(accessManager.labelRole(ROLE_IDS.RISK_ADMIN, "RISK_ADMIN_ROLE"));
@@ -145,34 +124,11 @@ export async function deployDualVmSystem(overrides: DeployDualVmOverrides = {}) 
   await waitFor(
     accessManager.setTargetFunctionRole(
       await lendingCore.getAddress(),
-      [
-        selector(lendingCore, "setRiskEngine"),
-        selector(lendingCore, "setOracle"),
-        selector(lendingCore, "setTreasury"),
-        selector(lendingCore, "setBorrowCap"),
-        selector(lendingCore, "setMinBorrowAmount"),
-        selector(lendingCore, "setReserveFactorBps"),
-        selector(lendingCore, "setRiskBounds"),
-        selector(lendingCore, "setLiquidationBonusBps"),
-      ],
-      ROLE_IDS.RISK_ADMIN,
-    ),
-  );
-  await waitFor(
-    accessManager.setTargetFunctionRole(
-      await lendingCore.getAddress(),
       [selector(lendingCore, "pause"), selector(lendingCore, "unpause")],
       ROLE_IDS.EMERGENCY,
     ),
   );
 
-  await waitFor(
-    accessManager.setTargetFunctionRole(
-      await debtPool.getAddress(),
-      [selector(debtPool, "setLendingCore"), selector(debtPool, "setSupplyCap")],
-      ROLE_IDS.RISK_ADMIN,
-    ),
-  );
   await waitFor(
     accessManager.setTargetFunctionRole(
       await debtPool.getAddress(),
@@ -200,14 +156,20 @@ export async function deployDualVmSystem(overrides: DeployDualVmOverrides = {}) 
   );
 
   await waitFor(accessManager.setTargetFunctionRole(await usdc.getAddress(), [selector(usdc, "mint")], ROLE_IDS.MINTER));
-
-  await waitFor(debtPool.setLendingCore(await lendingCore.getAddress()));
+  await waitFor(
+    accessManager.setTargetFunctionRole(
+      await marketRegistry.getAddress(),
+      [selector(marketRegistry, "registerVersion"), selector(marketRegistry, "activateVersion")],
+      ROLE_IDS.RISK_ADMIN,
+    ),
+  );
 
   if (adminDelaySeconds > 0) {
     await waitFor(accessManager.setTargetAdminDelay(await lendingCore.getAddress(), adminDelaySeconds));
     await waitFor(accessManager.setTargetAdminDelay(await debtPool.getAddress(), adminDelaySeconds));
     await waitFor(accessManager.setTargetAdminDelay(await oracle.getAddress(), adminDelaySeconds));
     await waitFor(accessManager.setTargetAdminDelay(await usdc.getAddress(), adminDelaySeconds));
+    await waitFor(accessManager.setTargetAdminDelay(await marketRegistry.getAddress(), adminDelaySeconds));
   }
 
   if (initialLiquidity > 0n) {
@@ -257,6 +219,8 @@ export async function deployDualVmSystem(overrides: DeployDualVmOverrides = {}) 
       usdc,
       oracle,
       riskEngine,
+      quoteEngine,
+      marketRegistry,
       debtPool,
       lendingCore,
     },

@@ -5,6 +5,10 @@ import { bigintReplacer, parseDeploymentManifest, type DeploymentManifest } from
 export const DEPLOYMENT_MANIFEST_FILENAME = "polkadot-hub-testnet.json";
 
 export function getDeploymentManifestPath(cwd = process.cwd()) {
+  const override = process.env.DEPLOYMENT_MANIFEST_PATH;
+  if (override) {
+    return path.isAbsolute(override) ? override : path.join(cwd, override);
+  }
   return path.join(cwd, "deployments", DEPLOYMENT_MANIFEST_FILENAME);
 }
 
@@ -20,9 +24,8 @@ export function loadDeploymentManifest(cwd = process.cwd()): DeploymentManifest 
 }
 
 export function writeDeploymentManifest(manifest: DeploymentManifest, cwd = process.cwd()) {
-  const outDir = path.join(cwd, "deployments");
-  mkdirSync(outDir, { recursive: true });
   const outPath = getDeploymentManifestPath(cwd);
+  mkdirSync(path.dirname(outPath), { recursive: true });
   writeFileSync(outPath, JSON.stringify(manifest, bigintReplacer, 2));
   return outPath;
 }

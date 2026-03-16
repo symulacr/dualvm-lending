@@ -1,7 +1,6 @@
-import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
-export default defineConfig({
+export default {
   base: process.env.PUBLIC_BASE_PATH ?? "/",
   plugins: [react()],
   server: {
@@ -11,4 +10,4 @@ export default defineConfig({
   build: {
     sourcemap: true,
   },
-});
+};

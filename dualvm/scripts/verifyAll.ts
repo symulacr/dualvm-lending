@@ -49,8 +49,11 @@ export async function main() {
       BigInt(oracleConfig.maxPriceChangeBps),
     ]),
   );
+
+  const riskAdapter = (await hre.ethers.getContractFactory("RiskAdapter")).attach(manifest.contracts.riskEngine) as any;
+  const quoteEngineAddress = manifest.contracts.quoteEngine ?? (await riskAdapter.quoteEngine());
   results.push(
-    await verify("PvmRiskEngine", manifest.contracts.riskEngine, [
+    await verify("PvmRiskEngine", quoteEngineAddress, [
       BigInt(manifest.config.riskEngine.baseRateBps),
       BigInt(manifest.config.riskEngine.slope1Bps),
       BigInt(manifest.config.riskEngine.slope2Bps),
@@ -63,6 +66,7 @@ export async function main() {
       BigInt(manifest.config.riskEngine.stressedCollateralRatioBps),
     ]),
   );
+  results.push(await verify("RiskAdapter", manifest.contracts.riskEngine, [quoteEngineAddress]));
   results.push(
     await verify("DebtPool", manifest.contracts.debtPool, [
       manifest.contracts.usdc,
@@ -78,7 +82,6 @@ export async function main() {
       manifest.contracts.debtPool,
       manifest.contracts.oracle,
       manifest.contracts.riskEngine,
-      manifest.roles.treasury,
       {
         borrowCap: BigInt(manifest.config.core.borrowCap),
         minBorrowAmount: BigInt(manifest.config.core.minBorrowAmount),
@@ -89,6 +92,9 @@ export async function main() {
       },
     ]),
   );
+  if (manifest.contracts.marketRegistry) {
+    results.push(await verify("MarketVersionRegistry", manifest.contracts.marketRegistry, [manifest.contracts.accessManager]));
+  }
 
   console.log(
     JSON.stringify(

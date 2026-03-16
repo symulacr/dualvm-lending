@@ -1,4 +1,3 @@
-import hre from "hardhat";
 import {
   managedSetOracleCircuitBreaker,
   managedSetOraclePrice,
@@ -6,19 +5,19 @@ import {
 } from "../lib/ops/managedAccess";
 import { WAD } from "../lib/config/marketConfig";
 import { loadDeploymentManifest } from "../lib/deployment/manifestStore";
-import { requireEnv } from "../lib/runtime/env";
+import { loadActors } from "../lib/runtime/actors";
+import { attachManifestContract } from "../lib/runtime/contracts";
 import { formatWad } from "../lib/runtime/transactions";
 import { runEntrypoint } from "../lib/runtime/entrypoint";
 
-const { ethers } = hre;
-
 export async function main() {
   const manifest = loadDeploymentManifest();
-  const provider = ethers.provider;
+  const { riskAdmin } = loadActors(["riskAdmin"] as const);
 
-  const riskAdmin = new ethers.Wallet(requireEnv("RISK_PRIVATE_KEY"), provider);
-  const accessManager = (await ethers.getContractFactory("DualVMAccessManager", riskAdmin)).attach(manifest.contracts.accessManager) as any;
-  const oracle = (await ethers.getContractFactory("ManualOracle", riskAdmin)).attach(manifest.contracts.oracle) as any;
+  const [accessManager, oracle] = await Promise.all([
+    attachManifestContract(manifest, "accessManager", "DualVMAccessManager", riskAdmin),
+    attachManifestContract(manifest, "oracle", "ManualOracle", riskAdmin),
+  ]);
   const managedRiskContext: ManagedCallContext = {
     accessManager,
     signer: riskAdmin,

@@ -8,9 +8,11 @@ import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {DebtPool} from "./DebtPool.sol";
 import {ManualOracle} from "./ManualOracle.sol";
+import {IRiskAdapter} from "./interfaces/IRiskAdapter.sol";
 import {IRiskEngine} from "./interfaces/IRiskEngine.sol";
+import {IMigratableLendingCore} from "./interfaces/IMigratableLendingCore.sol";
 
-contract LendingCore is AccessManaged, Pausable, ReentrancyGuard {
+contract LendingCore is AccessManaged, Pausable, ReentrancyGuard, IMigratableLendingCore {
     using SafeERC20 for IERC20;
 
     uint256 private constant BPS = 10_000;
@@ -31,25 +33,32 @@ contract LendingCore is AccessManaged, Pausable, ReentrancyGuard {
         uint256 principalDebt;
         uint256 accruedInterest;
         uint256 borrowRateBps;
-        uint256 maxLtvBpsSnapshot;
-        uint256 liquidationThresholdBpsSnapshot;
         uint256 lastAccruedAt;
-        uint256 lastRiskUpdateAt;
+    }
+
+    struct QuoteState {
+        uint256 collateralAmount;
+        uint256 debt;
+        uint256 outstandingPrincipal;
+        uint256 price;
+        uint256 oracleAgeSeconds;
+        bool oracleFresh;
     }
 
     IERC20 public immutable collateralAsset;
     IERC20 public immutable debtAsset;
-    DebtPool public debtPool;
-    ManualOracle public oracle;
-    IRiskEngine public riskEngine;
-    address public treasury;
+    DebtPool public immutable debtPool;
+    ManualOracle public immutable oracle;
+    IRiskAdapter public immutable riskEngine;
 
-    uint256 public borrowCap;
-    uint256 public minBorrowAmount;
-    uint256 public reserveFactorBps;
-    uint256 public maxConfiguredLtvBps;
-    uint256 public maxConfiguredLiquidationThresholdBps;
-    uint256 public liquidationBonusBps;
+    uint256 public immutable borrowCap;
+    uint256 public immutable minBorrowAmount;
+    uint256 public immutable reserveFactorBps;
+    uint256 public immutable maxConfiguredLtvBps;
+    uint256 public immutable maxConfiguredLiquidationThresholdBps;
+    uint256 public immutable liquidationBonusBps;
+    uint256 public immutable configEpoch;
+    bool public newDebtFrozen;
 
     mapping(address => Position) public positions;
 
@@ -61,6 +70,9 @@ contract LendingCore is AccessManaged, Pausable, ReentrancyGuard {
     error DebtBelowMinimum(uint256 debt, uint256 minBorrowAmount);
     error PositionHealthy(uint256 healthFactorWad);
     error InvalidLiquidationAmount();
+    error NewDebtDisabled();
+    error NoPosition();
+    error ExistingPosition();
 
     event CollateralDeposited(address indexed account, uint256 amount);
     event CollateralWithdrawn(address indexed account, uint256 amount);
@@ -73,11 +85,22 @@ contract LendingCore is AccessManaged, Pausable, ReentrancyGuard {
         uint256 collateralSeized,
         uint256 badDebtWrittenOff
     );
-    event ParametersUpdated(bytes32 indexed parameter, uint256 value);
-    event TreasuryUpdated(address indexed treasury);
-    event RiskEngineUpdated(address indexed riskEngine);
-    event OracleUpdated(address indexed oracle);
     event BadDebtRealized(address indexed borrower, uint256 amount);
+    event NewDebtFrozen();
+    event PositionMigratedOut(
+        address indexed borrower,
+        address indexed coordinator,
+        uint256 collateralAmount,
+        uint256 principalDebt,
+        uint256 accruedInterest
+    );
+    event PositionMigratedIn(
+        address indexed borrower,
+        address indexed coordinator,
+        uint256 collateralAmount,
+        uint256 principalDebt,
+        uint256 accruedInterest
+    );
 
     constructor(
         address authority_,
@@ -85,14 +108,13 @@ contract LendingCore is AccessManaged, Pausable, ReentrancyGuard {
         IERC20 debtAsset_,
         DebtPool debtPool_,
         ManualOracle oracle_,
-        IRiskEngine riskEngine_,
-        address treasury_,
+        IRiskAdapter riskEngine_,
         MarketConfig memory config_
     ) AccessManaged(authority_) {
         if (
             authority_ == address(0) || address(collateralAsset_) == address(0) || address(debtAsset_) == address(0)
                 || address(debtPool_) == address(0) || address(oracle_) == address(0)
-                || address(riskEngine_) == address(0) || treasury_ == address(0)
+                || address(riskEngine_) == address(0)
         ) revert InvalidConfiguration();
         if (debtPool_.asset() != address(debtAsset_)) revert InvalidConfiguration();
         if (
@@ -107,13 +129,13 @@ contract LendingCore is AccessManaged, Pausable, ReentrancyGuard {
         debtPool = debtPool_;
         oracle = oracle_;
         riskEngine = riskEngine_;
-        treasury = treasury_;
         borrowCap = config_.borrowCap;
         minBorrowAmount = config_.minBorrowAmount;
         reserveFactorBps = config_.reserveFactorBps;
         maxConfiguredLtvBps = config_.maxLtvBps;
         maxConfiguredLiquidationThresholdBps = config_.liquidationThresholdBps;
         liquidationBonusBps = config_.liquidationBonusBps;
+        configEpoch = uint256(uint160(address(this)));
     }
 
     function pause() external restricted {
@@ -124,57 +146,165 @@ contract LendingCore is AccessManaged, Pausable, ReentrancyGuard {
         _unpause();
     }
 
-    function setRiskEngine(IRiskEngine newRiskEngine) external restricted {
-        if (address(newRiskEngine) == address(0)) revert InvalidConfiguration();
-        riskEngine = newRiskEngine;
-        emit RiskEngineUpdated(address(newRiskEngine));
+    function freezeNewDebt() external restricted {
+        newDebtFrozen = true;
+        emit NewDebtFrozen();
     }
 
-    function setOracle(ManualOracle newOracle) external restricted {
-        if (address(newOracle) == address(0)) revert InvalidConfiguration();
-        oracle = newOracle;
-        emit OracleUpdated(address(newOracle));
+
+    function currentRiskConfigHash() public view returns (bytes32) {
+        return keccak256(
+            abi.encode(
+                borrowCap,
+                minBorrowAmount,
+                reserveFactorBps,
+                maxConfiguredLtvBps,
+                maxConfiguredLiquidationThresholdBps,
+                liquidationBonusBps,
+                address(oracle),
+                address(riskEngine)
+            )
+        );
     }
 
-    function setTreasury(address newTreasury) external restricted {
-        if (newTreasury == address(0)) revert InvalidConfiguration();
-        treasury = newTreasury;
-        emit TreasuryUpdated(newTreasury);
+    function currentQuoteContext() public view returns (IRiskAdapter.QuoteContext memory) {
+        return IRiskAdapter.QuoteContext({
+            oracleEpoch: oracle.oracleEpoch(),
+            configEpoch: configEpoch,
+            oracleStateHash: oracle.currentStateHash(),
+            configHash: currentRiskConfigHash()
+        });
     }
 
-    function setBorrowCap(uint256 newBorrowCap) external restricted {
-        if (newBorrowCap == 0) revert InvalidConfiguration();
-        borrowCap = newBorrowCap;
-        emit ParametersUpdated("borrowCap", newBorrowCap);
+    function currentQuoteInput(address borrower) public view returns (IRiskEngine.QuoteInput memory) {
+        Position storage position = positions[borrower];
+        (uint256 price, bool fresh, uint256 oracleAgeSeconds) = _oracleSnapshot();
+        return _buildQuoteInput(
+            QuoteState({
+                collateralAmount: position.collateralAmount,
+                debt: _currentDebt(position),
+                outstandingPrincipal: debtPool.outstandingPrincipal(),
+                price: price,
+                oracleAgeSeconds: oracleAgeSeconds,
+                oracleFresh: fresh
+            })
+        );
     }
 
-    function setMinBorrowAmount(uint256 newMinBorrowAmount) external restricted {
-        if (newMinBorrowAmount == 0) revert InvalidConfiguration();
-        minBorrowAmount = newMinBorrowAmount;
-        emit ParametersUpdated("minBorrowAmount", newMinBorrowAmount);
+    function projectedBorrowQuoteInput(address borrower, uint256 additionalDebt)
+        public
+        view
+        returns (IRiskEngine.QuoteInput memory)
+    {
+        Position storage position = positions[borrower];
+        (uint256 price, bool fresh, uint256 oracleAgeSeconds) = _oracleSnapshot();
+        return _buildQuoteInput(
+            QuoteState({
+                collateralAmount: position.collateralAmount,
+                debt: _currentDebt(position) + additionalDebt,
+                outstandingPrincipal: debtPool.outstandingPrincipal() + additionalDebt,
+                price: price,
+                oracleAgeSeconds: oracleAgeSeconds,
+                oracleFresh: fresh
+            })
+        );
     }
 
-    function setReserveFactorBps(uint256 newReserveFactorBps) external restricted {
-        if (newReserveFactorBps > BPS) revert InvalidConfiguration();
-        reserveFactorBps = newReserveFactorBps;
-        emit ParametersUpdated("reserveFactorBps", newReserveFactorBps);
+    function publishCurrentQuoteTicket(address borrower) external returns (bytes32 ticketId) {
+        IRiskEngine.QuoteInput memory input = currentQuoteInput(borrower);
+        (ticketId,) = riskEngine.publishQuoteTicket(currentQuoteContext(), input);
     }
 
-    function setRiskBounds(uint256 newMaxLtvBps, uint256 newLiquidationThresholdBps) external restricted {
-        if (
-            newMaxLtvBps == 0 || newMaxLtvBps >= BPS || newLiquidationThresholdBps <= newMaxLtvBps
-                || newLiquidationThresholdBps > BPS
-        ) revert InvalidConfiguration();
-        maxConfiguredLtvBps = newMaxLtvBps;
-        maxConfiguredLiquidationThresholdBps = newLiquidationThresholdBps;
-        emit ParametersUpdated("maxLtvBps", newMaxLtvBps);
-        emit ParametersUpdated("liquidationThresholdBps", newLiquidationThresholdBps);
+    function publishProjectedBorrowQuoteTicket(address borrower, uint256 additionalDebt) external returns (bytes32 ticketId) {
+        IRiskEngine.QuoteInput memory input = projectedBorrowQuoteInput(borrower, additionalDebt);
+        (ticketId,) = riskEngine.publishQuoteTicket(currentQuoteContext(), input);
     }
 
-    function setLiquidationBonusBps(uint256 newLiquidationBonusBps) external restricted {
-        if (newLiquidationBonusBps > BPS) revert InvalidConfiguration();
-        liquidationBonusBps = newLiquidationBonusBps;
-        emit ParametersUpdated("liquidationBonusBps", newLiquidationBonusBps);
+    function exportPositionForMigration(address borrower)
+        external
+        restricted
+        nonReentrant
+        returns (IMigratableLendingCore.MigratedPosition memory position)
+    {
+        Position storage sourcePosition = positions[borrower];
+        _accrue(sourcePosition);
+
+        if (sourcePosition.collateralAmount == 0 && _currentDebt(sourcePosition) == 0) revert NoPosition();
+
+        position = IMigratableLendingCore.MigratedPosition({
+            collateralAmount: sourcePosition.collateralAmount,
+            principalDebt: sourcePosition.principalDebt,
+            accruedInterest: sourcePosition.accruedInterest
+        });
+
+        if (position.principalDebt != 0) {
+            debtPool.migratePrincipalOut(position.principalDebt);
+        }
+
+        sourcePosition.collateralAmount = 0;
+        _clearDebtState(sourcePosition);
+        if (position.collateralAmount != 0) {
+            collateralAsset.safeTransfer(msg.sender, position.collateralAmount);
+        }
+
+        emit PositionMigratedOut(
+            borrower,
+            msg.sender,
+            position.collateralAmount,
+            position.principalDebt,
+            position.accruedInterest
+        );
+    }
+
+    function importMigratedPosition(address borrower, IMigratableLendingCore.MigratedPosition calldata position)
+        external
+        restricted
+        nonReentrant
+    {
+        Position storage destinationPosition = positions[borrower];
+        if (destinationPosition.collateralAmount != 0 || _currentDebt(destinationPosition) != 0) revert ExistingPosition();
+        if (position.collateralAmount == 0 && position.principalDebt == 0 && position.accruedInterest == 0) revert NoPosition();
+
+        if (position.collateralAmount != 0) {
+            collateralAsset.safeTransferFrom(msg.sender, address(this), position.collateralAmount);
+        }
+        if (position.principalDebt != 0) {
+            debtPool.migratePrincipalIn(position.principalDebt);
+        }
+
+        destinationPosition.collateralAmount = position.collateralAmount;
+        destinationPosition.principalDebt = position.principalDebt;
+        destinationPosition.accruedInterest = position.accruedInterest;
+        destinationPosition.lastAccruedAt = block.timestamp;
+
+        uint256 debt = _currentDebt(destinationPosition);
+        if (debt != 0) {
+            _enforceMinimumDebt(debt);
+            uint256 price = _latestOraclePrice();
+            uint256 oracleAgeSeconds = block.timestamp - oracle.lastUpdatedAt();
+            IRiskEngine.QuoteOutput memory quote = _quoteCached(
+                QuoteState({
+                    collateralAmount: destinationPosition.collateralAmount,
+                    debt: debt,
+                    outstandingPrincipal: debtPool.outstandingPrincipal(),
+                    price: price,
+                    oracleAgeSeconds: oracleAgeSeconds,
+                    oracleFresh: true
+                })
+            );
+            uint256 effectiveMaxLtv = _effectiveMaxLtv(quote.maxLtvBps);
+            if (effectiveMaxLtv == 0) revert InvalidConfiguration();
+            destinationPosition.borrowRateBps = quote.borrowRateBps;
+            _requireBorrowSafe(destinationPosition.collateralAmount, debt, price, effectiveMaxLtv);
+        }
+
+        emit PositionMigratedIn(
+            borrower,
+            msg.sender,
+            position.collateralAmount,
+            position.principalDebt,
+            position.accruedInterest
+        );
     }
 
     function depositCollateral(uint256 amount) external nonReentrant whenNotPaused {
@@ -185,16 +315,25 @@ contract LendingCore is AccessManaged, Pausable, ReentrancyGuard {
         if (position.lastAccruedAt == 0) {
             position.lastAccruedAt = block.timestamp;
         }
-        if (_currentDebt(position) == 0) {
-            position.maxLtvBpsSnapshot = maxConfiguredLtvBps;
-            position.liquidationThresholdBpsSnapshot = maxConfiguredLiquidationThresholdBps;
-            position.lastRiskUpdateAt = block.timestamp;
-        } else {
-            (uint256 price, bool fresh) = _oracleSnapshot();
+
+        uint256 debt = _currentDebt(position);
+        if (debt != 0) {
+            (uint256 price, bool fresh, uint256 oracleAgeSeconds) = _oracleSnapshot();
             if (fresh && price != 0) {
-                _refreshRiskSnapshot(position, price);
+                IRiskEngine.QuoteOutput memory quote = _quoteCached(
+                    QuoteState({
+                        collateralAmount: position.collateralAmount,
+                        debt: debt,
+                        outstandingPrincipal: debtPool.outstandingPrincipal(),
+                        price: price,
+                        oracleAgeSeconds: oracleAgeSeconds,
+                        oracleFresh: true
+                    })
+                );
+                position.borrowRateBps = quote.borrowRateBps;
             }
         }
+
         emit CollateralDeposited(msg.sender, amount);
     }
 
@@ -205,9 +344,26 @@ contract LendingCore is AccessManaged, Pausable, ReentrancyGuard {
 
         _accrue(position);
         position.collateralAmount -= amount;
+
         uint256 price = _latestOraclePrice();
-        _refreshRiskSnapshot(position, price);
-        _requireBorrowSafe(position, price, position.maxLtvBpsSnapshot);
+        uint256 debt = _currentDebt(position);
+        if (debt != 0) {
+            uint256 oracleAgeSeconds = block.timestamp - oracle.lastUpdatedAt();
+            IRiskEngine.QuoteOutput memory quote = _quoteCached(
+                QuoteState({
+                    collateralAmount: position.collateralAmount,
+                    debt: debt,
+                    outstandingPrincipal: debtPool.outstandingPrincipal(),
+                    price: price,
+                    oracleAgeSeconds: oracleAgeSeconds,
+                    oracleFresh: true
+                })
+            );
+            uint256 effectiveMaxLtv = _effectiveMaxLtv(quote.maxLtvBps);
+            if (effectiveMaxLtv == 0) revert InvalidConfiguration();
+            position.borrowRateBps = quote.borrowRateBps;
+            _requireBorrowSafe(position.collateralAmount, debt, price, effectiveMaxLtv);
+        }
 
         collateralAsset.safeTransfer(msg.sender, amount);
         emit CollateralWithdrawn(msg.sender, amount);
@@ -215,34 +371,42 @@ contract LendingCore is AccessManaged, Pausable, ReentrancyGuard {
 
     function borrow(uint256 amount) external nonReentrant whenNotPaused {
         if (amount == 0) revert ZeroAmount();
+        if (newDebtFrozen) revert NewDebtDisabled();
         Position storage position = positions[msg.sender];
         if (position.collateralAmount == 0) revert InsufficientCollateral();
 
         _accrue(position);
         uint256 price = _latestOraclePrice();
-        IRiskEngine.QuoteOutput memory quote = _quoteRisk(position, price, amount);
+        uint256 oracleAgeSeconds = block.timestamp - oracle.lastUpdatedAt();
+        uint256 projectedDebt = _currentDebt(position) + amount;
+        uint256 projectedOutstandingPrincipal = debtPool.outstandingPrincipal() + amount;
+        IRiskEngine.QuoteOutput memory quote = _quoteCached(
+            QuoteState({
+                collateralAmount: position.collateralAmount,
+                debt: projectedDebt,
+                outstandingPrincipal: projectedOutstandingPrincipal,
+                price: price,
+                oracleAgeSeconds: oracleAgeSeconds,
+                oracleFresh: true
+            })
+        );
         uint256 effectiveMaxLtv = _effectiveMaxLtv(quote.maxLtvBps);
         uint256 effectiveLiquidationThreshold = _effectiveLiquidationThreshold(quote.liquidationThresholdBps);
         if (effectiveMaxLtv == 0 || effectiveLiquidationThreshold == 0) revert InvalidConfiguration();
 
-        uint256 projectedOutstandingPrincipal = debtPool.outstandingPrincipal() + amount;
         if (projectedOutstandingPrincipal > borrowCap) {
             revert BorrowCapExceeded(projectedOutstandingPrincipal, borrowCap);
         }
 
-        uint256 projectedDebt = currentDebt(msg.sender) + amount;
         _enforceMinimumDebt(projectedDebt);
 
         position.principalDebt += amount;
         position.borrowRateBps = quote.borrowRateBps;
-        position.maxLtvBpsSnapshot = effectiveMaxLtv;
-        position.liquidationThresholdBpsSnapshot = effectiveLiquidationThreshold;
-        position.lastRiskUpdateAt = block.timestamp;
         if (position.lastAccruedAt == 0) {
             position.lastAccruedAt = block.timestamp;
         }
 
-        _requireBorrowSafe(position, price, effectiveMaxLtv);
+        _requireBorrowSafe(position.collateralAmount, projectedDebt, price, effectiveMaxLtv);
 
         debtPool.drawDebt(msg.sender, amount);
         emit Borrowed(msg.sender, amount, quote.borrowRateBps);
@@ -268,9 +432,19 @@ contract LendingCore is AccessManaged, Pausable, ReentrancyGuard {
         if (remainingDebt == 0) {
             _clearDebtState(position);
         } else {
-            (uint256 price, bool fresh) = _oracleSnapshot();
+            (uint256 price, bool fresh, uint256 oracleAgeSeconds) = _oracleSnapshot();
             if (fresh && price != 0) {
-                _refreshRiskSnapshot(position, price);
+                IRiskEngine.QuoteOutput memory quote = _quoteCached(
+                    QuoteState({
+                        collateralAmount: position.collateralAmount,
+                        debt: remainingDebt,
+                        outstandingPrincipal: debtPool.outstandingPrincipal(),
+                        price: price,
+                        oracleAgeSeconds: oracleAgeSeconds,
+                        oracleFresh: true
+                    })
+                );
+                position.borrowRateBps = quote.borrowRateBps;
             }
         }
 
@@ -286,13 +460,30 @@ contract LendingCore is AccessManaged, Pausable, ReentrancyGuard {
         if (debt == 0) revert NoDebt();
 
         uint256 price = _latestOraclePrice();
-        _refreshRiskSnapshot(position, price);
-        uint256 healthFactorWad = _healthFactor(position, price, position.liquidationThresholdBpsSnapshot);
-        if (healthFactorWad >= WAD) revert PositionHealthy(healthFactorWad);
+        uint256 oracleAgeSeconds = block.timestamp - oracle.lastUpdatedAt();
+        {
+            IRiskEngine.QuoteOutput memory currentQuote = _quoteCached(
+                QuoteState({
+                    collateralAmount: position.collateralAmount,
+                    debt: debt,
+                    outstandingPrincipal: debtPool.outstandingPrincipal(),
+                    price: price,
+                    oracleAgeSeconds: oracleAgeSeconds,
+                    oracleFresh: true
+                })
+            );
+            uint256 currentThreshold = _effectiveLiquidationThreshold(currentQuote.liquidationThresholdBps);
+            if (currentThreshold == 0) revert InvalidConfiguration();
+
+            uint256 healthFactorWad = _healthFactor(position.collateralAmount, debt, price, currentThreshold);
+            if (healthFactorWad >= WAD) revert PositionHealthy(healthFactorWad);
+        }
 
         uint256 collateralValue = _collateralValue(position.collateralAmount, price);
-        uint256 maxRepayAgainstCollateral = (collateralValue * BPS) / (BPS + liquidationBonusBps);
-        uint256 actualRepay = _min(requestedRepayAmount, _min(debt, maxRepayAgainstCollateral));
+        uint256 actualRepay = _min(
+            requestedRepayAmount,
+            _min(debt, (collateralValue * BPS) / (BPS + liquidationBonusBps))
+        );
         if (actualRepay == 0) revert InvalidLiquidationAmount();
 
         uint256 collateralSeized = (actualRepay * (BPS + liquidationBonusBps) * WAD) / (price * BPS);
@@ -301,11 +492,13 @@ contract LendingCore is AccessManaged, Pausable, ReentrancyGuard {
         }
 
         debtAsset.safeTransferFrom(msg.sender, address(debtPool), actualRepay);
-        uint256 interestPaid = actualRepay < position.accruedInterest ? actualRepay : position.accruedInterest;
-        position.accruedInterest -= interestPaid;
-        uint256 principalPaid = actualRepay - interestPaid;
-        position.principalDebt -= principalPaid;
-        debtPool.recordRepayment(principalPaid, interestPaid, reserveFactorBps);
+        {
+            uint256 interestPaid = actualRepay < position.accruedInterest ? actualRepay : position.accruedInterest;
+            position.accruedInterest -= interestPaid;
+            uint256 principalPaid = actualRepay - interestPaid;
+            position.principalDebt -= principalPaid;
+            debtPool.recordRepayment(principalPaid, interestPaid, reserveFactorBps);
+        }
 
         position.collateralAmount -= collateralSeized;
         collateralAsset.safeTransfer(msg.sender, collateralSeized);
@@ -313,8 +506,6 @@ contract LendingCore is AccessManaged, Pausable, ReentrancyGuard {
         uint256 badDebtWrittenOff;
         uint256 remainingDebt = _currentDebt(position);
         if (position.collateralAmount == 0 && remainingDebt > 0) {
-            // The pool only accounts for principal as an asset. Unpaid accrued interest is forgiven with the
-            // borrower position, but must not be pushed into principal-loss accounting.
             uint256 remainingPrincipalDebt = position.principalDebt;
             badDebtWrittenOff = remainingDebt;
             if (remainingPrincipalDebt > 0) {
@@ -326,7 +517,17 @@ contract LendingCore is AccessManaged, Pausable, ReentrancyGuard {
             _clearDebtState(position);
         } else {
             _enforceMinimumDebt(remainingDebt);
-            _refreshRiskSnapshot(position, price);
+            IRiskEngine.QuoteOutput memory postQuote = _quoteCached(
+                QuoteState({
+                    collateralAmount: position.collateralAmount,
+                    debt: remainingDebt,
+                    outstandingPrincipal: debtPool.outstandingPrincipal(),
+                    price: price,
+                    oracleAgeSeconds: oracleAgeSeconds,
+                    oracleFresh: true
+                })
+            );
+            position.borrowRateBps = postQuote.borrowRateBps;
         }
 
         emit Liquidated(borrower, msg.sender, actualRepay, collateralSeized, badDebtWrittenOff);
@@ -338,34 +539,53 @@ contract LendingCore is AccessManaged, Pausable, ReentrancyGuard {
 
     function healthFactor(address borrower) external view returns (uint256) {
         Position storage position = positions[borrower];
-        if (_currentDebt(position) == 0) {
+        uint256 debt = _currentDebt(position);
+        if (debt == 0) {
             return type(uint256).max;
         }
 
-        (uint256 price, bool fresh) = _oracleSnapshot();
+        (uint256 price, bool fresh, uint256 oracleAgeSeconds) = _oracleSnapshot();
         if (!fresh || price == 0) {
             return 0;
         }
 
-        IRiskEngine.QuoteOutput memory quote = _quoteRisk(position, price, 0);
-        return _healthFactor(position, price, _effectiveLiquidationThreshold(quote.liquidationThresholdBps));
+        IRiskEngine.QuoteOutput memory quote = _quoteView(
+            QuoteState({
+                collateralAmount: position.collateralAmount,
+                debt: debt,
+                outstandingPrincipal: debtPool.outstandingPrincipal(),
+                price: price,
+                oracleAgeSeconds: oracleAgeSeconds,
+                oracleFresh: true
+            })
+        );
+        return _healthFactor(position.collateralAmount, debt, price, _effectiveLiquidationThreshold(quote.liquidationThresholdBps));
     }
 
     function availableToBorrow(address borrower) external view returns (uint256) {
         Position storage position = positions[borrower];
-        (uint256 price, bool fresh) = _oracleSnapshot();
+        (uint256 price, bool fresh, uint256 oracleAgeSeconds) = _oracleSnapshot();
         if (!fresh || price == 0) {
             return 0;
         }
 
-        IRiskEngine.QuoteOutput memory quote = _quoteRisk(position, price, 0);
+        uint256 debt = _currentDebt(position);
+        IRiskEngine.QuoteOutput memory quote = _quoteView(
+            QuoteState({
+                collateralAmount: position.collateralAmount,
+                debt: debt,
+                outstandingPrincipal: debtPool.outstandingPrincipal(),
+                price: price,
+                oracleAgeSeconds: oracleAgeSeconds,
+                oracleFresh: true
+            })
+        );
         uint256 effectiveMaxLtv = _effectiveMaxLtv(quote.maxLtvBps);
         if (effectiveMaxLtv == 0) {
             return 0;
         }
 
         uint256 borrowable = (_collateralValue(position.collateralAmount, price) * effectiveMaxLtv) / BPS;
-        uint256 debt = _currentDebt(position);
         return borrowable > debt ? borrowable - debt : 0;
     }
 
@@ -375,16 +595,25 @@ contract LendingCore is AccessManaged, Pausable, ReentrancyGuard {
         returns (IRiskEngine.QuoteOutput memory quote, uint256 projectedDebt, uint256 projectedHealthFactor)
     {
         Position storage position = positions[borrower];
-        (uint256 price, bool fresh) = _oracleSnapshot();
+        (uint256 price, bool fresh, uint256 oracleAgeSeconds) = _oracleSnapshot();
         if (!fresh || price == 0) {
             return (quote, 0, 0);
         }
 
-        quote = _quoteRisk(position, price, additionalDebt);
         projectedDebt = _currentDebt(position) + additionalDebt;
+        quote = _quoteView(
+            QuoteState({
+                collateralAmount: position.collateralAmount,
+                debt: projectedDebt,
+                outstandingPrincipal: debtPool.outstandingPrincipal() + additionalDebt,
+                price: price,
+                oracleAgeSeconds: oracleAgeSeconds,
+                oracleFresh: true
+            })
+        );
         uint256 threshold = _effectiveLiquidationThreshold(quote.liquidationThresholdBps);
         if (threshold != 0) {
-            projectedHealthFactor = _healthFactor(position, price, threshold, additionalDebt);
+            projectedHealthFactor = _healthFactor(position.collateralAmount, projectedDebt, price, threshold);
         }
     }
 
@@ -392,46 +621,35 @@ contract LendingCore is AccessManaged, Pausable, ReentrancyGuard {
         return oracle.latestPriceWad();
     }
 
-    function _oracleSnapshot() private view returns (uint256 price, bool fresh) {
+    function _oracleSnapshot() private view returns (uint256 price, bool fresh, uint256 oracleAgeSeconds) {
         price = oracle.priceWad();
         fresh = oracle.isFresh();
+        oracleAgeSeconds = block.timestamp - oracle.lastUpdatedAt();
     }
 
-    function _quoteRisk(Position storage position, uint256 price, uint256 additionalDebt)
-        private
-        view
-        returns (IRiskEngine.QuoteOutput memory)
-    {
-        uint256 projectedDebt = _currentDebt(position) + additionalDebt;
-        uint256 collateralValue = _collateralValue(position.collateralAmount, price);
-        uint256 collateralRatioBps = projectedDebt == 0 ? type(uint64).max : (collateralValue * BPS) / projectedDebt;
+    function _quoteView(QuoteState memory state) private view returns (IRiskEngine.QuoteOutput memory) {
+        return riskEngine.quote(_buildQuoteInput(state));
+    }
+
+    function _quoteCached(QuoteState memory state) private returns (IRiskEngine.QuoteOutput memory) {
+        return riskEngine.quoteViaTicket(currentQuoteContext(), _buildQuoteInput(state));
+    }
+
+    function _buildQuoteInput(QuoteState memory state) private view returns (IRiskEngine.QuoteInput memory) {
+        uint256 collateralValue = _collateralValue(state.collateralAmount, state.price);
+        uint256 collateralRatioBps = state.debt == 0 ? type(uint64).max : (collateralValue * BPS) / state.debt;
         uint256 totalAssets = debtPool.totalAssets();
-        uint256 projectedOutstandingPrincipal = debtPool.outstandingPrincipal() + additionalDebt;
-        uint256 utilizationBps = totalAssets == 0 ? 0 : (projectedOutstandingPrincipal * BPS) / totalAssets;
-
-        return riskEngine.quote(
-            IRiskEngine.QuoteInput({
-                utilizationBps: utilizationBps,
-                collateralRatioBps: collateralRatioBps,
-                oracleAgeSeconds: block.timestamp - oracle.lastUpdatedAt(),
-                oracleFresh: oracle.isFresh()
-            })
-        );
-    }
-
-    function _refreshRiskSnapshot(Position storage position, uint256 price) private {
-        if (_currentDebt(position) == 0) {
-            position.maxLtvBpsSnapshot = maxConfiguredLtvBps;
-            position.liquidationThresholdBpsSnapshot = maxConfiguredLiquidationThresholdBps;
-            position.lastRiskUpdateAt = block.timestamp;
-            return;
+        uint256 utilizationBps = totalAssets == 0 ? 0 : (state.outstandingPrincipal * BPS) / totalAssets;
+        uint256 normalizedOracleAgeSeconds = 0;
+        if (state.oracleFresh && state.oracleAgeSeconds > 30 minutes) {
+            normalizedOracleAgeSeconds = 30 minutes + 1;
         }
-
-        IRiskEngine.QuoteOutput memory quote = _quoteRisk(position, price, 0);
-        position.borrowRateBps = quote.borrowRateBps;
-        position.maxLtvBpsSnapshot = _effectiveMaxLtv(quote.maxLtvBps);
-        position.liquidationThresholdBpsSnapshot = _effectiveLiquidationThreshold(quote.liquidationThresholdBps);
-        position.lastRiskUpdateAt = block.timestamp;
+        return IRiskEngine.QuoteInput({
+            utilizationBps: utilizationBps,
+            collateralRatioBps: collateralRatioBps,
+            oracleAgeSeconds: normalizedOracleAgeSeconds,
+            oracleFresh: state.oracleFresh
+        });
     }
 
     function _effectiveMaxLtv(uint256 quoteMaxLtv) private view returns (uint256) {
@@ -444,35 +662,25 @@ contract LendingCore is AccessManaged, Pausable, ReentrancyGuard {
             : maxConfiguredLiquidationThresholdBps;
     }
 
-    function _requireBorrowSafe(Position storage position, uint256 price, uint256 maxLtvBps) private view {
-        uint256 debt = _currentDebt(position);
+    function _requireBorrowSafe(uint256 collateralAmount, uint256 debt, uint256 price, uint256 maxLtvBps) private pure {
         if (debt == 0) {
             return;
         }
 
-        uint256 maxDebt = (_collateralValue(position.collateralAmount, price) * maxLtvBps) / BPS;
+        uint256 maxDebt = (_collateralValue(collateralAmount, price) * maxLtvBps) / BPS;
         if (debt > maxDebt) revert InsufficientCollateral();
     }
 
-    function _healthFactor(Position storage position, uint256 price, uint256 liquidationThresholdBps)
+    function _healthFactor(uint256 collateralAmount, uint256 debt, uint256 price, uint256 liquidationThresholdBps)
         private
-        view
+        pure
         returns (uint256)
     {
-        return _healthFactor(position, price, liquidationThresholdBps, 0);
-    }
-
-    function _healthFactor(Position storage position, uint256 price, uint256 liquidationThresholdBps, uint256 additionalDebt)
-        private
-        view
-        returns (uint256)
-    {
-        uint256 debt = _currentDebt(position) + additionalDebt;
         if (debt == 0) {
             return type(uint256).max;
         }
 
-        uint256 collateralValue = _collateralValue(position.collateralAmount, price);
+        uint256 collateralValue = _collateralValue(collateralAmount, price);
         return (collateralValue * liquidationThresholdBps * WAD) / (debt * BPS);
     }
 
@@ -517,10 +725,7 @@ contract LendingCore is AccessManaged, Pausable, ReentrancyGuard {
         position.principalDebt = 0;
         position.accruedInterest = 0;
         position.borrowRateBps = 0;
-        position.maxLtvBpsSnapshot = maxConfiguredLtvBps;
-        position.liquidationThresholdBpsSnapshot = maxConfiguredLiquidationThresholdBps;
         position.lastAccruedAt = block.timestamp;
-        position.lastRiskUpdateAt = block.timestamp;
     }
 
     function _enforceMinimumDebt(uint256 debt) private view {
@@ -528,6 +733,7 @@ contract LendingCore is AccessManaged, Pausable, ReentrancyGuard {
             revert DebtBelowMinimum(debt, minBorrowAmount);
         }
     }
+
 
     function _min(uint256 a, uint256 b) private pure returns (uint256) {
         return a < b ? a : b;

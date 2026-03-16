@@ -3,7 +3,7 @@ import { expect } from "chai";
 import { ethers } from "hardhat";
 import { deployGovernedSystem } from "../lib/deployment/deployGovernedSystem";
 import { deployMarketVersion } from "../lib/deployment/deployMarketVersion";
-import { WAD } from "../lib/config/marketConfig";
+import { LIVE_ROLE_EXECUTION_DELAYS_SECONDS, ROLE_IDS, WAD } from "../lib/config/marketConfig";
 
 const VOTING_DELAY = 1; // 1 second
 const VOTING_PERIOD = 300; // 5 minutes
@@ -330,5 +330,140 @@ describe("Governor lifecycle", function () {
 
     expect(await timelock.hasRole(PROPOSER_ROLE, await governor.getAddress())).to.equal(true);
     expect(await timelock.hasRole(CANCELLER_ROLE, await governor.getAddress())).to.equal(true);
+  });
+
+  it("governance chain-of-trust: accessManager admin is timelock, timelock proposer is governor, deployer has no admin, non-zero delays configured", async function () {
+    const { deployer, governor, timelock, accessManager, deployment } = await loadFixture(deployFixture);
+
+    // 1. AccessManager admin (role 0) is TimelockController
+    const timelockAddress = await timelock.getAddress();
+    const [timelockIsAdmin] = await accessManager.hasRole(0, timelockAddress);
+    expect(timelockIsAdmin).to.equal(true);
+
+    // 2. TimelockController PROPOSER_ROLE is Governor
+    const PROPOSER_ROLE = await timelock.PROPOSER_ROLE();
+    const governorAddress = await governor.getAddress();
+    expect(await timelock.hasRole(PROPOSER_ROLE, governorAddress)).to.equal(true);
+
+    // 3. Deployer has no admin on AccessManager
+    const [deployerIsAdmin] = await accessManager.hasRole(0, deployer.address);
+    expect(deployerIsAdmin).to.equal(false);
+
+    // 4. Deployer has no admin on TimelockController
+    const TIMELOCK_ADMIN_ROLE = await timelock.DEFAULT_ADMIN_ROLE();
+    expect(await timelock.hasRole(TIMELOCK_ADMIN_ROLE, deployer.address)).to.equal(false);
+
+    // 5. Deployer holds no GOVERNANCE role (governance is via timelock only)
+    const [deployerIsGovernance] = await accessManager.hasRole(ROLE_IDS.GOVERNANCE, deployer.address);
+    expect(deployerIsGovernance).to.equal(false);
+
+    // 6. Deployer may hold operational roles (EMERGENCY, RISK_ADMIN etc.) but NOT admin (role 0)
+    // This is correct: deployer can be an operator but must not be the admin root
+    const [deployerIsRiskAdmin] = await accessManager.hasRole(ROLE_IDS.RISK_ADMIN, deployer.address);
+    // Operational roles are assigned by default to deployer in test fixture, which is fine
+    // The critical invariant is: deployer has no admin role (already verified above)
+
+    // 7. Non-zero execution delays configured for sensitive roles
+    const executionDelays = deployment.governance.executionDelaySeconds;
+    expect(executionDelays.emergency).to.equal(LIVE_ROLE_EXECUTION_DELAYS_SECONDS.emergency); // 0 for emergency
+    expect(executionDelays.riskAdmin).to.equal(LIVE_ROLE_EXECUTION_DELAYS_SECONDS.riskAdmin); // 60s
+    expect(executionDelays.treasury).to.equal(LIVE_ROLE_EXECUTION_DELAYS_SECONDS.treasury); // 60s
+    expect(executionDelays.minter).to.equal(LIVE_ROLE_EXECUTION_DELAYS_SECONDS.minter); // 60s
+
+    // Verify non-zero for risk, treasury, minter
+    expect(executionDelays.riskAdmin).to.be.gt(0);
+    expect(executionDelays.treasury).to.be.gt(0);
+    expect(executionDelays.minter).to.be.gt(0);
+
+    // 8. TimelockController holds GOVERNANCE role for registry operations
+    const [timelockIsGovernance] = await accessManager.hasRole(ROLE_IDS.GOVERNANCE, timelockAddress);
+    expect(timelockIsGovernance).to.equal(true);
+  });
+
+  it("version activation requires full governance proposal flow", async function () {
+    const { deployer, voter1, outsider, governor, timelock, accessManager, marketRegistry, wpas, usdc } =
+      await loadFixture(deployFixture);
+
+    // 1. Direct call to activateVersion from an EOA reverts
+    await expect(marketRegistry.connect(outsider).activateVersion(1n)).to.be.reverted;
+    await expect(marketRegistry.connect(deployer).activateVersion(1n)).to.be.reverted;
+
+    // 2. Deploy a new version to register + activate
+    const v2 = await deployMarketVersion({
+      deployer,
+      authority: await accessManager.getAddress(),
+      collateralAsset: await wpas.getAddress(),
+      debtAsset: await usdc.getAddress(),
+      autoWireLendingCore: false,
+    });
+
+    // Wire lending core via governance (timelock has admin)
+    const wireData = v2.debtPool.interface.encodeFunctionData("setLendingCore", [
+      await v2.lendingCore.getAddress(),
+    ]);
+    const wireTargets = [await v2.debtPool.getAddress()];
+    const wireValues = [0n];
+    const wireCalldatas = [wireData];
+    const wireDesc = "Wire v2 lending core";
+
+    await governor.connect(deployer).propose(wireTargets, wireValues, wireCalldatas, wireDesc);
+    const wirePropId = await governor.hashProposal(wireTargets, wireValues, wireCalldatas, ethers.id(wireDesc));
+    await time.increase(VOTING_DELAY + 1);
+    await governor.connect(deployer).castVote(wirePropId, 1);
+    await governor.connect(voter1).castVote(wirePropId, 1);
+    await time.increase(VOTING_PERIOD + 1);
+    await governor.queue(wireTargets, wireValues, wireCalldatas, ethers.id(wireDesc));
+    await time.increase(TIMELOCK_DELAY + 1);
+    await governor.execute(wireTargets, wireValues, wireCalldatas, ethers.id(wireDesc));
+
+    // 3. Create governance proposal to register + activate version 2
+    const registryAddr = await marketRegistry.getAddress();
+    const registerData = marketRegistry.interface.encodeFunctionData("registerVersion", [
+      await v2.lendingCore.getAddress(),
+      await v2.debtPool.getAddress(),
+      await v2.oracle.getAddress(),
+      await v2.riskEngine.getAddress(),
+    ]);
+    const activateData = marketRegistry.interface.encodeFunctionData("activateVersion", [2n]);
+
+    const targets = [registryAddr, registryAddr];
+    const values = [0n, 0n];
+    const calldatas = [registerData, activateData];
+    const description = "Register and activate v2 via governance";
+
+    // Verify pre-condition: active version is 1
+    const preActive = await marketRegistry.activeVersion();
+    expect(preActive.lendingCore).to.not.equal(await v2.lendingCore.getAddress());
+
+    // 4. Full governance lifecycle: propose → vote → queue → execute
+    await governor.connect(deployer).propose(targets, values, calldatas, description);
+    const proposalId = await governor.hashProposal(targets, values, calldatas, ethers.id(description));
+
+    // Pending state
+    expect(await governor.state(proposalId)).to.equal(0);
+
+    await time.increase(VOTING_DELAY + 1);
+    expect(await governor.state(proposalId)).to.equal(1); // Active
+
+    await governor.connect(deployer).castVote(proposalId, 1);
+    await governor.connect(voter1).castVote(proposalId, 1);
+
+    await time.increase(VOTING_PERIOD + 1);
+    expect(await governor.state(proposalId)).to.equal(4); // Succeeded
+
+    await governor.queue(targets, values, calldatas, ethers.id(description));
+    expect(await governor.state(proposalId)).to.equal(5); // Queued
+
+    await time.increase(TIMELOCK_DELAY + 1);
+
+    await governor.execute(targets, values, calldatas, ethers.id(description));
+    expect(await governor.state(proposalId)).to.equal(7); // Executed
+
+    // 5. Verify on-chain effect: activeVersion updated
+    const postActive = await marketRegistry.activeVersion();
+    expect(postActive.lendingCore).to.equal(await v2.lendingCore.getAddress());
+    expect(postActive.debtPool).to.equal(await v2.debtPool.getAddress());
+    expect(postActive.oracle).to.equal(await v2.oracle.getAddress());
+    expect(postActive.riskEngine).to.equal(await v2.riskEngine.getAddress());
   });
 });

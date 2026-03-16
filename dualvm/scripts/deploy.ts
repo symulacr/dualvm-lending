@@ -1,7 +1,7 @@
 import hre from "hardhat";
 import { deployDualVmSystem } from "../lib/deployment/deploySystem";
 import { writeDeploymentManifest } from "../lib/deployment/manifestStore";
-import { type DeploymentManifest } from "../lib/shared/deploymentManifest";
+import { type DeploymentManifest, type HexAddress } from "../lib/shared/deploymentManifest";
 import { LIVE_ROLE_EXECUTION_DELAYS_SECONDS } from "../lib/config/marketConfig";
 import { runEntrypoint } from "../lib/runtime/entrypoint";
 
@@ -28,6 +28,7 @@ export async function main() {
     minterExecutionDelaySeconds: process.env.MINTER_EXECUTION_DELAY_SECONDS
       ? Number(process.env.MINTER_EXECUTION_DELAY_SECONDS)
       : LIVE_ROLE_EXECUTION_DELAYS_SECONDS.minter,
+    riskQuoteEngineAddress: process.env.RISK_QUOTE_ENGINE_ADDRESS,
   });
 
   const { network } = hre;
@@ -35,8 +36,8 @@ export async function main() {
     generatedAt: new Date().toISOString(),
     networkName: network.name,
     polkadotHubTestnet: deployment.network,
-    roles: deployment.roles,
-    governance: deployment.governance,
+    roles: deployment.roles as DeploymentManifest["roles"],
+    governance: deployment.governance as DeploymentManifest["governance"],
     config: {
       ...deployment.config,
       oraclePriceWad: deployment.config.oraclePriceWad.toString(),
@@ -67,13 +68,15 @@ export async function main() {
         : undefined,
     },
     contracts: {
-      accessManager: await deployment.contracts.accessManager.getAddress(),
-      wpas: await deployment.contracts.wpas.getAddress(),
-      usdc: await deployment.contracts.usdc.getAddress(),
-      oracle: await deployment.contracts.oracle.getAddress(),
-      riskEngine: await deployment.contracts.riskEngine.getAddress(),
-      debtPool: await deployment.contracts.debtPool.getAddress(),
-      lendingCore: await deployment.contracts.lendingCore.getAddress(),
+      accessManager: (await deployment.contracts.accessManager.getAddress()) as HexAddress,
+      wpas: (await deployment.contracts.wpas.getAddress()) as HexAddress,
+      usdc: (await deployment.contracts.usdc.getAddress()) as HexAddress,
+      oracle: (await deployment.contracts.oracle.getAddress()) as HexAddress,
+      riskEngine: (await deployment.contracts.riskEngine.getAddress()) as HexAddress,
+      quoteEngine: (await deployment.contracts.quoteEngine.getAddress()) as HexAddress,
+      marketRegistry: (await deployment.contracts.marketRegistry.getAddress()) as HexAddress,
+      debtPool: (await deployment.contracts.debtPool.getAddress()) as HexAddress,
+      lendingCore: (await deployment.contracts.lendingCore.getAddress()) as HexAddress,
     },
   };
 

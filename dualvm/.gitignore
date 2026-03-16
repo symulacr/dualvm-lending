@@ -8,3 +8,6 @@ pvm-artifacts/
 ignition/deployments/
 .env
 wallets/*.txt
+
+artifacts-pvm/
+cache-pvm/

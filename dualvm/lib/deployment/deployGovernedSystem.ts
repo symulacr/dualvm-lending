@@ -27,7 +27,20 @@ export interface DeployGovernedOverrides extends DeployDualVmOverrides {
 }
 
 export async function deployGovernedSystem(overrides: DeployGovernedOverrides) {
-  const base = await deployDualVmSystem(overrides);
+  // Governed deployments default to LIVE execution delays (non-zero for sensitive roles)
+  const governedOverrides: DeployGovernedOverrides = {
+    ...overrides,
+    emergencyExecutionDelaySeconds:
+      overrides.emergencyExecutionDelaySeconds ?? LIVE_ROLE_EXECUTION_DELAYS_SECONDS.emergency,
+    riskAdminExecutionDelaySeconds:
+      overrides.riskAdminExecutionDelaySeconds ?? LIVE_ROLE_EXECUTION_DELAYS_SECONDS.riskAdmin,
+    treasuryExecutionDelaySeconds:
+      overrides.treasuryExecutionDelaySeconds ?? LIVE_ROLE_EXECUTION_DELAYS_SECONDS.treasury,
+    minterExecutionDelaySeconds:
+      overrides.minterExecutionDelaySeconds ?? LIVE_ROLE_EXECUTION_DELAYS_SECONDS.minter,
+  };
+
+  const base = await deployDualVmSystem(governedOverrides);
   const { accessManager, marketRegistry } = base.contracts as any;
   const deployer = base.deployer;
 
@@ -102,10 +115,6 @@ export async function deployGovernedSystem(overrides: DeployGovernedOverrides) {
     "grant timelock admin role",
   );
   await waitForTransaction(accessManager.revokeRole(0, await deployer.getAddress()), "revoke deployer admin role");
-
-  if (base.governance.executionDelaySeconds.riskAdmin !== LIVE_ROLE_EXECUTION_DELAYS_SECONDS.riskAdmin) {
-    console.log("governed deployment note: base risk-admin delay differs from default live delay");
-  }
 
   return {
     ...base,

@@ -2,7 +2,8 @@ import hre from "hardhat";
 import type { ManagedCallContext } from "../lib/ops/managedAccess";
 import { openBorrowPosition, seedDebtPoolLiquidity, waitForDebtToAccrue } from "../lib/ops/liveScenario";
 import { loadDeploymentManifest } from "../lib/deployment/manifestStore";
-import { requireEnv } from "../lib/runtime/env";
+import { loadActors } from "../lib/runtime/actors";
+import { attachManifestContract } from "../lib/runtime/contracts";
 import { formatWad, waitForTransaction } from "../lib/runtime/transactions";
 import { runEntrypoint } from "../lib/runtime/entrypoint";
 
@@ -10,18 +11,16 @@ const { ethers } = hre;
 
 export async function main() {
   const manifest = loadDeploymentManifest();
-  const provider = ethers.provider;
+  const { admin, minter, borrower } = loadActors(["admin", "minter", "borrower"] as const);
 
-  const admin = new ethers.Wallet(requireEnv("ADMIN_PRIVATE_KEY"), provider);
-  const minter = new ethers.Wallet(requireEnv("MINTER_PRIVATE_KEY"), provider);
-  const borrower = new ethers.Wallet(requireEnv("BORROWER_PRIVATE_KEY"), provider);
-
-  const accessManager = (await ethers.getContractFactory("DualVMAccessManager", minter)).attach(manifest.contracts.accessManager) as any;
-  const wpas = (await ethers.getContractFactory("WPAS", borrower)).attach(manifest.contracts.wpas) as any;
-  const usdcAdmin = (await ethers.getContractFactory("USDCMock", admin)).attach(manifest.contracts.usdc) as any;
+  const [accessManager, wpas, usdcAdmin, debtPoolAdmin, lendingCoreAdmin] = await Promise.all([
+    attachManifestContract(manifest, "accessManager", "DualVMAccessManager", minter),
+    attachManifestContract(manifest, "wpas", "WPAS", borrower),
+    attachManifestContract(manifest, "usdc", "USDCMock", admin),
+    attachManifestContract(manifest, "debtPool", "DebtPool", admin),
+    attachManifestContract(manifest, "lendingCore", "LendingCore", admin),
+  ]);
   const usdcBorrower = usdcAdmin.connect(borrower) as any;
-  const debtPoolAdmin = (await ethers.getContractFactory("DebtPool", admin)).attach(manifest.contracts.debtPool) as any;
-  const lendingCoreAdmin = (await ethers.getContractFactory("LendingCore", admin)).attach(manifest.contracts.lendingCore) as any;
   const lendingCoreBorrower = lendingCoreAdmin.connect(borrower) as any;
 
   const managedMinterContext: ManagedCallContext = {
@@ -35,7 +34,7 @@ export async function main() {
   const borrowAmount = ethers.parseUnits("200", 18);
   const repayAmount = ethers.parseUnits("50", 18);
 
-  await seedDebtPoolLiquidity(managedMinterContext, usdcAdmin, debtPoolAdmin, admin.address, poolSeed, "repay scenario");
+  await seedDebtPoolLiquidity(managedMinterContext, usdcAdmin, usdcAdmin, debtPoolAdmin, admin.address, poolSeed, "repay scenario");
   await openBorrowPosition({
     wpas,
     lendingCore: lendingCoreBorrower,

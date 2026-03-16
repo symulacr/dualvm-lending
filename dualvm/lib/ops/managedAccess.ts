@@ -46,7 +46,10 @@ async function sendManagerCall(
   label: string,
 ) {
   const manager = accessManager.connect(signer);
-  return waitForTransaction(manager[fragment](...(args as [string, string, number?])), label);
+  if (fragment === "schedule") {
+    return waitForTransaction(manager.schedule(args[0] as string, args[1] as string, args[2] as number), label);
+  }
+  return waitForTransaction(manager.execute(args[0] as string, args[1] as string), label);
 }
 
 async function waitUntilOperationReady(
@@ -156,29 +159,29 @@ export async function managedSetOracleCircuitBreaker(
   );
 }
 
-export async function managedSetRiskEngine(
+export async function managedRegisterVersion(
   context: ManagedCallContext,
-  lendingCore: ContractInterfaceLike,
+  registry: ContractInterfaceLike,
+  lendingCoreAddress: string,
+  debtPoolAddress: string,
+  oracleAddress: string,
   riskEngineAddress: string,
   label: string,
-) {
-  return executeManagedMethod(context, lendingCore, "setRiskEngine", [riskEngineAddress], label);
+ ) {
+  return executeManagedMethod(
+    context,
+    registry,
+    "registerVersion",
+    [lendingCoreAddress, debtPoolAddress, oracleAddress, riskEngineAddress],
+    label,
+  );
 }
 
-export async function managedSetOracle(
+export async function managedActivateVersion(
   context: ManagedCallContext,
-  lendingCore: ContractInterfaceLike,
-  oracleAddress: string,
+  registry: ContractInterfaceLike,
+  versionId: bigint | number,
   label: string,
-) {
-  return executeManagedMethod(context, lendingCore, "setOracle", [oracleAddress], label);
-}
-
-export async function managedSetTreasury(
-  context: ManagedCallContext,
-  lendingCore: ContractInterfaceLike,
-  treasuryAddress: string,
-  label: string,
-) {
-  return executeManagedMethod(context, lendingCore, "setTreasury", [treasuryAddress], label);
+ ) {
+  return executeManagedMethod(context, registry, "activateVersion", [versionId], label);
 }

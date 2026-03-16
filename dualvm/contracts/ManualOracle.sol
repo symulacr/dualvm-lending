@@ -17,10 +17,12 @@ contract ManualOracle is AccessManaged, Pausable {
     uint256 public minPriceWad;
     uint256 public maxPriceWad;
     uint256 public maxPriceChangeBps;
+    uint256 public oracleEpoch;
 
-    event PriceUpdated(uint256 priceWad, uint256 timestamp);
-    event MaxAgeUpdated(uint256 maxAge);
-    event CircuitBreakerUpdated(uint256 minPriceWad, uint256 maxPriceWad, uint256 maxPriceChangeBps);
+    event PriceUpdated(uint256 priceWad, uint256 timestamp, uint256 oracleEpoch);
+    event MaxAgeUpdated(uint256 maxAge, uint256 oracleEpoch);
+    event CircuitBreakerUpdated(uint256 minPriceWad, uint256 maxPriceWad, uint256 maxPriceChangeBps, uint256 oracleEpoch);
+    event OraclePauseStateUpdated(bool paused, uint256 oracleEpoch);
 
     constructor(
         address authority,
@@ -42,6 +44,7 @@ contract ManualOracle is AccessManaged, Pausable {
         minPriceWad = initialMinPriceWad;
         maxPriceWad = initialMaxPriceWad;
         maxPriceChangeBps = initialMaxPriceChangeBps;
+        oracleEpoch = 1;
     }
 
     function setPrice(uint256 newPriceWad) external restricted {
@@ -49,13 +52,14 @@ contract ManualOracle is AccessManaged, Pausable {
         _validatePriceDelta(priceWad, newPriceWad, maxPriceChangeBps);
         priceWad = newPriceWad;
         lastUpdatedAt = block.timestamp;
-        emit PriceUpdated(newPriceWad, block.timestamp);
+        uint256 nextOracleEpoch = _advanceOracleEpoch();
+        emit PriceUpdated(newPriceWad, block.timestamp, nextOracleEpoch);
     }
 
     function setMaxAge(uint256 newMaxAge) external restricted {
         if (newMaxAge == 0) revert InvalidConfiguration();
         maxAge = newMaxAge;
-        emit MaxAgeUpdated(newMaxAge);
+        emit MaxAgeUpdated(newMaxAge, _advanceOracleEpoch());
     }
 
     function setCircuitBreaker(uint256 newMinPriceWad, uint256 newMaxPriceWad, uint256 newMaxPriceChangeBps)
@@ -70,15 +74,17 @@ contract ManualOracle is AccessManaged, Pausable {
         minPriceWad = newMinPriceWad;
         maxPriceWad = newMaxPriceWad;
         maxPriceChangeBps = newMaxPriceChangeBps;
-        emit CircuitBreakerUpdated(newMinPriceWad, newMaxPriceWad, newMaxPriceChangeBps);
+        emit CircuitBreakerUpdated(newMinPriceWad, newMaxPriceWad, newMaxPriceChangeBps, _advanceOracleEpoch());
     }
 
     function pause() external restricted {
         _pause();
+        emit OraclePauseStateUpdated(true, _advanceOracleEpoch());
     }
 
     function unpause() external restricted {
         _unpause();
+        emit OraclePauseStateUpdated(false, _advanceOracleEpoch());
     }
 
     function isFresh() public view returns (bool) {
@@ -89,6 +95,25 @@ contract ManualOracle is AccessManaged, Pausable {
         return block.timestamp - lastUpdatedAt;
     }
 
+    function oracleStateHash() external view returns (bytes32) {
+        return currentStateHash();
+    }
+
+    function currentStateHash() public view returns (bytes32) {
+        return keccak256(
+            abi.encode(
+                oracleEpoch,
+                priceWad,
+                lastUpdatedAt,
+                maxAge,
+                minPriceWad,
+                maxPriceWad,
+                maxPriceChangeBps,
+                paused()
+            )
+        );
+    }
+
     function latestPriceWad() external view whenNotPaused returns (uint256) {
         uint256 localPrice = priceWad;
         if (localPrice == 0) revert OraclePriceUnset();
@@ -96,6 +121,11 @@ contract ManualOracle is AccessManaged, Pausable {
         uint256 age = block.timestamp - lastUpdatedAt;
         if (age > maxAge) revert OraclePriceStale(age, maxAge);
         return localPrice;
+    }
+
+    function _advanceOracleEpoch() private returns (uint256) {
+        oracleEpoch += 1;
+        return oracleEpoch;
     }
 
     function _validateCircuitBreaker(uint256 newMinPriceWad, uint256 newMaxPriceWad, uint256 newMaxPriceChangeBps)

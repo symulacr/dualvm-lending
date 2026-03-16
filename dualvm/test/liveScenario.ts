@@ -45,6 +45,7 @@ describe("live scenario helpers", () => {
     await seedDebtPoolLiquidity(
       managedMinterContext,
       usdcAdmin,
+      usdcAdmin,
       debtPool,
       "0x2000000000000000000000000000000000000000",
       10n,

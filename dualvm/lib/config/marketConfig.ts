@@ -14,15 +14,17 @@ export const ROLE_IDS = {
   RISK_ADMIN: 2,
   TREASURY: 3,
   MINTER: 4,
+  GOVERNANCE: 5,
+  MIGRATION: 6,
 } as const;
 
 export const TARGET_ADMIN_DELAY_SECONDS = 60 * 60;
 
 export const LIVE_ROLE_EXECUTION_DELAYS_SECONDS = {
   emergency: 0,
-  riskAdmin: 5,
-  treasury: 5,
-  minter: 5,
+  riskAdmin: 60,
+  treasury: 60,
+  minter: 60,
 } as const;
 
 export const RISK_ENGINE_DEFAULTS = {
