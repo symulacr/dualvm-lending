@@ -132,7 +132,37 @@ export async function deployGovernedSystem(overrides: DeployGovernedOverrides) {
     accessManager.grantRole(0, await timelock.getAddress(), 0),
     "grant timelock admin role",
   );
-  await waitForTransaction(accessManager.revokeRole(0, await deployer.getAddress()), "revoke deployer admin role");
+
+  // Grant operational roles to the timelock so governance proposals can execute
+  // risk/treasury/emergency/minter operations through the Governor→Timelock chain.
+  const timelockAddr = await timelock.getAddress();
+  await waitForTransaction(
+    accessManager.grantRole(ROLE_IDS.EMERGENCY, timelockAddr, 0),
+    "grant timelock emergency role",
+  );
+  await waitForTransaction(
+    accessManager.grantRole(ROLE_IDS.RISK_ADMIN, timelockAddr, 0),
+    "grant timelock risk admin role",
+  );
+  await waitForTransaction(
+    accessManager.grantRole(ROLE_IDS.TREASURY, timelockAddr, 0),
+    "grant timelock treasury role",
+  );
+  await waitForTransaction(
+    accessManager.grantRole(ROLE_IDS.MINTER, timelockAddr, 0),
+    "grant timelock minter role",
+  );
+
+  // Revoke ALL roles from deployer: operational roles first (while deployer still has admin),
+  // then admin last. The deployer was only a bootstrapper — once the Governor→Timelock→AccessManager
+  // chain is established, the deployer should have NO roles at all.
+  const deployerAddr = await deployer.getAddress();
+  await waitForTransaction(accessManager.revokeRole(ROLE_IDS.EMERGENCY, deployerAddr), "revoke deployer emergency role");
+  await waitForTransaction(accessManager.revokeRole(ROLE_IDS.RISK_ADMIN, deployerAddr), "revoke deployer risk admin role");
+  await waitForTransaction(accessManager.revokeRole(ROLE_IDS.TREASURY, deployerAddr), "revoke deployer treasury role");
+  await waitForTransaction(accessManager.revokeRole(ROLE_IDS.MINTER, deployerAddr), "revoke deployer minter role");
+  // Admin revocation MUST be last — deployer needs admin to revoke the roles above
+  await waitForTransaction(accessManager.revokeRole(0, deployerAddr), "revoke deployer admin role");
 
   // Return corrected governance metadata: admin is now the timelock (not the deployer).
   // The base deployment's governance.admin still points to the deployer, so we override it

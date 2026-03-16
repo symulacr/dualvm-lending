@@ -298,16 +298,43 @@ describe("Governor lifecycle", function () {
     );
   });
 
-  it("deployer holds no admin roles after governed setup", async function () {
+  it("deployer holds NO roles at all after governed setup (VAL-GOV-011)", async function () {
     const { deployer, accessManager, timelock } = await loadFixture(deployFixture);
 
     // Deployer should NOT have admin role (role 0)
     const [deployerIsAdmin] = await accessManager.hasRole(0, deployer.address);
     expect(deployerIsAdmin).to.equal(false);
 
+    // Deployer should NOT have ANY operational roles
+    const [deployerIsEmergency] = await accessManager.hasRole(ROLE_IDS.EMERGENCY, deployer.address);
+    expect(deployerIsEmergency).to.equal(false);
+
+    const [deployerIsRiskAdmin] = await accessManager.hasRole(ROLE_IDS.RISK_ADMIN, deployer.address);
+    expect(deployerIsRiskAdmin).to.equal(false);
+
+    const [deployerIsTreasury] = await accessManager.hasRole(ROLE_IDS.TREASURY, deployer.address);
+    expect(deployerIsTreasury).to.equal(false);
+
+    const [deployerIsMinter] = await accessManager.hasRole(ROLE_IDS.MINTER, deployer.address);
+    expect(deployerIsMinter).to.equal(false);
+
     // Timelock SHOULD have admin role
     const [timelockIsAdmin] = await accessManager.hasRole(0, await timelock.getAddress());
     expect(timelockIsAdmin).to.equal(true);
+
+    // Timelock SHOULD have all operational roles
+    const timelockAddress = await timelock.getAddress();
+    const [timelockIsEmergency] = await accessManager.hasRole(ROLE_IDS.EMERGENCY, timelockAddress);
+    expect(timelockIsEmergency).to.equal(true);
+
+    const [timelockIsRiskAdmin] = await accessManager.hasRole(ROLE_IDS.RISK_ADMIN, timelockAddress);
+    expect(timelockIsRiskAdmin).to.equal(true);
+
+    const [timelockIsTreasury] = await accessManager.hasRole(ROLE_IDS.TREASURY, timelockAddress);
+    expect(timelockIsTreasury).to.equal(true);
+
+    const [timelockIsMinter] = await accessManager.hasRole(ROLE_IDS.MINTER, timelockAddress);
+    expect(timelockIsMinter).to.equal(true);
 
     // Deployer should NOT be admin on the timelock itself
     const TIMELOCK_ADMIN_ROLE = await timelock.DEFAULT_ADMIN_ROLE();
@@ -357,11 +384,25 @@ describe("Governor lifecycle", function () {
     const [deployerIsGovernance] = await accessManager.hasRole(ROLE_IDS.GOVERNANCE, deployer.address);
     expect(deployerIsGovernance).to.equal(false);
 
-    // 6. Deployer may hold operational roles (EMERGENCY, RISK_ADMIN etc.) but NOT admin (role 0)
-    // This is correct: deployer can be an operator but must not be the admin root
+    // 6. Deployer has ZERO operational roles (all revoked after governed setup)
+    const [deployerIsEmergency] = await accessManager.hasRole(ROLE_IDS.EMERGENCY, deployer.address);
+    expect(deployerIsEmergency).to.equal(false);
     const [deployerIsRiskAdmin] = await accessManager.hasRole(ROLE_IDS.RISK_ADMIN, deployer.address);
-    // Operational roles are assigned by default to deployer in test fixture, which is fine
-    // The critical invariant is: deployer has no admin role (already verified above)
+    expect(deployerIsRiskAdmin).to.equal(false);
+    const [deployerIsTreasury] = await accessManager.hasRole(ROLE_IDS.TREASURY, deployer.address);
+    expect(deployerIsTreasury).to.equal(false);
+    const [deployerIsMinter] = await accessManager.hasRole(ROLE_IDS.MINTER, deployer.address);
+    expect(deployerIsMinter).to.equal(false);
+
+    // 6b. Timelock has ALL operational roles (granted during governed setup)
+    const [timelockIsEmergency] = await accessManager.hasRole(ROLE_IDS.EMERGENCY, timelockAddress);
+    expect(timelockIsEmergency).to.equal(true);
+    const [timelockIsRiskAdmin] = await accessManager.hasRole(ROLE_IDS.RISK_ADMIN, timelockAddress);
+    expect(timelockIsRiskAdmin).to.equal(true);
+    const [timelockIsTreasury] = await accessManager.hasRole(ROLE_IDS.TREASURY, timelockAddress);
+    expect(timelockIsTreasury).to.equal(true);
+    const [timelockIsMinter] = await accessManager.hasRole(ROLE_IDS.MINTER, timelockAddress);
+    expect(timelockIsMinter).to.equal(true);
 
     // 7. Non-zero execution delays configured for sensitive roles
     const executionDelays = deployment.governance.executionDelaySeconds;
@@ -380,15 +421,14 @@ describe("Governor lifecycle", function () {
     expect(timelockIsGovernance).to.equal(true);
   });
 
-  it("GovernanceToken.mint via governed deployment: non-MINTER reverts, MINTER with delay succeeds after schedule", async function () {
-    const { deployer, outsider, governanceToken, accessManager, voter1 } =
+  it("GovernanceToken.mint: deployer cannot mint, governance proposal can mint via timelock", async function () {
+    const { deployer, outsider, voter1, governanceToken, governor, timelock, accessManager } =
       await loadFixture(deployFixture);
 
     // After deployGovernedSystem(), governanceToken.mint is wired to ROLE_IDS.MINTER
-    // in the AccessManager. Deployer holds MINTER role from the base deployment with
-    // an execution delay (LIVE_ROLE_EXECUTION_DELAYS_SECONDS.minter = 60s).
+    // in the AccessManager. Deployer has NO minter role (revoked during governed setup).
+    // The timelock holds the MINTER role with 0 execution delay.
 
-    const tokenAddress = await governanceToken.getAddress();
     const mintAmount = 1_000n * WAD;
 
     // 1. Direct mint from outsider (no MINTER role) should revert with AccessManagedUnauthorized
@@ -399,23 +439,31 @@ describe("Governor lifecycle", function () {
     await expect(governanceToken.connect(voter1).mint(voter1.address, mintAmount))
       .to.be.revertedWithCustomError(governanceToken, "AccessManagedUnauthorized");
 
-    // 3. Deployer has MINTER role but with execution delay — direct mint requires scheduling
-    //    The first call should revert with AccessManagerNotScheduled (not AccessManagedUnauthorized)
-    //    because deployer IS authorized but the call needs to go through the schedule→execute flow.
-    const mintCalldata = governanceToken.interface.encodeFunctionData("mint", [outsider.address, mintAmount]);
+    // 3. Deployer also cannot mint (MINTER role was revoked after governed setup)
     await expect(governanceToken.connect(deployer).mint(outsider.address, mintAmount))
-      .to.be.revertedWithCustomError(accessManager, "AccessManagerNotScheduled");
+      .to.be.revertedWithCustomError(governanceToken, "AccessManagedUnauthorized");
 
-    // 4. Schedule the mint via AccessManager (when=0 means "as soon as delay allows")
-    const scheduleTx = await accessManager.connect(deployer).schedule(tokenAddress, mintCalldata, 0);
-    await scheduleTx.wait();
+    // 4. Governance proposal to mint via timelock (timelock has MINTER role with 0 delay)
+    const tokenAddress = await governanceToken.getAddress();
+    const mintCalldata = governanceToken.interface.encodeFunctionData("mint", [outsider.address, mintAmount]);
 
-    // Wait for the minter execution delay (60s)
-    await time.increase(LIVE_ROLE_EXECUTION_DELAYS_SECONDS.minter + 1);
+    const targets = [tokenAddress];
+    const values = [0n];
+    const calldatas = [mintCalldata];
+    const description = "Mint governance tokens to outsider";
 
-    // 5. Now the scheduled mint should succeed via the target contract call
+    await governor.connect(deployer).propose(targets, values, calldatas, description);
+    const proposalId = await governor.hashProposal(targets, values, calldatas, ethers.id(description));
+
+    await time.increase(VOTING_DELAY + 1);
+    await governor.connect(deployer).castVote(proposalId, 1);
+    await governor.connect(voter1).castVote(proposalId, 1);
+    await time.increase(VOTING_PERIOD + 1);
+    await governor.queue(targets, values, calldatas, ethers.id(description));
+    await time.increase(TIMELOCK_DELAY + 1);
+
     const supplyBefore = await governanceToken.totalSupply();
-    await governanceToken.connect(deployer).mint(outsider.address, mintAmount);
+    await governor.execute(targets, values, calldatas, ethers.id(description));
     const supplyAfter = await governanceToken.totalSupply();
     expect(supplyAfter - supplyBefore).to.equal(mintAmount);
     expect(await governanceToken.balanceOf(outsider.address)).to.equal(mintAmount);
