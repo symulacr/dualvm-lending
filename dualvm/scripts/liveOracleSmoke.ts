@@ -1,80 +1,60 @@
-import fs from "node:fs";
-import path from "node:path";
 import hre from "hardhat";
-import { executeManagedCall } from "./accessManagerOps";
-import { ORACLE_CIRCUIT_BREAKER_DEFAULTS, WAD } from "./marketConfig";
+import {
+  managedSetOracleCircuitBreaker,
+  managedSetOraclePrice,
+  type ManagedCallContext,
+} from "../lib/ops/managedAccess";
+import { WAD } from "../lib/config/marketConfig";
+import { loadDeploymentManifest } from "../lib/deployment/manifestStore";
+import { requireEnv } from "../lib/runtime/env";
+import { formatWad } from "../lib/runtime/transactions";
+import { runEntrypoint } from "../lib/runtime/entrypoint";
 
 const { ethers } = hre;
 
-function requireEnv(name: string): string {
-  const value = process.env[name];
-  if (!value) throw new Error(`Missing required environment variable: ${name}`);
-  return value;
-}
-
-function formatUnits(value: bigint) {
-  return ethers.formatUnits(value, 18);
-}
-
-async function main() {
-  const manifest = JSON.parse(
-    fs.readFileSync(path.join(process.cwd(), "deployments", "polkadot-hub-testnet.json"), "utf8"),
-  );
+export async function main() {
+  const manifest = loadDeploymentManifest();
   const provider = ethers.provider;
 
   const riskAdmin = new ethers.Wallet(requireEnv("RISK_PRIVATE_KEY"), provider);
   const accessManager = (await ethers.getContractFactory("DualVMAccessManager", riskAdmin)).attach(manifest.contracts.accessManager) as any;
   const oracle = (await ethers.getContractFactory("ManualOracle", riskAdmin)).attach(manifest.contracts.oracle) as any;
-  const riskDelay = manifest.governance?.executionDelaySeconds?.riskAdmin ?? 0;
+  const managedRiskContext: ManagedCallContext = {
+    accessManager,
+    signer: riskAdmin,
+    executionDelaySeconds: manifest.governance?.executionDelaySeconds?.riskAdmin ?? 0,
+  };
 
   const before = {
     price: await oracle.priceWad(),
+    minPriceWad: await oracle.minPriceWad(),
+    maxPriceWad: await oracle.maxPriceWad(),
     maxPriceChangeBps: await oracle.maxPriceChangeBps(),
   };
 
-  await executeManagedCall(
-    accessManager,
-    riskAdmin,
+  await managedSetOracleCircuitBreaker(
+    managedRiskContext,
     oracle,
-    "setCircuitBreaker",
-    [1n * WAD, 20_000n * WAD, 10_000n],
+    1n * WAD,
+    20_000n * WAD,
+    10_000n,
     "oracle smoke widen circuit breaker",
-    riskDelay,
   );
-  await executeManagedCall(
-    accessManager,
-    riskAdmin,
+  await managedSetOraclePrice(managedRiskContext, oracle, 950n * WAD, "oracle smoke set intermediate price");
+  await managedSetOraclePrice(managedRiskContext, oracle, 1_000n * WAD, "oracle smoke restore baseline price");
+  await managedSetOracleCircuitBreaker(
+    managedRiskContext,
     oracle,
-    "setPrice",
-    [950n * WAD],
-    "oracle smoke set intermediate price",
-    riskDelay,
-  );
-  await executeManagedCall(
-    accessManager,
-    riskAdmin,
-    oracle,
-    "setPrice",
-    [1_000n * WAD],
-    "oracle smoke restore baseline price",
-    riskDelay,
-  );
-  await executeManagedCall(
-    accessManager,
-    riskAdmin,
-    oracle,
-    "setCircuitBreaker",
-    [
-      ORACLE_CIRCUIT_BREAKER_DEFAULTS.minPriceWad,
-      ORACLE_CIRCUIT_BREAKER_DEFAULTS.maxPriceWad,
-      ORACLE_CIRCUIT_BREAKER_DEFAULTS.maxPriceChangeBps,
-    ],
+    before.minPriceWad,
+    before.maxPriceWad,
+    before.maxPriceChangeBps,
     "oracle smoke restore circuit breaker",
-    riskDelay,
   );
 
   const after = {
     price: await oracle.priceWad(),
+    minPriceWad: await oracle.minPriceWad(),
+    maxPriceWad: await oracle.maxPriceWad(),
     maxPriceChangeBps: await oracle.maxPriceChangeBps(),
   };
 
@@ -84,12 +64,19 @@ async function main() {
         riskAdmin: riskAdmin.address,
         governance: manifest.governance,
         checks: {
-          beforePrice: formatUnits(before.price),
+          beforePrice: formatWad(before.price),
+          beforeMinPrice: formatWad(before.minPriceWad),
+          beforeMaxPrice: formatWad(before.maxPriceWad),
           beforeMaxPriceChangeBps: before.maxPriceChangeBps.toString(),
-          afterPrice: formatUnits(after.price),
+          afterPrice: formatWad(after.price),
+          afterMinPrice: formatWad(after.minPriceWad),
+          afterMaxPrice: formatWad(after.maxPriceWad),
           afterMaxPriceChangeBps: after.maxPriceChangeBps.toString(),
-          restoredPrice: after.price === 1_000n * WAD,
-          restoredCircuitBreaker: after.maxPriceChangeBps === ORACLE_CIRCUIT_BREAKER_DEFAULTS.maxPriceChangeBps,
+          restoredPrice: after.price === before.price,
+          restoredCircuitBreaker:
+            after.minPriceWad === before.minPriceWad
+            && after.maxPriceWad === before.maxPriceWad
+            && after.maxPriceChangeBps === before.maxPriceChangeBps,
         },
       },
       null,
@@ -98,7 +85,4 @@ async function main() {
   );
 }
 
-main().catch((error) => {
-  console.error(error);
-  process.exitCode = 1;
-});
+runEntrypoint("scripts/liveOracleSmoke.ts", main);

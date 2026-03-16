@@ -1,14 +1,7 @@
-import fs from "node:fs";
-import path from "node:path";
 import hre from "hardhat";
-import {
-  CORE_DEFAULTS,
-  ORACLE_CIRCUIT_BREAKER_DEFAULTS,
-  ORACLE_DEFAULTS,
-  POLKADOT_HUB_TESTNET,
-  POOL_DEFAULTS,
-  RISK_ENGINE_DEFAULTS,
-} from "./marketConfig";
+import { loadDeploymentManifest } from "../lib/deployment/manifestStore";
+import { POLKADOT_HUB_TESTNET } from "../lib/config/marketConfig";
+import { runEntrypoint } from "../lib/runtime/entrypoint";
 
 async function verify(name: string, address: string, constructorArguments: unknown[], contract?: string) {
   try {
@@ -27,10 +20,13 @@ async function verify(name: string, address: string, constructorArguments: unkno
   }
 }
 
-async function main() {
-  const manifestPath = path.join(process.cwd(), "deployments", "polkadot-hub-testnet.json");
-  const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+export async function main() {
+  const manifest = loadDeploymentManifest();
   const authority = manifest.governance?.admin ?? manifest.roles.riskAdmin;
+  const oracleConfig = manifest.config.oracle?.circuitBreaker;
+  if (!oracleConfig) {
+    throw new Error("Manifest is missing oracle circuit-breaker configuration");
+  }
 
   const results = [];
   results.push(
@@ -46,32 +42,32 @@ async function main() {
   results.push(
     await verify("ManualOracle", manifest.contracts.oracle, [
       manifest.contracts.accessManager,
-      BigInt(ORACLE_DEFAULTS.initialPriceWad),
-      ORACLE_DEFAULTS.maxAgeSeconds,
-      BigInt(ORACLE_CIRCUIT_BREAKER_DEFAULTS.minPriceWad),
-      BigInt(ORACLE_CIRCUIT_BREAKER_DEFAULTS.maxPriceWad),
-      BigInt(ORACLE_CIRCUIT_BREAKER_DEFAULTS.maxPriceChangeBps),
+      BigInt(manifest.config.oraclePriceWad),
+      manifest.config.oracleMaxAgeSeconds,
+      BigInt(oracleConfig.minPriceWad),
+      BigInt(oracleConfig.maxPriceWad),
+      BigInt(oracleConfig.maxPriceChangeBps),
     ]),
   );
   results.push(
     await verify("PvmRiskEngine", manifest.contracts.riskEngine, [
-      BigInt(RISK_ENGINE_DEFAULTS.baseRateBps),
-      BigInt(RISK_ENGINE_DEFAULTS.slope1Bps),
-      BigInt(RISK_ENGINE_DEFAULTS.slope2Bps),
-      BigInt(RISK_ENGINE_DEFAULTS.kinkBps),
-      BigInt(RISK_ENGINE_DEFAULTS.healthyMaxLtvBps),
-      BigInt(RISK_ENGINE_DEFAULTS.stressedMaxLtvBps),
-      BigInt(RISK_ENGINE_DEFAULTS.healthyLiquidationThresholdBps),
-      BigInt(RISK_ENGINE_DEFAULTS.stressedLiquidationThresholdBps),
-      BigInt(RISK_ENGINE_DEFAULTS.staleBorrowRatePenaltyBps),
-      BigInt(RISK_ENGINE_DEFAULTS.stressedCollateralRatioBps),
+      BigInt(manifest.config.riskEngine.baseRateBps),
+      BigInt(manifest.config.riskEngine.slope1Bps),
+      BigInt(manifest.config.riskEngine.slope2Bps),
+      BigInt(manifest.config.riskEngine.kinkBps),
+      BigInt(manifest.config.riskEngine.healthyMaxLtvBps),
+      BigInt(manifest.config.riskEngine.stressedMaxLtvBps),
+      BigInt(manifest.config.riskEngine.healthyLiquidationThresholdBps),
+      BigInt(manifest.config.riskEngine.stressedLiquidationThresholdBps),
+      BigInt(manifest.config.riskEngine.staleBorrowRatePenaltyBps),
+      BigInt(manifest.config.riskEngine.stressedCollateralRatioBps),
     ]),
   );
   results.push(
     await verify("DebtPool", manifest.contracts.debtPool, [
       manifest.contracts.usdc,
       manifest.contracts.accessManager,
-      BigInt(POOL_DEFAULTS.supplyCap),
+      BigInt(manifest.config.pool.supplyCap),
     ]),
   );
   results.push(
@@ -84,12 +80,12 @@ async function main() {
       manifest.contracts.riskEngine,
       manifest.roles.treasury,
       {
-        borrowCap: BigInt(CORE_DEFAULTS.borrowCap),
-        minBorrowAmount: BigInt(CORE_DEFAULTS.minBorrowAmount),
-        reserveFactorBps: BigInt(CORE_DEFAULTS.reserveFactorBps),
-        maxLtvBps: BigInt(CORE_DEFAULTS.maxLtvBps),
-        liquidationThresholdBps: BigInt(CORE_DEFAULTS.liquidationThresholdBps),
-        liquidationBonusBps: BigInt(CORE_DEFAULTS.liquidationBonusBps),
+        borrowCap: BigInt(manifest.config.core.borrowCap),
+        minBorrowAmount: BigInt(manifest.config.core.minBorrowAmount),
+        reserveFactorBps: BigInt(manifest.config.core.reserveFactorBps),
+        maxLtvBps: BigInt(manifest.config.core.maxLtvBps),
+        liquidationThresholdBps: BigInt(manifest.config.core.liquidationThresholdBps),
+        liquidationBonusBps: BigInt(manifest.config.core.liquidationBonusBps),
       },
     ]),
   );
@@ -106,7 +102,4 @@ async function main() {
   );
 }
 
-main().catch((error) => {
-  console.error(error);
-  process.exitCode = 1;
-});
+runEntrypoint("scripts/verifyAll.ts", main);

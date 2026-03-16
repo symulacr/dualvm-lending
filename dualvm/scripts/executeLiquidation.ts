@@ -1,26 +1,14 @@
-import fs from "node:fs";
-import path from "node:path";
 import hre from "hardhat";
+import { loadDeploymentManifest } from "../lib/deployment/manifestStore";
+import { requireEnv } from "../lib/runtime/env";
+import { waitForTransaction } from "../lib/runtime/transactions";
+import { runEntrypoint } from "../lib/runtime/entrypoint";
 
 const { ethers } = hre;
 
-function requireEnv(name: string): string {
-  const value = process.env[name];
-  if (!value) throw new Error(`Missing required environment variable: ${name}`);
-  return value;
-}
-
-async function waitFor(txPromise: Promise<{ wait(): Promise<{ hash?: string }>; hash?: string }>, label: string) {
-  const tx = await txPromise;
-  const receipt = await tx.wait();
-  console.log(`${label}: ${receipt.hash ?? tx.hash ?? "mined"}`);
-}
-
-async function main() {
+export async function main() {
   const borrower = requireEnv("BORROWER_ADDRESS");
-  const manifest = JSON.parse(
-    fs.readFileSync(path.join(process.cwd(), "deployments", "polkadot-hub-testnet.json"), "utf8"),
-  );
+  const manifest = loadDeploymentManifest();
   const provider = ethers.provider;
   const liquidator = new ethers.Wallet(requireEnv("LIQUIDATOR_PRIVATE_KEY"), provider);
 
@@ -37,11 +25,8 @@ async function main() {
     return;
   }
 
-  await waitFor(usdc.approve(await lendingCore.getAddress(), ethers.MaxUint256), "approve usdc for liquidation");
-  await waitFor(lendingCore.liquidate(borrower, ethers.MaxUint256), "execute liquidation");
+  await waitForTransaction(usdc.approve(await lendingCore.getAddress(), ethers.MaxUint256), "approve usdc for liquidation");
+  await waitForTransaction(lendingCore.liquidate(borrower, ethers.MaxUint256), "execute liquidation");
 }
 
-main().catch((error) => {
-  console.error(error);
-  process.exitCode = 1;
-});
+runEntrypoint("scripts/executeLiquidation.ts", main);

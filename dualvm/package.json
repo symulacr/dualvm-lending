@@ -16,8 +16,8 @@
     "oracle-smoke:testnet": "hardhat run scripts/liveOracleSmoke.ts --network polkadotHubTestnet",
     "minter-smoke:testnet": "hardhat run scripts/liveMinterSmoke.ts --network polkadotHubTestnet",
     "oracle-upgrade:testnet": "hardhat run scripts/upgradeOracle.ts --network polkadotHubTestnet",
-    "watch:testnet": "node scripts/liquidationWatch.mjs",
-    "index-events:testnet": "node scripts/snapshotRecentEvents.mjs",
+    "watch:testnet": "node scripts/liquidation-watch.mjs",
+    "index-events:testnet": "node scripts/snapshot-recent-events.mjs",
     "liquidate:testnet": "hardhat run scripts/executeLiquidation.ts --network polkadotHubTestnet",
     "governance:apply": "hardhat run scripts/applyRoleSeparation.ts --network polkadotHubTestnet",
     "wallet:generate": "node scripts/generate-wallet.mjs"
@@ -38,6 +38,7 @@
     "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^4.3.4",
     "dotenv": "^16.4.7",
+    "ethers": "^6.16.0",
     "hardhat": "^2.22.19",
     "ts-node": "^10.9.2",
     "typescript": "^5.7.2",

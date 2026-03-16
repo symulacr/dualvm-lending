@@ -1,14 +1,11 @@
-import { mkdirSync, writeFileSync } from "node:fs";
-import path from "node:path";
 import hre from "hardhat";
-import { deployDualVmSystem } from "./deploySystem";
-import { LIVE_ROLE_EXECUTION_DELAYS_SECONDS } from "./marketConfig";
+import { deployDualVmSystem } from "../lib/deployment/deploySystem";
+import { writeDeploymentManifest } from "../lib/deployment/manifestStore";
+import { type DeploymentManifest } from "../lib/shared/deploymentManifest";
+import { LIVE_ROLE_EXECUTION_DELAYS_SECONDS } from "../lib/config/marketConfig";
+import { runEntrypoint } from "../lib/runtime/entrypoint";
 
-function bigintReplacer(_: string, value: unknown) {
-  return typeof value === "bigint" ? value.toString() : value;
-}
-
-async function main() {
+export async function main() {
   const deployment = await deployDualVmSystem({
     treasury: process.env.TREASURY_ADDRESS,
     emergencyAdmin: process.env.EMERGENCY_ADMIN,
@@ -34,34 +31,55 @@ async function main() {
   });
 
   const { network } = hre;
-  const manifest = {
+  const manifest: DeploymentManifest = {
     generatedAt: new Date().toISOString(),
     networkName: network.name,
     polkadotHubTestnet: deployment.network,
     roles: deployment.roles,
     governance: deployment.governance,
-    config: deployment.config,
+    config: {
+      ...deployment.config,
+      oraclePriceWad: deployment.config.oraclePriceWad.toString(),
+      initialLiquidity: deployment.config.initialLiquidity.toString(),
+      pool: {
+        supplyCap: deployment.config.pool.supplyCap.toString(),
+        initialLiquidity: deployment.config.pool.initialLiquidity.toString(),
+      },
+      core: {
+        borrowCap: deployment.config.core.borrowCap.toString(),
+        minBorrowAmount: deployment.config.core.minBorrowAmount.toString(),
+        reserveFactorBps: deployment.config.core.reserveFactorBps.toString(),
+        maxLtvBps: deployment.config.core.maxLtvBps.toString(),
+        liquidationThresholdBps: deployment.config.core.liquidationThresholdBps.toString(),
+        liquidationBonusBps: deployment.config.core.liquidationBonusBps.toString(),
+      },
+      riskEngine: Object.fromEntries(
+        Object.entries(deployment.config.riskEngine).map(([key, value]) => [key, value.toString()]),
+      ),
+      oracle: deployment.config.oracle
+        ? {
+            circuitBreaker: {
+              minPriceWad: deployment.config.oracle.circuitBreaker.minPriceWad.toString(),
+              maxPriceWad: deployment.config.oracle.circuitBreaker.maxPriceWad.toString(),
+              maxPriceChangeBps: deployment.config.oracle.circuitBreaker.maxPriceChangeBps.toString(),
+            },
+          }
+        : undefined,
+    },
     contracts: {
       accessManager: await deployment.contracts.accessManager.getAddress(),
       wpas: await deployment.contracts.wpas.getAddress(),
       usdc: await deployment.contracts.usdc.getAddress(),
       oracle: await deployment.contracts.oracle.getAddress(),
       riskEngine: await deployment.contracts.riskEngine.getAddress(),
-      debtPool: await deployment.contracts.pool.getAddress(),
-      lendingCore: await deployment.contracts.core.getAddress(),
+      debtPool: await deployment.contracts.debtPool.getAddress(),
+      lendingCore: await deployment.contracts.lendingCore.getAddress(),
     },
   };
 
-  const outDir = path.join(process.cwd(), "deployments");
-  mkdirSync(outDir, { recursive: true });
-  const outPath = path.join(outDir, "polkadot-hub-testnet.json");
-  writeFileSync(outPath, JSON.stringify(manifest, bigintReplacer, 2));
-
+  const outPath = writeDeploymentManifest(manifest);
   console.log(`Deployment manifest written to ${outPath}`);
-  console.log(JSON.stringify(manifest, bigintReplacer, 2));
+  console.log(JSON.stringify(manifest, null, 2));
 }
 
-main().catch((error) => {
-  console.error(error);
-  process.exitCode = 1;
-});
+runEntrypoint("scripts/deploy.ts", main);

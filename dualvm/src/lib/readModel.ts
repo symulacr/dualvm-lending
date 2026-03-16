@@ -2,6 +2,12 @@ import fallbackEventsJson from "../../deployments/polkadot-hub-testnet-recent-ev
 import { createPublicClient, http, isAddress, parseAbiItem } from "viem";
 import { debtPoolAbi, lendingCoreAbi, manualOracleAbi } from "./abi";
 import { formatAddress, formatTokenAmount, formatTimestamp } from "./format";
+import {
+  formatRecentActivityWindow,
+  parseFallbackRecentActivity,
+  type RecentActivity,
+  type RecentActivityFeed,
+} from "./recentActivity";
 import { deploymentManifest, hasLivePolkadotHubTestnetDeployment } from "./manifest";
 
 const collateralDepositedEvent = parseAbiItem(
@@ -19,13 +25,6 @@ const liquidatedEvent = parseAbiItem(
 
 const CACHE_TTL_MS = 10_000;
 let snapshotCache: { key: string; expiresAt: number; value: MarketSnapshot } | null = null;
-
-export interface RecentActivity {
-  label: string;
-  detail: string;
-  txHash: string;
-  blockNumber: string;
-}
 
 export interface ObserverSnapshot {
   address: string;
@@ -52,7 +51,12 @@ export interface MarketSnapshot {
   oracleMaxPriceChange: string;
   observer: ObserverSnapshot | null;
   recentActivity: RecentActivity[];
+  recentActivitySource: "live" | "snapshot";
+  recentActivityWindow: string;
+  recentActivityWarning: string | null;
 }
+
+const fallbackRecentActivity = parseFallbackRecentActivity(fallbackEventsJson);
 
 function formatHealthFactor(value: bigint) {
   if (value === 0n) return "0.00";
@@ -76,39 +80,44 @@ async function loadObserver(
     return null;
   }
 
+  const trackedAddress = observerAddress as `0x${string}`;
   const [currentDebt, availableToBorrow, healthFactor] = await Promise.all([
     client.readContract({
-      address: deploymentManifest.contracts.lendingCore as `0x${string}`,
+      address: deploymentManifest.contracts.lendingCore,
       abi: lendingCoreAbi,
       functionName: "currentDebt",
-      args: [observerAddress as `0x${string}`],
+      args: [trackedAddress],
     }),
     client.readContract({
-      address: deploymentManifest.contracts.lendingCore as `0x${string}`,
+      address: deploymentManifest.contracts.lendingCore,
       abi: lendingCoreAbi,
       functionName: "availableToBorrow",
-      args: [observerAddress as `0x${string}`],
+      args: [trackedAddress],
     }),
     client.readContract({
-      address: deploymentManifest.contracts.lendingCore as `0x${string}`,
+      address: deploymentManifest.contracts.lendingCore,
       abi: lendingCoreAbi,
       functionName: "healthFactor",
-      args: [observerAddress as `0x${string}`],
+      args: [trackedAddress],
     }),
   ]);
 
   return {
-    address: observerAddress,
+    address: trackedAddress,
     currentDebt: `${formatTokenAmount(currentDebt)} USDC-test`,
     availableToBorrow: `${formatTokenAmount(availableToBorrow)} USDC-test`,
     healthFactor: formatHealthFactor(healthFactor),
   };
 }
 
-async function loadRecentActivity(client: ReturnType<typeof createPublicClient>): Promise<RecentActivity[]> {
+function formatRecentActivityWindow(fromBlock: string, toBlock: string) {
+  return `Blocks ${fromBlock} → ${toBlock}`;
+}
+
+async function loadRecentActivity(client: ReturnType<typeof createPublicClient>): Promise<RecentActivityFeed> {
   const toBlock = await client.getBlockNumber();
   const fromBlock = toBlock > 5_000n ? toBlock - 5_000n : 0n;
-  const address = deploymentManifest.contracts.lendingCore as `0x${string}`;
+  const address = deploymentManifest.contracts.lendingCore;
 
   try {
     const [collateralLogs, borrowedLogs, repaidLogs, liquidatedLogs] = await Promise.all([
@@ -118,7 +127,7 @@ async function loadRecentActivity(client: ReturnType<typeof createPublicClient>)
       client.getLogs({ address, event: liquidatedEvent, fromBlock, toBlock }),
     ]);
 
-    const events: RecentActivity[] = [
+    const items: RecentActivity[] = [
       ...collateralLogs.map((log) => ({
         label: "Collateral deposited",
         detail: `${formatAddress(log.args.account ?? "0x0")} deposited ${formatTokenAmount(log.args.amount ?? 0n)} WPAS`,
@@ -145,11 +154,23 @@ async function loadRecentActivity(client: ReturnType<typeof createPublicClient>)
       })),
     ];
 
-    return events
-      .sort((left, right) => Number(right.blockNumber) - Number(left.blockNumber))
-      .slice(0, 8);
-  } catch {
-    return fallbackEventsJson.items.slice(0, 8) as RecentActivity[];
+    return {
+      source: "live",
+      fromBlock: fromBlock.toString(),
+      toBlock: toBlock.toString(),
+      warning: null,
+      items: items.sort((left, right) => Number(right.blockNumber) - Number(left.blockNumber)).slice(0, 8),
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return {
+      source: "snapshot",
+      fromBlock: fallbackRecentActivity.fromBlock,
+      toBlock: fallbackRecentActivity.toBlock,
+      generatedAt: fallbackRecentActivity.generatedAt,
+      warning: `Live recent-activity query failed (${message}). Showing bundled snapshot captured at ${fallbackRecentActivity.generatedAt}.`,
+      items: fallbackRecentActivity.items.slice(0, 8),
+    };
   }
 }
 
@@ -186,72 +207,72 @@ export async function loadMarketSnapshot(observerAddress?: string | null): Promi
     recentActivity,
   ] = await Promise.all([
     client.readContract({
-      address: deploymentManifest.contracts.debtPool as `0x${string}`,
+      address: deploymentManifest.contracts.debtPool,
       abi: debtPoolAbi,
       functionName: "totalAssets",
     }),
     client.readContract({
-      address: deploymentManifest.contracts.debtPool as `0x${string}`,
+      address: deploymentManifest.contracts.debtPool,
       abi: debtPoolAbi,
       functionName: "availableLiquidity",
     }),
     client.readContract({
-      address: deploymentManifest.contracts.debtPool as `0x${string}`,
+      address: deploymentManifest.contracts.debtPool,
       abi: debtPoolAbi,
       functionName: "outstandingPrincipal",
     }),
     client.readContract({
-      address: deploymentManifest.contracts.debtPool as `0x${string}`,
+      address: deploymentManifest.contracts.debtPool,
       abi: debtPoolAbi,
       functionName: "reserveBalance",
     }),
     client.readContract({
-      address: deploymentManifest.contracts.lendingCore as `0x${string}`,
+      address: deploymentManifest.contracts.lendingCore,
       abi: lendingCoreAbi,
       functionName: "borrowCap",
     }),
     client.readContract({
-      address: deploymentManifest.contracts.lendingCore as `0x${string}`,
+      address: deploymentManifest.contracts.lendingCore,
       abi: lendingCoreAbi,
       functionName: "minBorrowAmount",
     }),
     client.readContract({
-      address: deploymentManifest.contracts.lendingCore as `0x${string}`,
+      address: deploymentManifest.contracts.lendingCore,
       abi: lendingCoreAbi,
       functionName: "liquidationBonusBps",
     }),
     client.readContract({
-      address: deploymentManifest.contracts.oracle as `0x${string}`,
+      address: deploymentManifest.contracts.oracle,
       abi: manualOracleAbi,
       functionName: "priceWad",
     }),
     client.readContract({
-      address: deploymentManifest.contracts.oracle as `0x${string}`,
+      address: deploymentManifest.contracts.oracle,
       abi: manualOracleAbi,
       functionName: "isFresh",
     }),
     client.readContract({
-      address: deploymentManifest.contracts.oracle as `0x${string}`,
+      address: deploymentManifest.contracts.oracle,
       abi: manualOracleAbi,
       functionName: "lastUpdatedAt",
     }),
     client.readContract({
-      address: deploymentManifest.contracts.oracle as `0x${string}`,
+      address: deploymentManifest.contracts.oracle,
       abi: manualOracleAbi,
       functionName: "maxAge",
     }),
     client.readContract({
-      address: deploymentManifest.contracts.oracle as `0x${string}`,
+      address: deploymentManifest.contracts.oracle,
       abi: manualOracleAbi,
       functionName: "minPriceWad",
     }),
     client.readContract({
-      address: deploymentManifest.contracts.oracle as `0x${string}`,
+      address: deploymentManifest.contracts.oracle,
       abi: manualOracleAbi,
       functionName: "maxPriceWad",
     }),
     client.readContract({
-      address: deploymentManifest.contracts.oracle as `0x${string}`,
+      address: deploymentManifest.contracts.oracle,
       abi: manualOracleAbi,
       functionName: "maxPriceChangeBps",
     }),
@@ -276,7 +297,10 @@ export async function loadMarketSnapshot(observerAddress?: string | null): Promi
     oracleMaxPrice: `${formatTokenAmount(oracleMaxPrice)} USDC-test / WPAS`,
     oracleMaxPriceChange: `${oracleMaxPriceChange.toString()} bps`,
     observer,
-    recentActivity,
+    recentActivity: recentActivity.items,
+    recentActivitySource: recentActivity.source,
+    recentActivityWindow: formatRecentActivityWindow(recentActivity.fromBlock, recentActivity.toBlock),
+    recentActivityWarning: recentActivity.warning,
   };
 
   snapshotCache = {

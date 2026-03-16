@@ -9,7 +9,8 @@ import {
   RISK_ENGINE_DEFAULTS,
   ROLE_IDS,
   TARGET_ADMIN_DELAY_SECONDS,
-} from "./marketConfig";
+} from "../config/marketConfig";
+import { waitForTransaction } from "../runtime/transactions";
 
 export interface DeployDualVmOverrides {
   treasury?: string;
@@ -38,9 +39,8 @@ function selector(contract: { interface: { getFunction(name: string): { selector
   return fragment.selector;
 }
 
-async function waitFor(txPromise: Promise<{ wait(): Promise<unknown> }>) {
-  const tx = await txPromise;
-  await tx.wait();
+async function waitFor(txPromise: Promise<{ wait(): Promise<{ hash?: string }>; hash?: string }>) {
+  await waitForTransaction(txPromise, "transaction");
 }
 
 export async function deployDualVmSystem(overrides: DeployDualVmOverrides = {}) {
@@ -104,16 +104,20 @@ export async function deployDualVmSystem(overrides: DeployDualVmOverrides = {}) 
   );
   await riskEngine.waitForDeployment();
 
-  const poolFactory = await ethers.getContractFactory("DebtPool");
-  const pool = await poolFactory.deploy(await usdc.getAddress(), await accessManager.getAddress(), POOL_DEFAULTS.supplyCap);
-  await pool.waitForDeployment();
+  const debtPoolFactory = await ethers.getContractFactory("DebtPool");
+  const debtPool = await debtPoolFactory.deploy(
+    await usdc.getAddress(),
+    await accessManager.getAddress(),
+    POOL_DEFAULTS.supplyCap,
+  );
+  await debtPool.waitForDeployment();
 
-  const coreFactory = await ethers.getContractFactory("LendingCore");
-  const core = await coreFactory.deploy(
+  const lendingCoreFactory = await ethers.getContractFactory("LendingCore");
+  const lendingCore = await lendingCoreFactory.deploy(
     await accessManager.getAddress(),
     await wpas.getAddress(),
     await usdc.getAddress(),
-    await pool.getAddress(),
+    await debtPool.getAddress(),
     await oracle.getAddress(),
     await riskEngine.getAddress(),
     treasury,
@@ -126,7 +130,7 @@ export async function deployDualVmSystem(overrides: DeployDualVmOverrides = {}) 
       liquidationBonusBps: CORE_DEFAULTS.liquidationBonusBps,
     },
   );
-  await core.waitForDeployment();
+  await lendingCore.waitForDeployment();
 
   await waitFor(accessManager.labelRole(ROLE_IDS.EMERGENCY, "EMERGENCY_ROLE"));
   await waitFor(accessManager.labelRole(ROLE_IDS.RISK_ADMIN, "RISK_ADMIN_ROLE"));
@@ -140,44 +144,44 @@ export async function deployDualVmSystem(overrides: DeployDualVmOverrides = {}) 
 
   await waitFor(
     accessManager.setTargetFunctionRole(
-      await core.getAddress(),
+      await lendingCore.getAddress(),
       [
-        selector(core, "setRiskEngine"),
-        selector(core, "setOracle"),
-        selector(core, "setTreasury"),
-        selector(core, "setBorrowCap"),
-        selector(core, "setMinBorrowAmount"),
-        selector(core, "setReserveFactorBps"),
-        selector(core, "setRiskBounds"),
-        selector(core, "setLiquidationBonusBps"),
+        selector(lendingCore, "setRiskEngine"),
+        selector(lendingCore, "setOracle"),
+        selector(lendingCore, "setTreasury"),
+        selector(lendingCore, "setBorrowCap"),
+        selector(lendingCore, "setMinBorrowAmount"),
+        selector(lendingCore, "setReserveFactorBps"),
+        selector(lendingCore, "setRiskBounds"),
+        selector(lendingCore, "setLiquidationBonusBps"),
       ],
       ROLE_IDS.RISK_ADMIN,
     ),
   );
   await waitFor(
     accessManager.setTargetFunctionRole(
-      await core.getAddress(),
-      [selector(core, "pause"), selector(core, "unpause")],
+      await lendingCore.getAddress(),
+      [selector(lendingCore, "pause"), selector(lendingCore, "unpause")],
       ROLE_IDS.EMERGENCY,
     ),
   );
 
   await waitFor(
     accessManager.setTargetFunctionRole(
-      await pool.getAddress(),
-      [selector(pool, "setLendingCore"), selector(pool, "setSupplyCap")],
+      await debtPool.getAddress(),
+      [selector(debtPool, "setLendingCore"), selector(debtPool, "setSupplyCap")],
       ROLE_IDS.RISK_ADMIN,
     ),
   );
   await waitFor(
     accessManager.setTargetFunctionRole(
-      await pool.getAddress(),
-      [selector(pool, "pause"), selector(pool, "unpause")],
+      await debtPool.getAddress(),
+      [selector(debtPool, "pause"), selector(debtPool, "unpause")],
       ROLE_IDS.EMERGENCY,
     ),
   );
   await waitFor(
-    accessManager.setTargetFunctionRole(await pool.getAddress(), [selector(pool, "claimReserves")], ROLE_IDS.TREASURY),
+    accessManager.setTargetFunctionRole(await debtPool.getAddress(), [selector(debtPool, "claimReserves")], ROLE_IDS.TREASURY),
   );
 
   await waitFor(
@@ -197,19 +201,19 @@ export async function deployDualVmSystem(overrides: DeployDualVmOverrides = {}) 
 
   await waitFor(accessManager.setTargetFunctionRole(await usdc.getAddress(), [selector(usdc, "mint")], ROLE_IDS.MINTER));
 
-  await waitFor(pool.setLendingCore(await core.getAddress()));
+  await waitFor(debtPool.setLendingCore(await lendingCore.getAddress()));
 
   if (adminDelaySeconds > 0) {
-    await waitFor(accessManager.setTargetAdminDelay(await core.getAddress(), adminDelaySeconds));
-    await waitFor(accessManager.setTargetAdminDelay(await pool.getAddress(), adminDelaySeconds));
+    await waitFor(accessManager.setTargetAdminDelay(await lendingCore.getAddress(), adminDelaySeconds));
+    await waitFor(accessManager.setTargetAdminDelay(await debtPool.getAddress(), adminDelaySeconds));
     await waitFor(accessManager.setTargetAdminDelay(await oracle.getAddress(), adminDelaySeconds));
     await waitFor(accessManager.setTargetAdminDelay(await usdc.getAddress(), adminDelaySeconds));
   }
 
   if (initialLiquidity > 0n) {
     await waitFor(usdc.mint(deployerAddress, initialLiquidity));
-    await waitFor(usdc.approve(await pool.getAddress(), initialLiquidity));
-    await waitFor(pool.deposit(initialLiquidity, deployerAddress));
+    await waitFor(usdc.approve(await debtPool.getAddress(), initialLiquidity));
+    await waitFor(debtPool.deposit(initialLiquidity, deployerAddress));
   }
 
   return {
@@ -253,8 +257,8 @@ export async function deployDualVmSystem(overrides: DeployDualVmOverrides = {}) 
       usdc,
       oracle,
       riskEngine,
-      pool,
-      core,
+      debtPool,
+      lendingCore,
     },
   };
 }

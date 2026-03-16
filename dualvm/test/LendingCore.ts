@@ -2,14 +2,14 @@ import { loadFixture, time } from "@nomicfoundation/hardhat-network-helpers";
 import { anyValue } from "@nomicfoundation/hardhat-chai-matchers/withArgs";
 import { expect } from "chai";
 import { ethers } from "hardhat";
-import { CORE_DEFAULTS, ORACLE_CIRCUIT_BREAKER_DEFAULTS, ORACLE_DEFAULTS, WAD } from "../scripts/marketConfig";
-import { deployDualVmSystem } from "../scripts/deploySystem";
+import { CORE_DEFAULTS, ORACLE_CIRCUIT_BREAKER_DEFAULTS, ORACLE_DEFAULTS, WAD } from "../lib/config/marketConfig";
+import { deployDualVmSystem } from "../lib/deployment/deploySystem";
 
 describe("DualVM isolated market", function () {
   async function deployFixture() {
     const [deployer, lender, borrower, liquidator, outsider] = await ethers.getSigners();
     const deployment = await deployDualVmSystem();
-    const { wpas, usdc, pool, oracle, core } = deployment.contracts as any;
+    const { wpas, usdc, debtPool: pool, oracle, lendingCore: core } = deployment.contracts as any;
 
     const poolLiquidity = 50_000n * WAD;
     const liquidatorLiquidity = 10_000n * WAD;

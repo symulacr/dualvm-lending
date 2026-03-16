@@ -60,7 +60,7 @@ export default function App() {
   useEffect(() => {
     let cancelled = false;
 
-    async function run() {
+    async function refreshMarketSnapshot() {
       if (!hasLivePolkadotHubTestnetDeployment) {
         return;
       }
@@ -83,7 +83,7 @@ export default function App() {
       }
     }
 
-    void run();
+    void refreshMarketSnapshot();
     return () => {
       cancelled = true;
     };
@@ -346,8 +346,17 @@ export default function App() {
       <section className="panel-card">
         <div className="section-header section-header-spread">
           <h2>Recent activity</h2>
-          <p className="helper-text">Latest LendingCore events from the live deployment over the recent block window.</p>
+          <p className="helper-text">
+            {snapshot?.recentActivitySource === "snapshot"
+              ? `Showing snapshot fallback. ${snapshot.recentActivityWarning ?? "Live RPC activity query is currently unavailable."}`
+              : `Latest LendingCore events from ${snapshot?.recentActivityWindow ?? "the recent block window"}.`}
+          </p>
         </div>
+        {snapshot?.recentActivitySource === "snapshot" ? (
+          <div className="empty-state">
+            <p>{snapshot.recentActivityWarning}</p>
+          </div>
+        ) : null}
         {snapshot?.recentActivity.length ? (
           <div className="activity-list">
             {snapshot.recentActivity.map((event) => (

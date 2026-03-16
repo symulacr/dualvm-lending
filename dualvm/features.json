@@ -95,7 +95,7 @@
       "status": "done",
       "evidence": [
         "ops/watchlist.json",
-        "scripts/liquidationWatch.mjs",
+        "scripts/liquidation-watch.mjs",
         "scripts/executeLiquidation.ts"
       ]
     },
@@ -104,7 +104,7 @@
       "title": "Cached reads and recent-events snapshot fallback",
       "status": "done",
       "evidence": [
-        "scripts/snapshotRecentEvents.mjs",
+        "scripts/snapshot-recent-events.mjs",
         "deployments/polkadot-hub-testnet-recent-events.json",
         "src/lib/readModel.ts"
       ]

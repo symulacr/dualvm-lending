@@ -1,27 +1,20 @@
-import fs from "node:fs";
-import path from "node:path";
 import hre from "hardhat";
-import { executeManagedCall } from "./accessManagerOps";
-import { ORACLE_CIRCUIT_BREAKER_DEFAULTS, WAD } from "./marketConfig";
+import {
+  managedSetOracleCircuitBreaker,
+  managedSetOraclePrice,
+  managedSetRiskEngine,
+  type ManagedCallContext,
+} from "../lib/ops/managedAccess";
+import { WAD } from "../lib/config/marketConfig";
+import { loadDeploymentManifest } from "../lib/deployment/manifestStore";
+import { requireEnv } from "../lib/runtime/env";
+import { formatWad } from "../lib/runtime/transactions";
+import { runEntrypoint } from "../lib/runtime/entrypoint";
 
 const { ethers } = hre;
 
-function requireEnv(name: string): string {
-  const value = process.env[name];
-  if (!value) {
-    throw new Error(`Missing required environment variable: ${name}`);
-  }
-  return value;
-}
-
-function formatUnits(value: bigint) {
-  return ethers.formatUnits(value, 18);
-}
-
-async function main() {
-  const manifest = JSON.parse(
-    fs.readFileSync(path.join(process.cwd(), "deployments", "polkadot-hub-testnet.json"), "utf8"),
-  );
+export async function main() {
+  const manifest = loadDeploymentManifest();
   const provider = ethers.provider;
 
   const admin = new ethers.Wallet(requireEnv("ADMIN_PRIVATE_KEY"), provider);
@@ -31,11 +24,19 @@ async function main() {
   const lendingCore = (await ethers.getContractFactory("LendingCore", admin)).attach(manifest.contracts.lendingCore) as any;
   const oracle = (await ethers.getContractFactory("ManualOracle", riskAdmin)).attach(manifest.contracts.oracle) as any;
   const riskEngineFactory = await ethers.getContractFactory("PvmRiskEngine", admin);
+  const managedRiskContext: ManagedCallContext = {
+    accessManager,
+    signer: riskAdmin,
+    executionDelaySeconds: manifest.governance?.executionDelaySeconds?.riskAdmin ?? 0,
+  };
 
   const originalRiskEngine = manifest.contracts.riskEngine;
-  const originalPrice = await oracle.priceWad();
-  const riskDelay = manifest.governance?.executionDelaySeconds?.riskAdmin ?? 0;
-
+  const originalOracleState = {
+    price: await oracle.priceWad(),
+    minPriceWad: await oracle.minPriceWad(),
+    maxPriceWad: await oracle.maxPriceWad(),
+    maxPriceChangeBps: await oracle.maxPriceChangeBps(),
+  };
   const tempRiskEngine = await riskEngineFactory.deploy(
     9_999n,
     1_111n,
@@ -50,76 +51,41 @@ async function main() {
   );
   await tempRiskEngine.waitForDeployment();
 
-  await executeManagedCall(
-    accessManager,
-    riskAdmin,
+  await managedSetOracleCircuitBreaker(
+    managedRiskContext,
     oracle,
-    "setCircuitBreaker",
-    [1n * WAD, 20_000n * WAD, 10_000n],
+    1n * WAD,
+    20_000n * WAD,
+    10_000n,
     "risk admin widen circuit breaker",
-    riskDelay,
   );
-  await executeManagedCall(
-    accessManager,
-    riskAdmin,
+  await managedSetRiskEngine(
+    managedRiskContext,
     lendingCore,
-    "setRiskEngine",
-    [await tempRiskEngine.getAddress()],
+    await tempRiskEngine.getAddress(),
     "risk admin set temporary risk engine",
-    riskDelay,
   );
-  await executeManagedCall(
-    accessManager,
-    riskAdmin,
-    oracle,
-    "setPrice",
-    [900n * WAD],
-    "risk admin set temporary oracle price",
-    riskDelay,
-  );
+  await managedSetOraclePrice(managedRiskContext, oracle, 900n * WAD, "risk admin set temporary oracle price");
 
-  const [temporaryRiskEngine, temporaryPrice, widenedBreaker] = await Promise.all([
+  const [temporaryRiskEngine, temporaryOracleState] = await Promise.all([
     lendingCore.riskEngine(),
-    oracle.priceWad(),
-    oracle.maxPriceChangeBps(),
+    Promise.all([oracle.priceWad(), oracle.minPriceWad(), oracle.maxPriceWad(), oracle.maxPriceChangeBps()]),
   ]);
 
-  await executeManagedCall(
-    accessManager,
-    riskAdmin,
-    lendingCore,
-    "setRiskEngine",
-    [originalRiskEngine],
-    "risk admin restore risk engine",
-    riskDelay,
-  );
-  await executeManagedCall(
-    accessManager,
-    riskAdmin,
+  await managedSetRiskEngine(managedRiskContext, lendingCore, originalRiskEngine, "risk admin restore risk engine");
+  await managedSetOraclePrice(managedRiskContext, oracle, originalOracleState.price, "risk admin restore oracle price");
+  await managedSetOracleCircuitBreaker(
+    managedRiskContext,
     oracle,
-    "setPrice",
-    [originalPrice],
-    "risk admin restore oracle price",
-    riskDelay,
-  );
-  await executeManagedCall(
-    accessManager,
-    riskAdmin,
-    oracle,
-    "setCircuitBreaker",
-    [
-      ORACLE_CIRCUIT_BREAKER_DEFAULTS.minPriceWad,
-      ORACLE_CIRCUIT_BREAKER_DEFAULTS.maxPriceWad,
-      ORACLE_CIRCUIT_BREAKER_DEFAULTS.maxPriceChangeBps,
-    ],
+    originalOracleState.minPriceWad,
+    originalOracleState.maxPriceWad,
+    originalOracleState.maxPriceChangeBps,
     "risk admin restore circuit breaker",
-    riskDelay,
   );
 
-  const [restoredRiskEngine, restoredPrice, restoredBreaker] = await Promise.all([
+  const [restoredRiskEngine, restoredOracleState] = await Promise.all([
     lendingCore.riskEngine(),
-    oracle.priceWad(),
-    oracle.maxPriceChangeBps(),
+    Promise.all([oracle.priceWad(), oracle.minPriceWad(), oracle.maxPriceWad(), oracle.maxPriceChangeBps()]),
   ]);
 
   console.log(
@@ -132,14 +98,21 @@ async function main() {
         governance: manifest.governance,
         checks: {
           temporaryRiskEngine,
-          temporaryPrice: formatUnits(temporaryPrice),
-          widenedBreakerBps: widenedBreaker.toString(),
+          temporaryPrice: formatWad(temporaryOracleState[0]),
+          temporaryMinPrice: formatWad(temporaryOracleState[1]),
+          temporaryMaxPrice: formatWad(temporaryOracleState[2]),
+          widenedBreakerBps: temporaryOracleState[3].toString(),
           restoredRiskEngine,
-          restoredPrice: formatUnits(restoredPrice),
-          restoredBreakerBps: restoredBreaker.toString(),
+          restoredPrice: formatWad(restoredOracleState[0]),
+          restoredMinPrice: formatWad(restoredOracleState[1]),
+          restoredMaxPrice: formatWad(restoredOracleState[2]),
+          restoredBreakerBps: restoredOracleState[3].toString(),
           riskEngineRestored: restoredRiskEngine.toLowerCase() === originalRiskEngine.toLowerCase(),
-          oracleRestored: restoredPrice === originalPrice,
-          breakerRestored: restoredBreaker === ORACLE_CIRCUIT_BREAKER_DEFAULTS.maxPriceChangeBps,
+          oracleRestored: restoredOracleState[0] === originalOracleState.price,
+          breakerRestored:
+            restoredOracleState[1] === originalOracleState.minPriceWad
+            && restoredOracleState[2] === originalOracleState.maxPriceWad
+            && restoredOracleState[3] === originalOracleState.maxPriceChangeBps,
         },
       },
       null,
@@ -148,7 +121,4 @@ async function main() {
   );
 }
 
-main().catch((error) => {
-  console.error(error);
-  process.exitCode = 1;
-});
+runEntrypoint("scripts/liveRiskAdminSmoke.ts", main);

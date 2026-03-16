@@ -181,7 +181,7 @@ These should be recorded, not smuggled into MVP scope.
 - the remaining production concern is a real debt-asset integration beyond the current explicit mock-stable path
 
 ### 11. Liquidation and ops automation
-- baseline operator tooling now exists through `dualvm/scripts/liquidationWatch.mjs` and `dualvm/scripts/executeLiquidation.ts`
+- baseline operator tooling now exists through `dualvm/scripts/liquidation-watch.mjs` and `dualvm/scripts/executeLiquidation.ts`
 - the remaining production concern is richer monitoring, alerting, and service-grade automation rather than the complete absence of operator tooling
 
 ### 12. RPC and indexing resilience

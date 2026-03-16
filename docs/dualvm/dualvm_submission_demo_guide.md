@@ -77,7 +77,7 @@ Explorer verification artifact:
 - Borrow smoke: `dualvm/scripts/liveSmoke.ts`
 - Repay smoke: `dualvm/scripts/liveRepaySmoke.ts`
 - Oracle smoke: `dualvm/scripts/liveOracleSmoke.ts`
-- Watch/monitor script: `dualvm/scripts/liquidationWatch.mjs`
+- Watch/monitor script: `dualvm/scripts/liquidation-watch.mjs`
 - Liquidator operator script: `dualvm/scripts/executeLiquidation.ts`
 - Liquidation smoke: `dualvm/scripts/liveLiquidationSmoke.ts`
 

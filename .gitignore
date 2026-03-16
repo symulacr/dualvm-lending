@@ -1,2 +1,6 @@
 .omp/
 PLAN.md
+
+.desloppify/
+.claude/
+scorecard.png

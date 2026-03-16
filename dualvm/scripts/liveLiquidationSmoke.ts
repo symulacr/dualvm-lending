@@ -1,85 +1,56 @@
-import fs from "node:fs";
-import path from "node:path";
 import hre from "hardhat";
-import { executeManagedCall } from "./accessManagerOps";
-import { ORACLE_CIRCUIT_BREAKER_DEFAULTS, WAD } from "./marketConfig";
+import {
+  managedMintUsdc,
+  managedSetOracleCircuitBreaker,
+  managedSetOraclePrice,
+  managedSetRiskEngine,
+  type ManagedCallContext,
+} from "../lib/ops/managedAccess";
+import { openBorrowPosition, seedDebtPoolLiquidity, waitForDebtToAccrue } from "../lib/ops/liveScenario";
+import { ORACLE_CIRCUIT_BREAKER_DEFAULTS, WAD } from "../lib/config/marketConfig";
+import { loadDeploymentManifest } from "../lib/deployment/manifestStore";
+import { requireEnv } from "../lib/runtime/env";
+import { formatWad, waitForTransaction } from "../lib/runtime/transactions";
+import { runEntrypoint } from "../lib/runtime/entrypoint";
 
 const { ethers } = hre;
 
-function requireEnv(name: string): string {
-  const value = process.env[name];
-  if (!value) {
-    throw new Error(`Missing required environment variable: ${name}`);
-  }
-  return value;
-}
-
-function formatUnits(value: bigint) {
-  return ethers.formatUnits(value, 18);
-}
-
-async function waitFor(txPromise: Promise<{ wait(): Promise<{ hash?: string }>; hash?: string }>, label: string) {
-  const tx = await txPromise;
-  const receipt = await tx.wait();
-  console.log(`${label}: ${receipt.hash ?? tx.hash ?? "mined"}`);
-}
-
 async function normalizeOracleToBaseline(
-  accessManager: any,
-  riskAdmin: any,
+  context: ManagedCallContext,
   oracle: any,
-  riskDelay: number,
   targetPriceWad: bigint,
- ) {
-  await executeManagedCall(
-    accessManager,
-    riskAdmin,
+) {
+  await managedSetOracleCircuitBreaker(
+    context,
     oracle,
-    "setCircuitBreaker",
-    [1n * WAD, 20_000n * WAD, 10_000n],
+    1n * WAD,
+    20_000n * WAD,
+    10_000n,
     "prepare oracle baseline restore range",
-    riskDelay,
   );
 
   let price = BigInt(await oracle.priceWad());
   if (price === 0n) {
-    await executeManagedCall(accessManager, riskAdmin, oracle, "setPrice", [targetPriceWad], "seed oracle baseline price", riskDelay);
+    await managedSetOraclePrice(context, oracle, targetPriceWad, "seed oracle baseline price");
     return;
   }
 
   while (price < targetPriceWad) {
     const nextPrice = price * 2n > targetPriceWad ? targetPriceWad : price * 2n;
-    await executeManagedCall(
-      accessManager,
-      riskAdmin,
-      oracle,
-      "setPrice",
-      [nextPrice],
-      `restore oracle price to ${formatUnits(nextPrice)}`,
-      riskDelay,
-    );
+    await managedSetOraclePrice(context, oracle, nextPrice, `restore oracle price to ${formatWad(nextPrice)}`);
     price = nextPrice;
   }
 
   while (price > targetPriceWad) {
     const halvedPrice = price / 2n;
     const nextPrice = halvedPrice < targetPriceWad ? targetPriceWad : halvedPrice;
-    await executeManagedCall(
-      accessManager,
-      riskAdmin,
-      oracle,
-      "setPrice",
-      [nextPrice],
-      `restore oracle price to ${formatUnits(nextPrice)}`,
-      riskDelay,
-    );
+    await managedSetOraclePrice(context, oracle, nextPrice, `restore oracle price to ${formatWad(nextPrice)}`);
     price = nextPrice;
   }
 }
 
-async function main() {
-  const manifestPath = path.join(process.cwd(), "deployments", "polkadot-hub-testnet.json");
-  const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+export async function main() {
+  const manifest = loadDeploymentManifest();
   const provider = ethers.provider;
 
   const admin = new ethers.Wallet(requireEnv("ADMIN_PRIVATE_KEY"), provider);
@@ -93,7 +64,6 @@ async function main() {
   const accessManagerRisk = (await ethers.getContractFactory("DualVMAccessManager", riskAdmin)).attach(manifest.contracts.accessManager) as any;
   const wpas = (await ethers.getContractFactory("WPAS", borrower)).attach(manifest.contracts.wpas) as any;
   const usdcAdmin = (await ethers.getContractFactory("USDCMock", admin)).attach(manifest.contracts.usdc) as any;
-  const usdcLender = usdcAdmin.connect(lender) as any;
   const usdcLiquidator = usdcAdmin.connect(liquidator) as any;
   const oracle = (await ethers.getContractFactory("ManualOracle", riskAdmin)).attach(manifest.contracts.oracle) as any;
   const debtPoolLender = (await ethers.getContractFactory("DebtPool", lender)).attach(manifest.contracts.debtPool) as any;
@@ -103,8 +73,17 @@ async function main() {
   const lendingCoreLiquidator = lendingCoreAdmin.connect(liquidator) as any;
   const riskEngineFactory = await ethers.getContractFactory("PvmRiskEngine", admin);
 
-  const minterDelay = manifest.governance?.executionDelaySeconds?.minter ?? 0;
-  const riskDelay = manifest.governance?.executionDelaySeconds?.riskAdmin ?? 0;
+  const managedMinterContext: ManagedCallContext = {
+    accessManager: accessManagerMinter,
+    signer: minter,
+    executionDelaySeconds: manifest.governance?.executionDelaySeconds?.minter ?? 0,
+  };
+  const managedRiskContext: ManagedCallContext = {
+    accessManager: accessManagerRisk,
+    signer: riskAdmin,
+    executionDelaySeconds: manifest.governance?.executionDelaySeconds?.riskAdmin ?? 0,
+  };
+
   const originalRiskEngine = manifest.contracts.riskEngine;
   const baselineOraclePrice = 1_000n * WAD;
   const baselineBreaker = {
@@ -126,46 +105,37 @@ async function main() {
     14_000n,
   );
   await tempRiskEngine.waitForDeployment();
-  await executeManagedCall(
-    accessManagerRisk,
-    riskAdmin,
+  await managedSetRiskEngine(
+    managedRiskContext,
     lendingCoreAdmin,
-    "setRiskEngine",
-    [await tempRiskEngine.getAddress()],
+    await tempRiskEngine.getAddress(),
     "set temporary high-rate risk engine",
-    riskDelay,
   );
-  await normalizeOracleToBaseline(accessManagerRisk, riskAdmin, oracle, riskDelay, baselineOraclePrice);
+  await normalizeOracleToBaseline(managedRiskContext, oracle, baselineOraclePrice);
 
   const lenderSeed = ethers.parseUnits("20000", 18);
   const liquidatorSeed = ethers.parseUnits("10000", 18);
   const collateralPas = ethers.parseUnits("20", 18);
   const borrowAmount = ethers.parseUnits("10000", 18);
 
-  await executeManagedCall(accessManagerMinter, minter, usdcAdmin, "mint", [lender.address, lenderSeed], "mint lender usdc-test", minterDelay);
-  await executeManagedCall(accessManagerMinter, minter, usdcAdmin, "mint", [liquidator.address, liquidatorSeed], "mint liquidator usdc-test", minterDelay);
-  await waitFor(usdcLender.approve(await debtPoolAdmin.getAddress(), ethers.MaxUint256), "lender approve debt pool");
-  await waitFor(debtPoolLender.deposit(lenderSeed, lender.address), "lender deposit pool liquidity");
+  await seedDebtPoolLiquidity(managedMinterContext, usdcAdmin, debtPoolLender, lender.address, lenderSeed, "lender");
+  await managedMintUsdc(managedMinterContext, usdcAdmin, liquidator.address, liquidatorSeed, "mint liquidator usdc-test");
+  await openBorrowPosition({
+    wpas,
+    lendingCore: lendingCoreBorrower,
+    collateralPas,
+    borrowAmount,
+    labelPrefix: "borrower",
+  });
 
-  await waitFor(wpas.deposit({ value: collateralPas }), "borrower wrap pas into wpas");
-  await new Promise(resolve => setTimeout(resolve, 3000));
-  await waitFor(wpas.approve(await lendingCoreAdmin.getAddress(), ethers.MaxUint256), "borrower approve collateral");
-  await new Promise(resolve => setTimeout(resolve, 3000));
-  await waitFor(lendingCoreBorrower.depositCollateral(collateralPas), "borrower deposit collateral");
-  await new Promise(resolve => setTimeout(resolve, 3000));
-  await waitFor(lendingCoreBorrower.borrow(borrowAmount), "borrower draw stable debt");
-
-  await new Promise(resolve => setTimeout(resolve, 15000));
-  await executeManagedCall(
-    accessManagerRisk,
-    riskAdmin,
-    oracle,
-    "setPrice",
-    [21n * WAD],
-    "drop oracle price",
-    riskDelay,
+  await waitForDebtToAccrue(
+    lendingCoreAdmin,
+    borrower.address,
+    borrowAmount,
+    "wait for liquidation scenario debt growth",
   );
-  await waitFor(usdcLiquidator.approve(await lendingCoreAdmin.getAddress(), ethers.MaxUint256), "liquidator approve core");
+  await managedSetOraclePrice(managedRiskContext, oracle, 21n * WAD, "drop oracle price");
+  await waitForTransaction(usdcLiquidator.approve(await lendingCoreAdmin.getAddress(), ethers.MaxUint256), "liquidator approve core");
 
   const [debtBefore, principalBefore, liquidatorCollateralBefore] = await Promise.all([
     lendingCoreAdmin.currentDebt(borrower.address),
@@ -173,7 +143,7 @@ async function main() {
     wpas.balanceOf(liquidator.address),
   ]);
 
-  await waitFor(lendingCoreLiquidator.liquidate(borrower.address, ethers.MaxUint256), "liquidator execute liquidation");
+  await waitForTransaction(lendingCoreLiquidator.liquidate(borrower.address, ethers.MaxUint256), "liquidator execute liquidation");
 
   const [debtAfter, principalAfter, liquidatorCollateralAfter, riskEngineAfter] = await Promise.all([
     lendingCoreAdmin.currentDebt(borrower.address),
@@ -182,28 +152,15 @@ async function main() {
     lendingCoreAdmin.riskEngine(),
   ]);
 
-  await executeManagedCall(
-    accessManagerRisk,
-    riskAdmin,
-    lendingCoreAdmin,
-    "setRiskEngine",
-    [originalRiskEngine],
-    "restore original risk engine",
-    riskDelay,
-  );
-  await normalizeOracleToBaseline(accessManagerRisk, riskAdmin, oracle, riskDelay, baselineOraclePrice);
-  await executeManagedCall(
-    accessManagerRisk,
-    riskAdmin,
+  await managedSetRiskEngine(managedRiskContext, lendingCoreAdmin, originalRiskEngine, "restore original risk engine");
+  await normalizeOracleToBaseline(managedRiskContext, oracle, baselineOraclePrice);
+  await managedSetOracleCircuitBreaker(
+    managedRiskContext,
     oracle,
-    "setCircuitBreaker",
-    [
-      baselineBreaker.minPriceWad,
-      baselineBreaker.maxPriceWad,
-      baselineBreaker.maxPriceChangeBps,
-    ],
+    baselineBreaker.minPriceWad,
+    baselineBreaker.maxPriceWad,
+    baselineBreaker.maxPriceChangeBps,
     "restore oracle circuit breaker",
-    riskDelay,
   );
 
   console.log(
@@ -221,12 +178,12 @@ async function main() {
         governance: manifest.governance,
         temporaryRiskEngine: await tempRiskEngine.getAddress(),
         checks: {
-          debtBefore: formatUnits(debtBefore),
-          principalBefore: formatUnits(principalBefore),
+          debtBefore: formatWad(debtBefore),
+          principalBefore: formatWad(principalBefore),
           debtExceedsPrincipalBefore: debtBefore > principalBefore,
-          debtAfter: formatUnits(debtAfter),
-          principalAfter: formatUnits(principalAfter),
-          liquidatorCollateralGain: formatUnits(BigInt(liquidatorCollateralAfter) - BigInt(liquidatorCollateralBefore)),
+          debtAfter: formatWad(debtAfter),
+          principalAfter: formatWad(principalAfter),
+          liquidatorCollateralGain: formatWad(BigInt(liquidatorCollateralAfter) - BigInt(liquidatorCollateralBefore)),
           riskEngineWasTemporaryDuringRun: riskEngineAfter.toLowerCase() === (await tempRiskEngine.getAddress()).toLowerCase(),
         },
       },
@@ -236,7 +193,4 @@ async function main() {
   );
 }
 
-main().catch((error) => {
-  console.error(error);
-  process.exitCode = 1;
-});
+runEntrypoint("scripts/liveLiquidationSmoke.ts", main);

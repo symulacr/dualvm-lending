@@ -1,26 +1,15 @@
-import fs from "node:fs";
-import path from "node:path";
 import hre from "hardhat";
-import { executeManagedCall } from "./accessManagerOps";
-import { LIVE_ROLE_EXECUTION_DELAYS_SECONDS, ROLE_IDS } from "./marketConfig";
+import { managedSetTreasury, type ManagedCallContext } from "../lib/ops/managedAccess";
+import { LIVE_ROLE_EXECUTION_DELAYS_SECONDS, ROLE_IDS } from "../lib/config/marketConfig";
+import { loadDeploymentManifest, writeDeploymentManifest } from "../lib/deployment/manifestStore";
+import { requireEnv } from "../lib/runtime/env";
+import { waitForTransaction } from "../lib/runtime/transactions";
+import { runEntrypoint } from "../lib/runtime/entrypoint";
 
 const { ethers } = hre;
 
-function requireEnv(name: string): string {
-  const value = process.env[name];
-  if (!value) throw new Error(`Missing required environment variable: ${name}`);
-  return value;
-}
-
-async function waitFor(txPromise: Promise<{ wait(): Promise<{ hash?: string }>; hash?: string }>, label: string) {
-  const tx = await txPromise;
-  const receipt = await tx.wait();
-  console.log(`${label}: ${receipt.hash ?? tx.hash ?? "mined"}`);
-}
-
-async function main() {
-  const manifestPath = path.join(process.cwd(), "deployments", "polkadot-hub-testnet.json");
-  const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+export async function main() {
+  const manifest = loadDeploymentManifest();
   const provider = ethers.provider;
 
   const admin = new ethers.Wallet(requireEnv("ADMIN_PRIVATE_KEY"), provider);
@@ -32,45 +21,42 @@ async function main() {
   const accessManager = (await ethers.getContractFactory("DualVMAccessManager", admin)).attach(manifest.contracts.accessManager);
   const lendingCoreRisk = (await ethers.getContractFactory("LendingCore", risk)).attach(manifest.contracts.lendingCore);
 
-  await waitFor(
+  await waitForTransaction(
     accessManager.grantRole(ROLE_IDS.EMERGENCY, emergency.address, LIVE_ROLE_EXECUTION_DELAYS_SECONDS.emergency),
     "grant emergency role",
   );
-  await waitFor(
+  await waitForTransaction(
     accessManager.grantRole(ROLE_IDS.RISK_ADMIN, risk.address, LIVE_ROLE_EXECUTION_DELAYS_SECONDS.riskAdmin),
     "grant risk role",
   );
-  await waitFor(
+  await waitForTransaction(
     accessManager.grantRole(ROLE_IDS.TREASURY, treasury.address, LIVE_ROLE_EXECUTION_DELAYS_SECONDS.treasury),
     "grant treasury role",
   );
-  await waitFor(
+  await waitForTransaction(
     accessManager.grantRole(ROLE_IDS.MINTER, minter.address, LIVE_ROLE_EXECUTION_DELAYS_SECONDS.minter),
     "grant minter role",
   );
 
-  await executeManagedCall(
-    accessManager,
-    risk,
-    lendingCoreRisk,
-    "setTreasury",
-    [treasury.address],
-    "set live treasury address",
-    LIVE_ROLE_EXECUTION_DELAYS_SECONDS.riskAdmin,
-  );
+  const managedRiskContext: ManagedCallContext = {
+    accessManager: accessManager.connect(risk) as any,
+    signer: risk,
+    executionDelaySeconds: LIVE_ROLE_EXECUTION_DELAYS_SECONDS.riskAdmin,
+  };
+  await managedSetTreasury(managedRiskContext, lendingCoreRisk as any, treasury.address, "set live treasury address");
 
   const previousRoles = manifest.roles;
   if (previousRoles.emergencyAdmin.toLowerCase() !== emergency.address.toLowerCase()) {
-    await waitFor(accessManager.revokeRole(ROLE_IDS.EMERGENCY, previousRoles.emergencyAdmin), "revoke old emergency role");
+    await waitForTransaction(accessManager.revokeRole(ROLE_IDS.EMERGENCY, previousRoles.emergencyAdmin), "revoke old emergency role");
   }
   if (previousRoles.riskAdmin.toLowerCase() !== risk.address.toLowerCase()) {
-    await waitFor(accessManager.revokeRole(ROLE_IDS.RISK_ADMIN, previousRoles.riskAdmin), "revoke old risk role");
+    await waitForTransaction(accessManager.revokeRole(ROLE_IDS.RISK_ADMIN, previousRoles.riskAdmin), "revoke old risk role");
   }
   if (previousRoles.treasuryOperator.toLowerCase() !== treasury.address.toLowerCase()) {
-    await waitFor(accessManager.revokeRole(ROLE_IDS.TREASURY, previousRoles.treasuryOperator), "revoke old treasury role");
+    await waitForTransaction(accessManager.revokeRole(ROLE_IDS.TREASURY, previousRoles.treasuryOperator), "revoke old treasury role");
   }
   if (previousRoles.minter.toLowerCase() !== minter.address.toLowerCase()) {
-    await waitFor(accessManager.revokeRole(ROLE_IDS.MINTER, previousRoles.minter), "revoke old minter role");
+    await waitForTransaction(accessManager.revokeRole(ROLE_IDS.MINTER, previousRoles.minter), "revoke old minter role");
   }
 
   manifest.roles = {
@@ -84,7 +70,7 @@ async function main() {
     admin: admin.address,
     executionDelaySeconds: LIVE_ROLE_EXECUTION_DELAYS_SECONDS,
   };
-  fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2));
+  writeDeploymentManifest(manifest);
 
   console.log(
     JSON.stringify(
@@ -98,7 +84,4 @@ async function main() {
   );
 }
 
-main().catch((error) => {
-  console.error(error);
-  process.exitCode = 1;
-});
+runEntrypoint("scripts/applyRoleSeparation.ts", main);

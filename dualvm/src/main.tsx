@@ -3,8 +3,15 @@ import ReactDOM from "react-dom/client";
 import App from "./App";
 import "./style.css";
 
-ReactDOM.createRoot(document.getElementById("root")!).render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>,
-);
+export function renderApp(rootElement: HTMLElement) {
+  ReactDOM.createRoot(rootElement).render(
+    <React.StrictMode>
+      <App />
+    </React.StrictMode>,
+  );
+}
+
+const rootElement = typeof document === "undefined" ? null : document.getElementById("root");
+if (rootElement) {
+  renderApp(rootElement);
+}

@@ -1,30 +1,15 @@
-import fs from "node:fs";
-import path from "node:path";
 import hre from "hardhat";
-import { executeManagedCall } from "./accessManagerOps";
-import { ORACLE_CIRCUIT_BREAKER_DEFAULTS } from "./marketConfig";
+import { managedSetOracle, type ManagedCallContext } from "../lib/ops/managedAccess";
+import { ROLE_IDS, ORACLE_CIRCUIT_BREAKER_DEFAULTS } from "../lib/config/marketConfig";
+import { loadDeploymentManifest, writeDeploymentManifest } from "../lib/deployment/manifestStore";
+import { requireEnv } from "../lib/runtime/env";
+import { waitForTransaction } from "../lib/runtime/transactions";
+import { runEntrypoint } from "../lib/runtime/entrypoint";
 
 const { ethers } = hre;
 
-function requireEnv(name: string): string {
-  const value = process.env[name];
-  if (!value) throw new Error(`Missing required environment variable: ${name}`);
-  return value;
-}
-
-function bigintReplacer(_: string, value: unknown) {
-  return typeof value === "bigint" ? value.toString() : value;
-}
-
-async function waitFor(txPromise: Promise<{ wait(): Promise<{ hash?: string }>; hash?: string }>, label: string) {
-  const tx = await txPromise;
-  const receipt = await tx.wait();
-  console.log(`${label}: ${receipt.hash ?? tx.hash ?? "mined"}`);
-}
-
-async function main() {
-  const manifestPath = path.join(process.cwd(), "deployments", "polkadot-hub-testnet.json");
-  const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+export async function main() {
+  const manifest = loadDeploymentManifest();
   const provider = ethers.provider;
 
   const admin = new ethers.Wallet(requireEnv("ADMIN_PRIVATE_KEY"), provider);
@@ -55,45 +40,46 @@ async function main() {
     throw new Error("Failed to resolve hardened oracle selectors");
   }
 
-  await waitFor(
+  await waitForTransaction(
     accessManagerAdmin.setTargetFunctionRole(
       await newOracle.getAddress(),
       [setPriceSelector, setMaxAgeSelector, setCircuitBreakerSelector],
-      2,
+      ROLE_IDS.RISK_ADMIN,
     ),
     "configure oracle risk role",
   );
-  await waitFor(
-    accessManagerAdmin.setTargetFunctionRole(await newOracle.getAddress(), [pauseSelector, unpauseSelector], 1),
+  await waitForTransaction(
+    accessManagerAdmin.setTargetFunctionRole(
+      await newOracle.getAddress(),
+      [pauseSelector, unpauseSelector],
+      ROLE_IDS.EMERGENCY,
+    ),
     "configure oracle emergency role",
   );
-  await waitFor(
+  await waitForTransaction(
     accessManagerAdmin.setTargetAdminDelay(await newOracle.getAddress(), manifest.config.adminDelaySeconds),
     "set oracle admin delay",
   );
 
-  const riskDelay = manifest.governance?.executionDelaySeconds?.riskAdmin ?? 0;
-  await executeManagedCall(
-    accessManagerRisk,
-    riskAdmin,
-    lendingCore,
-    "setOracle",
-    [await newOracle.getAddress()],
-    "set hardened oracle on lending core",
-    riskDelay,
-  );
+  const managedRiskContext: ManagedCallContext = {
+    accessManager: accessManagerRisk,
+    signer: riskAdmin,
+    executionDelaySeconds: manifest.governance?.executionDelaySeconds?.riskAdmin ?? 0,
+  };
+  await managedSetOracle(managedRiskContext, lendingCore, await newOracle.getAddress(), "set hardened oracle on lending core");
 
   manifest.contracts.oracle = await newOracle.getAddress();
   manifest.config.oracle = {
     ...(manifest.config.oracle ?? {}),
-    circuitBreaker: ORACLE_CIRCUIT_BREAKER_DEFAULTS,
+    circuitBreaker: {
+      minPriceWad: ORACLE_CIRCUIT_BREAKER_DEFAULTS.minPriceWad.toString(),
+      maxPriceWad: ORACLE_CIRCUIT_BREAKER_DEFAULTS.maxPriceWad.toString(),
+      maxPriceChangeBps: ORACLE_CIRCUIT_BREAKER_DEFAULTS.maxPriceChangeBps.toString(),
+    },
   };
-  fs.writeFileSync(manifestPath, JSON.stringify(manifest, bigintReplacer, 2));
+  const manifestPath = writeDeploymentManifest(manifest);
 
-  console.log(JSON.stringify({ newOracle: await newOracle.getAddress(), manifest: manifestPath }, bigintReplacer, 2));
+  console.log(JSON.stringify({ newOracle: await newOracle.getAddress(), manifest: manifestPath }, null, 2));
 }
 
-main().catch((error) => {
-  console.error(error);
-  process.exitCode = 1;
-});
+runEntrypoint("scripts/upgradeOracle.ts", main);
