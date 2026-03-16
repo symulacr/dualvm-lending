@@ -1,0 +1,95 @@
+{
+  "generatedAt": "2026-03-16T23:30:00.000Z",
+  "manifestPath": "dualvm/deployments/polkadot-hub-testnet-canonical.json",
+  "network": {
+    "name": "Polkadot Hub TestNet",
+    "chainId": 420420417,
+    "rpcUrl": "https://eth-rpc-testnet.polkadot.io/",
+    "explorerUrl": "https://blockscout-testnet.polkadot.io/"
+  },
+  "status": "partial-consolidation",
+  "note": "This canonical manifest consolidates the governed deployment (multisig+timelock governance). A fresh Governor-based deployment was NOT executed because the designated wallet (0x36a83a44...) had 0 PAS balance. The contracts, probes, and smoke results below are from the governed deployment family.",
+  "governanceRoot": {
+    "type": "multisig-timelock",
+    "multisig": {
+      "address": "0x52255308a98f0758958cAD26Df4aD45a8E918215",
+      "creationTxHash": "0x00f579c62f1949382aead2ae4f87620cd76429801a92523cd8f2673e605a0006",
+      "owners": [
+        "0x8fC704b520657b4CE36bebd82476106CB7F16070",
+        "0xE4CbBf848BEeb25459b62f4E39B0D3472f14050c",
+        "0x1c63925FE2c09ecf7be7983326D27717AcbDdd85"
+      ],
+      "threshold": 2
+    },
+    "timelock": {
+      "address": "0x6b7D4ea43CB286aF7367a7e1671de2530b10B630",
+      "creationTxHash": "0xd58f16d1e79e3995b07286ac58cca21167f62f894c236d169ccc6bbd6f766c68",
+      "minDelaySeconds": 60,
+      "openExecutor": true
+    },
+    "pendingUpgrade": "Governor-based governance (GovernanceToken + DualVMGovernor) is implemented and tested locally but requires a funded wallet for live deployment"
+  },
+  "deployments": {
+    "accessManager": {
+      "address": "0x81E4361e0390478Bf344204f68ccB686d00d130B",
+      "creationTxHash": "0x8f26815b0d86ec273f48ad3d2cada7d7ac4412d4118e284c68035a5c01001df4"
+    },
+    "wpas": {
+      "address": "0x21B9960ba2E6AeB9CEe0dB192B3f6EA02eF7E347",
+      "creationTxHash": "0x5153e6b1de2c3c31c9f2bc6d0789504107c1e6b7957a95bd27661d335d6e4b7e"
+    },
+    "usdc": {
+      "address": "0x3694e73753AC6457A1AebdF2cB867Cb6C1Bc46bf",
+      "creationTxHash": "0x9a93b3d95cb807ddd28b817b44401a612b710b19f7bfcfeb8b6f0d9a24fe4287"
+    },
+    "oracle": {
+      "address": "0x0B0B5f9e5854774a299fa27706e24E3D9fE510F2",
+      "creationTxHash": "0x157d64ebf16762842ac29f303fa935b57ec8b1c1f56048eed9bfa105b1d38426"
+    },
+    "riskEngine": {
+      "address": "0xc0667015c860552886c413179A23BB1031F081bA",
+      "creationTxHash": "0xa35fbc808b5a8ef91036faec4dfe2cb48b7fd8139fc657a805be367633bf5629"
+    },
+    "quoteEngine": {
+      "address": "0x9a78F65b00E0AeD0830063eD0ea66a0B5d8876DE",
+      "creationTxHash": "0xab768ad65626896fc4a21e1600f47a964e35a29908114cb1051b9f2ec0b71a21",
+      "codeHash": "0xba8fe2a621062a30bba558a3846d0a18bfb2e9a09bfaed656b123e698b59af5b",
+      "type": "PVM-compiled PvmQuoteProbe"
+    },
+    "marketRegistry": {
+      "address": "0x7B6728BF2d4F8311b94a3B6B5696635A254d4872",
+      "creationTxHash": "0xc1efb7fc952bf5d83b8a2d108b73b5540a1d81b06a1f52a34a79a056f5d63b41"
+    },
+    "governanceTimelock": {
+      "address": "0x6b7D4ea43CB286aF7367a7e1671de2530b10B630",
+      "creationTxHash": "0xd58f16d1e79e3995b07286ac58cca21167f62f894c236d169ccc6bbd6f766c68"
+    },
+    "debtPool": {
+      "address": "0x7B9B95E380E8E43F836A6180f2e922Bfa1506CD5",
+      "creationTxHash": "0x3b3ae6e126dd8e189d1bf1b4f817ec8d823773e901679230c45b17be9ab03352"
+    },
+    "lendingCore": {
+      "address": "0xd0e4ec33d2b3857d6cbEbBd390653ea108FC2FBd",
+      "creationTxHash": "0xef9ea7535ad5216e38dde8986526b76082cf5cb0b58a1bfc47bcbafecf5a2806"
+    }
+  },
+  "probeVerdicts": {
+    "A": true,
+    "B": true,
+    "C": true,
+    "D": false,
+    "note": "All probe stages passed. D=false means interop IS defensible (a passing result)."
+  },
+  "smokeProof": {
+    "borrowTx": "0x5df52f12edcc29a54be74b669e6ce20d9fbd04a23c4a02e14eb78afbd76980f2",
+    "repayTx": "0xe5c41788ee658fbd656cf0ecf98b8ddd58ffa6f316f785c83916d658900b50b6",
+    "registerVersionTx": "0x9591bb9b43b5817c2bc9de3cd787a71bbc6e01a730d0ee498184495f41dcf23f",
+    "activateVersionTx": "0xb4f069531e76d0fd734233a7830a463fbb936afff4019df434455e5218d6c5f5",
+    "restoreVersionTx": "0xef84d3e3a47164c272b19c82175a8e4e9be73390a74c3d4b906b3410cb8863e7"
+  },
+  "blockers": [
+    "Fresh Governor-based deployment requires funded wallet — designated wallet 0x36a83a4450744f4F9988c9Bc46cC556Ba5bFD2dF has 0 PAS",
+    "Old deployer wallet 0x31FA19B35fdBD96f381A0be838799ca40978D080 has ~4901 PAS but private key is not in any wallet file",
+    "Borrow/repay/liquidation smoke cannot be re-run against canonical manifest without funded operator keys"
+  ]
+}

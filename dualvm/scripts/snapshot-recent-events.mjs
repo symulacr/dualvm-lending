@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { JsonRpcProvider, Contract } from "ethers";
 
-const manifest = JSON.parse(fs.readFileSync(path.join(process.cwd(), "deployments", "polkadot-hub-testnet.json"), "utf8"));
+const manifest = JSON.parse(fs.readFileSync(path.join(process.cwd(), "deployments", "polkadot-hub-testnet-canonical.json"), "utf8"));
 const provider = new JsonRpcProvider(manifest.polkadotHubTestnet.rpcUrl);
 const lendingCore = new Contract(
   manifest.contracts.lendingCore,

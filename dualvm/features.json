@@ -2,7 +2,7 @@
   "network": {
     "name": "Polkadot Hub TestNet",
     "chainId": 420420417,
-    "manifest": "deployments/polkadot-hub-testnet.json"
+    "manifest": "deployments/polkadot-hub-testnet-canonical.json"
   },
   "features": [
     {
@@ -10,8 +10,8 @@
       "title": "Live deployment on Polkadot Hub TestNet",
       "status": "done",
       "evidence": [
-        "deployments/polkadot-hub-testnet.json",
-        "deployments/polkadot-hub-testnet-verification.json"
+        "deployments/polkadot-hub-testnet-canonical.json",
+        "deployments/polkadot-hub-testnet-canonical-results.json"
       ]
     },
     {
@@ -47,7 +47,7 @@
         "scripts/applyRoleSeparation.ts",
         "scripts/liveRiskAdminSmoke.ts",
         "scripts/liveMinterSmoke.ts",
-        "deployments/polkadot-hub-testnet-governance-proof.json"
+        "deployments/polkadot-hub-testnet-canonical-results.json"
       ]
     },
     {
@@ -76,7 +76,7 @@
         "contracts/ManualOracle.sol",
         "scripts/upgradeOracle.ts",
         "scripts/liveOracleSmoke.ts",
-        "deployments/polkadot-hub-testnet-oracle-proof.json"
+        "deployments/polkadot-hub-testnet-canonical-results.json"
       ]
     },
     {

@@ -2,7 +2,7 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { bigintReplacer, parseDeploymentManifest, type DeploymentManifest } from "../shared/deploymentManifest";
 
-export const DEPLOYMENT_MANIFEST_FILENAME = "polkadot-hub-testnet.json";
+export const DEPLOYMENT_MANIFEST_FILENAME = "polkadot-hub-testnet-canonical.json";
 
 export function getDeploymentManifestPath(cwd = process.cwd()) {
   const override = process.env.DEPLOYMENT_MANIFEST_PATH;

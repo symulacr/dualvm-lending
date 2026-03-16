@@ -18,7 +18,7 @@ describe("deployment manifest store", () => {
     const tempDir = mkdtempSync(path.join(os.tmpdir(), "dualvm-manifest-invalid-"));
     const deploymentsDir = path.join(tempDir, "deployments");
     mkdirSync(deploymentsDir, { recursive: true });
-    writeFileSync(path.join(deploymentsDir, "polkadot-hub-testnet.json"), "{not-json");
+    writeFileSync(path.join(deploymentsDir, "polkadot-hub-testnet-canonical.json"), "{not-json");
 
 
     try {
