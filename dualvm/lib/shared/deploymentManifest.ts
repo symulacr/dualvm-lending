@@ -64,6 +64,12 @@ export interface DeploymentContracts {
   riskEngine: HexAddress;
   debtPool: HexAddress;
   lendingCore: HexAddress;
+  quoteEngine?: HexAddress;
+  marketRegistry?: HexAddress;
+  governanceToken?: HexAddress;
+  governor?: HexAddress;
+  governanceMultisig?: HexAddress;
+  governanceTimelock?: HexAddress;
 }
 
 export interface DeploymentManifest {
@@ -169,9 +175,10 @@ export function parseDeploymentManifest(value: unknown): DeploymentManifest {
   }
 
   if (value.config.oracle !== undefined) {
-    readString(value.config.oracle.circuitBreaker, "minPriceWad", "manifest.config.oracle.circuitBreaker");
-    readString(value.config.oracle.circuitBreaker, "maxPriceWad", "manifest.config.oracle.circuitBreaker");
-    readString(value.config.oracle.circuitBreaker, "maxPriceChangeBps", "manifest.config.oracle.circuitBreaker");
+    const circuitBreaker = value.config.oracle.circuitBreaker as Record<string, unknown>;
+    readString(circuitBreaker, "minPriceWad", "manifest.config.oracle.circuitBreaker");
+    readString(circuitBreaker, "maxPriceWad", "manifest.config.oracle.circuitBreaker");
+    readString(circuitBreaker, "maxPriceChangeBps", "manifest.config.oracle.circuitBreaker");
   }
 
   readAddress(value.contracts, "accessManager", "manifest.contracts");
@@ -181,6 +188,23 @@ export function parseDeploymentManifest(value: unknown): DeploymentManifest {
   readAddress(value.contracts, "riskEngine", "manifest.contracts");
   readAddress(value.contracts, "debtPool", "manifest.contracts");
   readAddress(value.contracts, "lendingCore", "manifest.contracts");
-
-  return value as DeploymentManifest;
+  if (value.contracts.quoteEngine !== undefined) {
+    readAddress(value.contracts, "quoteEngine", "manifest.contracts");
+  }
+  if (value.contracts.marketRegistry !== undefined) {
+    readAddress(value.contracts, "marketRegistry", "manifest.contracts");
+  }
+  if (value.contracts.governanceToken !== undefined) {
+    readAddress(value.contracts, "governanceToken", "manifest.contracts");
+  }
+  if (value.contracts.governor !== undefined) {
+    readAddress(value.contracts, "governor", "manifest.contracts");
+  }
+  if (value.contracts.governanceMultisig !== undefined) {
+    readAddress(value.contracts, "governanceMultisig", "manifest.contracts");
+  }
+  if (value.contracts.governanceTimelock !== undefined) {
+    readAddress(value.contracts, "governanceTimelock", "manifest.contracts");
+  }
+  return value as unknown as DeploymentManifest;
 }

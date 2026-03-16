@@ -1,118 +1,115 @@
-import hre from "hardhat";
-import {
-  managedSetOracleCircuitBreaker,
-  managedSetOraclePrice,
-  managedSetRiskEngine,
-  type ManagedCallContext,
-} from "../lib/ops/managedAccess";
-import { WAD } from "../lib/config/marketConfig";
+import { managedActivateVersion, managedRegisterVersion, type ManagedCallContext } from "../lib/ops/managedAccess";
+import { deployMarketVersion } from "../lib/deployment/deployMarketVersion";
 import { loadDeploymentManifest } from "../lib/deployment/manifestStore";
-import { requireEnv } from "../lib/runtime/env";
+import { loadActors } from "../lib/runtime/actors";
+import { attachManifestContract } from "../lib/runtime/contracts";
 import { formatWad } from "../lib/runtime/transactions";
 import { runEntrypoint } from "../lib/runtime/entrypoint";
 
-const { ethers } = hre;
-
 export async function main() {
   const manifest = loadDeploymentManifest();
-  const provider = ethers.provider;
+  if (!manifest.contracts.marketRegistry) {
+    throw new Error("Deployment manifest does not include marketRegistry");
+  }
 
-  const admin = new ethers.Wallet(requireEnv("ADMIN_PRIVATE_KEY"), provider);
-  const riskAdmin = new ethers.Wallet(requireEnv("RISK_PRIVATE_KEY"), provider);
+  const baseActors = loadActors(["admin", "riskAdmin"] as const);
+  const [accessManager, marketRegistry, oracle, riskEngine] = await Promise.all([
+    attachManifestContract(manifest, "accessManager", "DualVMAccessManager", baseActors.riskAdmin),
+    attachManifestContract(manifest, "marketRegistry", "MarketVersionRegistry", baseActors.riskAdmin),
+    attachManifestContract(manifest, "oracle", "ManualOracle", baseActors.admin),
+    attachManifestContract(manifest, "riskEngine", "RiskAdapter", baseActors.admin),
+  ]);
 
-  const accessManager = (await ethers.getContractFactory("DualVMAccessManager", riskAdmin)).attach(manifest.contracts.accessManager) as any;
-  const lendingCore = (await ethers.getContractFactory("LendingCore", admin)).attach(manifest.contracts.lendingCore) as any;
-  const oracle = (await ethers.getContractFactory("ManualOracle", riskAdmin)).attach(manifest.contracts.oracle) as any;
-  const riskEngineFactory = await ethers.getContractFactory("PvmRiskEngine", admin);
-  const managedRiskContext: ManagedCallContext = {
-    accessManager,
-    signer: riskAdmin,
-    executionDelaySeconds: manifest.governance?.executionDelaySeconds?.riskAdmin ?? 0,
-  };
-
-  const originalRiskEngine = manifest.contracts.riskEngine;
+  const originalVersionId = await marketRegistry.activeVersionId();
+  const originalVersion = await marketRegistry.activeVersion();
   const originalOracleState = {
     price: await oracle.priceWad(),
     minPriceWad: await oracle.minPriceWad(),
     maxPriceWad: await oracle.maxPriceWad(),
     maxPriceChangeBps: await oracle.maxPriceChangeBps(),
+    maxAge: await oracle.maxAge(),
   };
-  const tempRiskEngine = await riskEngineFactory.deploy(
-    9_999n,
-    1_111n,
-    2_222n,
-    8_000n,
-    7_500n,
-    6_500n,
-    8_500n,
-    7_800n,
-    333n,
-    14_000n,
-  );
-  await tempRiskEngine.waitForDeployment();
+  const currentQuoteEngine = manifest.contracts.quoteEngine ?? (await riskEngine.quoteEngine());
 
-  await managedSetOracleCircuitBreaker(
+  const temporaryVersion = await deployMarketVersion({
+    deployer: baseActors.admin,
+    authority: manifest.contracts.accessManager,
+    collateralAsset: manifest.contracts.wpas,
+    debtAsset: manifest.contracts.usdc,
+    autoWireLendingCore: false,
+    oraclePriceWad: originalOracleState.price,
+    oracleMaxAgeSeconds: Number(originalOracleState.maxAge),
+    oracleMinPriceWad: originalOracleState.minPriceWad,
+    oracleMaxPriceWad: originalOracleState.maxPriceWad,
+    oracleMaxPriceChangeBps: originalOracleState.maxPriceChangeBps,
+    riskEngineConfig: {
+      baseRateBps: 9_999n,
+      slope1Bps: 1_111n,
+      slope2Bps: 2_222n,
+      kinkBps: 8_000n,
+      healthyMaxLtvBps: 7_500n,
+      stressedMaxLtvBps: 6_500n,
+      healthyLiquidationThresholdBps: 8_500n,
+      stressedLiquidationThresholdBps: 7_800n,
+      staleBorrowRatePenaltyBps: 333n,
+      stressedCollateralRatioBps: 14_000n,
+    },
+  });
+
+  let temporaryVersionId: bigint;
+
+  const managedRiskContext: ManagedCallContext = {
+    accessManager,
+    signer: baseActors.riskAdmin,
+    executionDelaySeconds: manifest.governance?.executionDelaySeconds?.riskAdmin ?? 0,
+  };
+
+  await managedRegisterVersion(
     managedRiskContext,
-    oracle,
-    1n * WAD,
-    20_000n * WAD,
-    10_000n,
-    "risk admin widen circuit breaker",
+    marketRegistry,
+    await temporaryVersion.lendingCore.getAddress(),
+    await temporaryVersion.debtPool.getAddress(),
+    await temporaryVersion.oracle.getAddress(),
+    await temporaryVersion.riskEngine.getAddress(),
+    "risk admin register temporary market version",
   );
-  await managedSetRiskEngine(
+  temporaryVersionId = await marketRegistry.latestVersionId();
+  await managedActivateVersion(
     managedRiskContext,
-    lendingCore,
-    await tempRiskEngine.getAddress(),
-    "risk admin set temporary risk engine",
-  );
-  await managedSetOraclePrice(managedRiskContext, oracle, 900n * WAD, "risk admin set temporary oracle price");
-
-  const [temporaryRiskEngine, temporaryOracleState] = await Promise.all([
-    lendingCore.riskEngine(),
-    Promise.all([oracle.priceWad(), oracle.minPriceWad(), oracle.maxPriceWad(), oracle.maxPriceChangeBps()]),
-  ]);
-
-  await managedSetRiskEngine(managedRiskContext, lendingCore, originalRiskEngine, "risk admin restore risk engine");
-  await managedSetOraclePrice(managedRiskContext, oracle, originalOracleState.price, "risk admin restore oracle price");
-  await managedSetOracleCircuitBreaker(
-    managedRiskContext,
-    oracle,
-    originalOracleState.minPriceWad,
-    originalOracleState.maxPriceWad,
-    originalOracleState.maxPriceChangeBps,
-    "risk admin restore circuit breaker",
+    marketRegistry,
+    temporaryVersionId,
+    "risk admin activate temporary market version",
   );
 
-  const [restoredRiskEngine, restoredOracleState] = await Promise.all([
-    lendingCore.riskEngine(),
-    Promise.all([oracle.priceWad(), oracle.minPriceWad(), oracle.maxPriceWad(), oracle.maxPriceChangeBps()]),
-  ]);
+  const activatedVersion = await marketRegistry.activeVersion();
+  await managedActivateVersion(managedRiskContext, marketRegistry, originalVersionId, "risk admin restore original market version");
+  const restoredVersion = await marketRegistry.activeVersion();
 
   console.log(
     JSON.stringify(
       {
+        governanceMode: "access-manager-role",
         roles: {
-          admin: admin.address,
-          riskAdmin: riskAdmin.address,
+          admin: baseActors.admin.address,
+          riskAdmin: baseActors.riskAdmin.address,
         },
-        governance: manifest.governance,
+        originalVersionId: originalVersionId.toString(),
+        temporaryVersionId: temporaryVersionId.toString(),
+        currentQuoteEngine,
+        temporaryDeployment: {
+          oracle: await temporaryVersion.oracle.getAddress(),
+          quoteEngine: await temporaryVersion.quoteEngine.getAddress(),
+          riskEngine: await temporaryVersion.riskEngine.getAddress(),
+          debtPool: await temporaryVersion.debtPool.getAddress(),
+          lendingCore: await temporaryVersion.lendingCore.getAddress(),
+        },
         checks: {
-          temporaryRiskEngine,
-          temporaryPrice: formatWad(temporaryOracleState[0]),
-          temporaryMinPrice: formatWad(temporaryOracleState[1]),
-          temporaryMaxPrice: formatWad(temporaryOracleState[2]),
-          widenedBreakerBps: temporaryOracleState[3].toString(),
-          restoredRiskEngine,
-          restoredPrice: formatWad(restoredOracleState[0]),
-          restoredMinPrice: formatWad(restoredOracleState[1]),
-          restoredMaxPrice: formatWad(restoredOracleState[2]),
-          restoredBreakerBps: restoredOracleState[3].toString(),
-          riskEngineRestored: restoredRiskEngine.toLowerCase() === originalRiskEngine.toLowerCase(),
-          oracleRestored: restoredOracleState[0] === originalOracleState.price,
-          breakerRestored:
-            restoredOracleState[1] === originalOracleState.minPriceWad
-            && restoredOracleState[2] === originalOracleState.maxPriceWad
-            && restoredOracleState[3] === originalOracleState.maxPriceChangeBps,
+          originalLendingCore: originalVersion.lendingCore,
+          activatedLendingCore: activatedVersion.lendingCore,
+          restoredLendingCore: restoredVersion.lendingCore,
+          activationWorked: activatedVersion.lendingCore.toLowerCase() === (await temporaryVersion.lendingCore.getAddress()).toLowerCase(),
+          restoreWorked: restoredVersion.lendingCore.toLowerCase() === originalVersion.lendingCore.toLowerCase(),
+          baselineOraclePrice: formatWad(originalOracleState.price),
         },
       },
       null,
