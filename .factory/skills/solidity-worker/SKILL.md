@@ -25,11 +25,13 @@ Use for features that involve:
    - `dualvm/lib/config/marketConfig.ts` for constants and defaults
    - `dualvm/lib/deployment/deploySystem.ts` for deployment patterns
 
-3. **Write tests FIRST (red)**:
+3. **Write tests and implementation** (order depends on task type):
+   - **For new contracts/interfaces**: Read existing code and specs first, implement the contract, then write tests. Discovery-first is appropriate when understanding the design space is necessary.
+   - **For test-hardening features**: Read the existing contract code to understand what needs testing, then write meaningful tests that exercise real behavior (not just ABI checks).
+   - **For bug fixes or refinements**: Write a failing test first if the fix is well-scoped, then fix it.
    - Create or update test files in `dualvm/test/`
    - Use `loadFixture` pattern with a `deployFixture` function
-   - Write tests that will FAIL because the implementation doesn't exist yet
-   - Run `cd /home/kpa/polkadot/dualvm && npx hardhat test test/<file>.ts` to confirm they fail
+   - Tests must exercise REAL behavior, not just check ABI presence. For security features (ReentrancyGuard, inflation protection), deploy an attacker contract or simulate the attack vector.
 
 4. **Implement contracts and helpers (green)**:
    - Write Solidity contracts following existing patterns
