@@ -1,0 +1,96 @@
+{
+  "generatedAt": "2026-03-17T00:19:31.599Z",
+  "network": {
+    "name": "Polkadot Hub TestNet",
+    "chainId": 420420417,
+    "rpcUrl": "https://eth-rpc-testnet.polkadot.io/",
+    "fallbackRpcUrl": "https://services.polkadothub-rpc.com/testnet/",
+    "explorerUrl": "https://blockscout-testnet.polkadot.io/",
+    "faucetUrl": "https://faucet.polkadot.io/"
+  },
+  "manifestPath": "deployments/polkadot-hub-testnet-canonical.json",
+  "results": [
+    {
+      "name": "DualVMAccessManager",
+      "address": "0x32d0a9eb8F4Bd54F0610c31c277fD2E62e4ac2f0",
+      "status": "verified",
+      "blockscoutUrl": "https://blockscout-testnet.polkadot.io/address/0x32d0a9eb8F4Bd54F0610c31c277fD2E62e4ac2f0"
+    },
+    {
+      "name": "WPAS",
+      "address": "0x9b9e0c534E0Bfc938674238aFA44bCD1690F10F1",
+      "status": "verified",
+      "blockscoutUrl": "https://blockscout-testnet.polkadot.io/address/0x9b9e0c534E0Bfc938674238aFA44bCD1690F10F1"
+    },
+    {
+      "name": "USDCMock",
+      "address": "0x75d47bd99ECd7188FB63e00cD07035CDBBf7Ef06",
+      "status": "verified",
+      "blockscoutUrl": "https://blockscout-testnet.polkadot.io/address/0x75d47bd99ECd7188FB63e00cD07035CDBBf7Ef06"
+    },
+    {
+      "name": "ManualOracle",
+      "address": "0x1CCE5059dc39A7cf8f064f6DA6Be9da09279Ee04",
+      "status": "verified",
+      "blockscoutUrl": "https://blockscout-testnet.polkadot.io/address/0x1CCE5059dc39A7cf8f064f6DA6Be9da09279Ee04"
+    },
+    {
+      "name": "PvmRiskEngine",
+      "address": "0x9a78F65b00E0AeD0830063eD0ea66a0B5d8876DE",
+      "status": "failed",
+      "error": "The contract you want to verify was compiled with solidity <0.4.7, but your configured compiler version is: 0.8.28.\n\nPossible causes are:\n- You are not in the same commit that was used to deploy the contract.\n- Wrong compiler version selected in hardhat config.\n- The given address is wrong.\n- The selected network (polkadotHubTestnet) is wrong.",
+      "blockscoutUrl": "https://blockscout-testnet.polkadot.io/address/0x9a78F65b00E0AeD0830063eD0ea66a0B5d8876DE"
+    },
+    {
+      "name": "RiskAdapter",
+      "address": "0x67D0B226b5aE56A29E206840Ecd389670718Af66",
+      "status": "verified",
+      "blockscoutUrl": "https://blockscout-testnet.polkadot.io/address/0x67D0B226b5aE56A29E206840Ecd389670718Af66"
+    },
+    {
+      "name": "DebtPool",
+      "address": "0xeEdA5d44810E09D8F881Fca537456E2a5eD437bB",
+      "status": "verified",
+      "blockscoutUrl": "https://blockscout-testnet.polkadot.io/address/0xeEdA5d44810E09D8F881Fca537456E2a5eD437bB"
+    },
+    {
+      "name": "LendingCore",
+      "address": "0x9faC289188229f40aBfaa4F8d720C14b8B448CF9",
+      "status": "verified",
+      "blockscoutUrl": "https://blockscout-testnet.polkadot.io/address/0x9faC289188229f40aBfaa4F8d720C14b8B448CF9"
+    },
+    {
+      "name": "MarketVersionRegistry",
+      "address": "0x47AE8aE7423bD8643Be8a86d4C0Df7fdcC57987d",
+      "status": "verified",
+      "blockscoutUrl": "https://blockscout-testnet.polkadot.io/address/0x47AE8aE7423bD8643Be8a86d4C0Df7fdcC57987d"
+    },
+    {
+      "name": "GovernanceToken",
+      "address": "0x5C0201E6db2D4f1a97efeed09f4620A242116Bd1",
+      "status": "verified",
+      "blockscoutUrl": "https://blockscout-testnet.polkadot.io/address/0x5C0201E6db2D4f1a97efeed09f4620A242116Bd1"
+    },
+    {
+      "name": "TimelockController",
+      "address": "0x65712EEFD810F077c6C11Fd7c18988d3ce569C60",
+      "status": "verified",
+      "blockscoutUrl": "https://blockscout-testnet.polkadot.io/address/0x65712EEFD810F077c6C11Fd7c18988d3ce569C60"
+    },
+    {
+      "name": "DualVMGovernor",
+      "address": "0xa6d2c210f8A11F2D87b08efA8F832B4e64e521b3",
+      "status": "verified",
+      "blockscoutUrl": "https://blockscout-testnet.polkadot.io/address/0xa6d2c210f8A11F2D87b08efA8F832B4e64e521b3"
+    }
+  ],
+  "summary": {
+    "total": 12,
+    "verified": 11,
+    "alreadyVerified": 0,
+    "failed": 1
+  },
+  "notes": [
+    "PvmRiskEngine is compiled via resolc (PolkaVM compiler). Blockscout standard Solidity verification cannot verify PVM bytecode — this is an expected limitation. The PVM code hash can be confirmed via `revive.accountInfoOf` on the substrate API. All EVM-compiled contracts are fully verified."
+  ]
+}
