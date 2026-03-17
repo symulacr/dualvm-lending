@@ -6,8 +6,28 @@
   },
   "features": [
     {
+      "id": "governor-governance",
+      "title": "Governor-based governance (GovernanceToken + DualVMGovernor + TimelockController)",
+      "status": "done",
+      "evidence": [
+        "contracts/governance/GovernanceToken.sol",
+        "contracts/governance/DualVMGovernor.sol",
+        "test/GovernorLifecycle.ts",
+        "deployments/polkadot-hub-testnet-canonical-results.json"
+      ]
+    },
+    {
+      "id": "access-manager",
+      "title": "AccessManager role management with non-zero execution delays",
+      "status": "done",
+      "evidence": [
+        "lib/deployment/deployGovernedSystem.ts",
+        "deployments/polkadot-hub-testnet-canonical.json"
+      ]
+    },
+    {
       "id": "live-deploy",
-      "title": "Live deployment on Polkadot Hub TestNet",
+      "title": "Canonical governed deployment on Polkadot Hub TestNet",
       "status": "done",
       "evidence": [
         "deployments/polkadot-hub-testnet-canonical.json",
@@ -15,98 +35,130 @@
       ]
     },
     {
-      "id": "borrow-flow",
-      "title": "Live borrow smoke",
+      "id": "explorer-verification",
+      "title": "Explorer-verified contracts on Blockscout (11/12 EVM contracts verified)",
       "status": "done",
       "evidence": [
-        "scripts/liveSmoke.ts"
+        "deployments/polkadot-hub-testnet-canonical-verification.json"
+      ]
+    },
+    {
+      "id": "borrow-flow",
+      "title": "Live borrow smoke on canonical deployment",
+      "status": "done",
+      "evidence": [
+        "scripts/liveSmoke.ts",
+        "deployments/polkadot-hub-testnet-canonical-results.json"
       ]
     },
     {
       "id": "repay-flow",
-      "title": "Live repay smoke",
+      "title": "Live repay smoke on canonical deployment",
       "status": "done",
       "evidence": [
-        "scripts/liveRepaySmoke.ts"
+        "scripts/liveRepaySmoke.ts",
+        "deployments/polkadot-hub-testnet-canonical-results.json"
       ]
     },
     {
       "id": "liquidation-flow",
-      "title": "Live liquidation smoke with bad-debt fix",
+      "title": "Live liquidation smoke on canonical deployment",
       "status": "done",
       "evidence": [
         "scripts/liveLiquidationSmoke.ts",
-        "test/LendingCore.ts"
-      ]
-    },
-    {
-      "id": "governance-separation",
-      "title": "Operational role separation with delayed actions",
-      "status": "done",
-      "evidence": [
-        "scripts/applyRoleSeparation.ts",
-        "scripts/liveRiskAdminSmoke.ts",
-        "scripts/liveMinterSmoke.ts",
         "deployments/polkadot-hub-testnet-canonical-results.json"
       ]
     },
     {
-      "id": "frontend-observer",
-      "title": "Observer-mode frontend with health factor and recent events",
+      "id": "pvm-interop",
+      "title": "Live PVM interop: PvmQuoteProbe serves product-path risk quotes via RiskAdapter",
       "status": "done",
       "evidence": [
-        "src/App.tsx",
-        "src/lib/readModel.ts",
-        "src/lib/assetRegistry.ts"
+        "deployments/polkadot-hub-testnet-probe-results.json",
+        "deployments/polkadot-hub-testnet-probes.json",
+        "../docs/dualvm/dualvm_vm_interop_proof.md"
       ]
     },
     {
-      "id": "pvm-posture",
-      "title": "Frozen parity-only PVM wording",
+      "id": "xcm-precompile",
+      "title": "XCM precompile interaction: CrossChainQuoteEstimator calls weighMessage",
       "status": "done",
       "evidence": [
-        "../docs/dualvm/dualvm_pvm_posture.md"
+        "contracts/precompiles/CrossChainQuoteEstimator.sol",
+        "deployments/polkadot-hub-testnet-xcm-proof.json"
+      ]
+    },
+    {
+      "id": "version-registry",
+      "title": "MarketVersionRegistry for on-chain version activation via governance",
+      "status": "done",
+      "evidence": [
+        "contracts/MarketVersionRegistry.sol",
+        "deployments/polkadot-hub-testnet-canonical-results.json"
+      ]
+    },
+    {
+      "id": "live-migration",
+      "title": "Live migration proof: borrower position exported v1→v2 with debt/collateral preserved",
+      "status": "done",
+      "evidence": [
+        "deployments/polkadot-hub-testnet-migration-proof.json",
+        "../docs/dualvm/dualvm_migration_format_proof.md"
+      ]
+    },
+    {
+      "id": "frontend-wallet",
+      "title": "Browser wallet connection via wagmi + RainbowKit to Polkadot Hub TestNet",
+      "status": "done",
+      "evidence": [
+        "src/lib/wagmiConfig.ts",
+        "src/components/Providers.tsx"
+      ]
+    },
+    {
+      "id": "frontend-write-path",
+      "title": "Full browser write path: deposit, borrow, repay, withdraw, liquidate, supply liquidity",
+      "status": "done",
+      "evidence": [
+        "src/components/WritePathSection.tsx",
+        "src/components/TxStatusBanner.tsx"
+      ]
+    },
+    {
+      "id": "frontend-read-model",
+      "title": "Market snapshot reads, observer mode, recent activity",
+      "status": "done",
+      "evidence": [
+        "src/lib/readModel/marketSnapshot.ts",
+        "src/App.tsx"
       ]
     },
     {
       "id": "production-oracle",
-      "title": "Hardened manual oracle with live circuit-breaker proof",
+      "title": "ManualOracle with circuit breaker (price bounds + delta limits + staleness)",
       "status": "done",
       "evidence": [
         "contracts/ManualOracle.sol",
-        "scripts/upgradeOracle.ts",
-        "scripts/liveOracleSmoke.ts",
-        "deployments/polkadot-hub-testnet-canonical-results.json"
+        "test/LendingHardened.ts"
       ]
     },
     {
-      "id": "asset-realism",
-      "title": "Explicit asset-path truth for the mock debt asset",
+      "id": "erc4626-pool",
+      "title": "ERC-4626 DebtPool with inflation-attack protection",
       "status": "done",
       "evidence": [
-        "src/lib/assetRegistry.ts",
-        "src/App.tsx",
-        "../docs/dualvm/dualvm_asset_path_decision.md"
+        "contracts/DebtPool.sol",
+        "test/LendingHardened.ts"
       ]
     },
     {
-      "id": "ops-automation",
-      "title": "Watchlist-based monitoring and guarded liquidator operator scripts",
+      "id": "test-suite",
+      "title": "81 Hardhat tests: lending lifecycle, governance, reentrancy, oracle, ERC-4626",
       "status": "done",
       "evidence": [
-        "ops/watchlist.json",
-        "scripts/liquidation-watch.mjs",
-        "scripts/executeLiquidation.ts"
-      ]
-    },
-    {
-      "id": "rpc-resilience",
-      "title": "Cached reads and recent-events snapshot fallback",
-      "status": "done",
-      "evidence": [
-        "scripts/snapshot-recent-events.mjs",
-        "deployments/polkadot-hub-testnet-recent-events.json",
-        "src/lib/readModel.ts"
+        "test/LendingCore.ts",
+        "test/GovernorLifecycle.ts",
+        "test/LendingHardened.ts"
       ]
     }
   ]
