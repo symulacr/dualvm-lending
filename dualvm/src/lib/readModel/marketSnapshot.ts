@@ -17,13 +17,21 @@ function formatUtilization(principal: bigint, totalAssets: bigint): string {
   return `${(Number(ratioWad) / 100).toFixed(2)}%`;
 }
 
-export async function loadMarketSnapshot(observerAddress?: string | null): Promise<MarketSnapshot | null> {
+export async function loadMarketSnapshot(
+  observerAddress?: string | null,
+  options?: { forceRefresh?: boolean },
+): Promise<MarketSnapshot | null> {
   if (!hasLivePolkadotHubTestnetDeployment) {
     return null;
   }
 
   const cacheKey = observerAddress ?? "__none__";
-  if (snapshotCache && snapshotCache.key === cacheKey && snapshotCache.expiresAt > Date.now()) {
+  if (
+    !options?.forceRefresh &&
+    snapshotCache &&
+    snapshotCache.key === cacheKey &&
+    snapshotCache.expiresAt > Date.now()
+  ) {
     return snapshotCache.value;
   }
 

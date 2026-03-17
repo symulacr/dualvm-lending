@@ -41,7 +41,9 @@ export default function App() {
       setIsLoading(true);
       setReadError(null);
       try {
-        const nextSnapshot = await loadMarketSnapshot(trackedAddress);
+        const nextSnapshot = await loadMarketSnapshot(trackedAddress, {
+          forceRefresh: refreshKey > 0,
+        });
         if (!cancelled) {
           setSnapshot(nextSnapshot);
         }
