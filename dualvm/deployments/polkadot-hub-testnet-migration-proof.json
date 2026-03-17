@@ -1,0 +1,96 @@
+{
+  "startedAt": "2026-03-17T00:23:00.000Z",
+  "completedAt": "2026-03-17T00:55:00.000Z",
+  "network": {
+    "name": "Polkadot Hub TestNet",
+    "chainId": 420420417,
+    "rpcUrl": "https://eth-rpc-testnet.polkadot.io/",
+    "explorerUrl": "https://blockscout-testnet.polkadot.io/"
+  },
+  "v1VersionId": "1",
+  "v2VersionId": "2",
+  "v2Contracts": {
+    "oracle": "0xDc10d89866f69605a353463Ed134e759091be2bF",
+    "quoteEngine": "0x9a78F65b00E0AeD0830063eD0ea66a0B5d8876DE",
+    "riskEngine": "0xdbAf83DDfA75E00e705C051cFF24198C1Fe0f435",
+    "debtPool": "0xD16375Aa1bCaE3C865C49251f36714EbCF374e72",
+    "lendingCore": "0xfB38afe59d13369ed9AB17886553117aeCd8E8E3"
+  },
+  "coordinatorAddress": "0xB67e4E05F492b6Cc7C0b9d42394Ff389F70509fA",
+  "borrower": "0x09a0B703FC2223b5B708dA43b44B9621F2E3a7cB",
+  "steps": {
+    "v1PositionSource": "created-fresh",
+    "v1Position": {
+      "debt": "100",
+      "collateral": "2",
+      "principal": "100"
+    },
+    "borrowerPositionTxHashes": {
+      "wrapPas": "0x2d5e8431a37bebaaad1485ed002c380bbec492d42684b44b3d7dd918ea51b7cf",
+      "approveCollateral": "0x17413747d86dd36ecc5441f5873b5bbcd52d7152ced3bfe63374a96cebce105e",
+      "depositCollateral": "0xc499d041688a20e8e9715adf5572b4029948efb6378d63e3d9568c5db052b157",
+      "borrow": "0xa535105c0f60a91bd4173ab6564ec0b12a55590e11ec9f345fa226c6bcfb69d1"
+    },
+    "governanceProposal1": {
+      "description": "Migration proof: wire v2, register, activate, grant coordinator admin, open route v1→v2",
+      "proposeTx": "0xba1269885501a648c8c6e48eda83e832bbd51e8374378bb93053f59d06897fa4",
+      "voteTx": "0x7ef5808ba277ac07ee7636129b49c51c9edc554beb36f6ad1be97860da44a7f7",
+      "queueTx": "0x58c2e4b576c898888913c8b7ed72452b928b7ec8f500a473ab2a23407d9f9c39",
+      "executeTx": "0x12fa628ab6da2926f064af85ec9e97c59de6d6ebb72f502a83ce3f75a270e7e2",
+      "operations": [
+        "Wire v2 debtPool setLendingCore",
+        "Grant ADMIN role to MarketMigrationCoordinator",
+        "Register v2 in MarketVersionRegistry",
+        "Activate v2 version",
+        "Open migration route v1→v2 (borrower+liquidity)"
+      ]
+    },
+    "migrateBorrowerTx": "0x6d959dc9bc4ccf8ba2b815f6ad996ef5026f40e90c5e932542adfccaba45d78f",
+    "verification": {
+      "v1": {
+        "debtAfter": "0",
+        "collateralAfter": "0",
+        "zeroed": true
+      },
+      "v2": {
+        "debtAfter": "100.00004708904109589",
+        "collateralAfter": "2",
+        "principalAfter": "100",
+        "preserved": true
+      },
+      "debtPreserved": true
+    },
+    "restoreV1": {
+      "proposeTx": "0x8d8ab1634e50eec3d5829b2100cb7b607b42b91d81e9cfce271130bc7284d2a2",
+      "voteTx": "0x5f9448573d8aa92325cf634b920ae3560c715854090d713663f9dcb3e68c4c16",
+      "queueTx": "0x0a0e84049ee530e0b1f5d0e7ce810f1459505a0baf6bea4332d6177e8e06db9c",
+      "executeTx": "0x330ef966f4c57e79fe8672222a7672608ca1fd5b31df86b9b6b945992c7e6bc2",
+      "finalActiveVersionId": "1"
+    }
+  },
+  "summary": {
+    "v2Registered": true,
+    "v2Activated": true,
+    "migrationRouteOpened": true,
+    "borrowerExportedFromV1": true,
+    "borrowerImportedToV2": true,
+    "v1RestoredAsActive": true,
+    "debtPreserved": true,
+    "collateralPreserved": true,
+    "allTxHashes": [
+      "0x2d5e8431a37bebaaad1485ed002c380bbec492d42684b44b3d7dd918ea51b7cf",
+      "0x17413747d86dd36ecc5441f5873b5bbcd52d7152ced3bfe63374a96cebce105e",
+      "0xc499d041688a20e8e9715adf5572b4029948efb6378d63e3d9568c5db052b157",
+      "0xa535105c0f60a91bd4173ab6564ec0b12a55590e11ec9f345fa226c6bcfb69d1",
+      "0xba1269885501a648c8c6e48eda83e832bbd51e8374378bb93053f59d06897fa4",
+      "0x7ef5808ba277ac07ee7636129b49c51c9edc554beb36f6ad1be97860da44a7f7",
+      "0x58c2e4b576c898888913c8b7ed72452b928b7ec8f500a473ab2a23407d9f9c39",
+      "0x12fa628ab6da2926f064af85ec9e97c59de6d6ebb72f502a83ce3f75a270e7e2",
+      "0x6d959dc9bc4ccf8ba2b815f6ad996ef5026f40e90c5e932542adfccaba45d78f",
+      "0x8d8ab1634e50eec3d5829b2100cb7b607b42b91d81e9cfce271130bc7284d2a2",
+      "0x5f9448573d8aa92325cf634b920ae3560c715854090d713663f9dcb3e68c4c16",
+      "0x0a0e84049ee530e0b1f5d0e7ce810f1459505a0baf6bea4332d6177e8e06db9c",
+      "0x330ef966f4c57e79fe8672222a7672608ca1fd5b31df86b9b6b945992c7e6bc2"
+    ]
+  }
+}
