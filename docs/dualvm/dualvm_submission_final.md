@@ -22,7 +22,20 @@ The protocol is public-testnet-validated with 12 deployed contracts (11 explorer
 https://github.com/parity-asia/hackathon-2026-03-polkadot-solidity/dualvm
 
 ## Hosted Frontend
-TBD - will be updated by frontend-deploy-vercel feature
+- **Primary (Vercel):** [https://dualvm-lending.vercel.app](https://dualvm-lending.vercel.app)
+- **Backup (GitHub Pages):** [http://eyawa.me/dualvm-lending/](http://eyawa.me/dualvm-lending/)
+
+## Demo Video
+A browser walkthrough demo video is included in the repository at `docs/dualvm/demo-video.webm` (WebM format). The video shows the complete flow: frontend navigation, wallet connect modal (RainbowKit), market data display, explorer verification of lending TXs, and PVM interop proof TXs on Blockscout. See `docs/dualvm/demo_guide.md` for the full annotated demo walkthrough with screenshots.
+
+## Demo Screenshots
+All screenshots are in `docs/dualvm/screenshots/`:
+- `frontend-home-full.png` — Full frontend with market data, deployment manifest, lending forms
+- `wallet-connect-modal.png` — RainbowKit wallet connect (MetaMask, Rainbow, WalletConnect)
+- `frontend-lending-forms.png` — Write-path deposit/borrow/repay/liquidate forms
+- `frontend-observer-section.png` — Position observer and health factor tracking
+- `borrow-tx.png` — Blockscout borrow transaction proof
+- `liquidation-tx.png` — Blockscout liquidation transaction proof
 
 ## Track 1: EVM Smart Contract — DeFi / Stablecoin-Enabled DApp
 
@@ -117,6 +130,16 @@ LendingCore / DebtPool / Oracle / Registry
 | Deployer Admin Renunciation | [0x61c09d53...](https://blockscout-testnet.polkadot.io/tx/0x61c09d5353c0d3c0246f818a413780517e7b7d5510022330fb822ac67c41e863) |
 | Migration via Governance Proposal | [0x12fa628a...](https://blockscout-testnet.polkadot.io/tx/0x12fa628ab6da2926f064af85ec9e97c59de6d6ebb72f502a83ce3f75a270e7e2) |
 
+## Track Selection
+
+This project targets **all 3 prize tracks**:
+
+| Track | Category | Justification |
+|-------|----------|---------------|
+| **Track 1: EVM Smart Contract** | DeFi / Stablecoin-enabled dApp | Complete lending market with deposit, borrow, repay, liquidation, ERC-4626 LP vault, oracle, kinked interest rate model — all live on Polkadot Hub TestNet |
+| **Track 2: PVM Smart Contract** | PVM experiments + precompiles | Live PVM risk engine (resolc-compiled), 4-stage REVM↔PVM interop proof package, XCM precompile interaction (`weighMessage`), PVM code hash verified via substrate API |
+| **OpenZeppelin Sponsor** | Non-trivial OZ composition | 12+ OZ contracts composed: AccessManager + Governor (5 extensions) + TimelockController + ERC20Votes + ERC4626 + SafeERC20 + Pausable + ReentrancyGuard, with deployer admin renunciation and non-zero role execution delays |
+
 ## Technical Details
 
 - **Network**: Polkadot Hub TestNet (chain ID 420420417)
@@ -124,6 +147,8 @@ LendingCore / DebtPool / Oracle / Registry
 - **Tests**: 81 Hardhat tests passing
 - **Frontend**: React 18 + Vite + wagmi v2 + RainbowKit
 - **Manifest**: `dualvm/deployments/polkadot-hub-testnet-canonical.json`
+- **Explorer**: [Blockscout](https://blockscout-testnet.polkadot.io/)
+- **CI**: GitHub Actions with typecheck, lint, and testnet smoke steps
 
 ## Team
 Solo developer submission.
