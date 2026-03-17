@@ -432,6 +432,43 @@ h2 {
   background: rgba(255, 255, 255, 0.12);
 }
 
+/* ── Multi-step TX history ──────────────────────────────────────── */
+
+.tx-history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.tx-history-entry {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: 10px;
+  background: rgba(76, 175, 80, 0.06);
+  border: 1px solid rgba(76, 175, 80, 0.15);
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+
+.tx-history-check {
+  flex-shrink: 0;
+  font-size: 0.78rem;
+}
+
+.tx-history-label {
+  color: #c0d0e5;
+  flex: 1;
+}
+
+.tx-history-link {
+  flex-shrink: 0;
+  color: #81c784;
+  font-size: 0.8rem;
+}
+
 @media (max-width: 860px) {
   .panel-grid-two,
   .detail-grid,

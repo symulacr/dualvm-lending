@@ -1,8 +1,9 @@
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import { parseEther, parseUnits, isAddress } from "viem";
 import { useAccount } from "wagmi";
 import { TxStatusBanner } from "../TxStatusBanner";
-import { useWriteFlow } from "../../hooks/useWriteFlow";
+import { TxHistoryList } from "../TxHistoryList";
+import { useWriteFlow, type TxHistoryEntry } from "../../hooks/useWriteFlow";
 import { deploymentManifest } from "../../lib/manifest";
 import {
   erc20ApproveAbi,
@@ -14,17 +15,41 @@ import {
 
 const { contracts } = deploymentManifest;
 
+interface FormProps {
+  onWriteSuccess?: () => void;
+}
+
 /* ──────────────────────────────────────────────────────────────────── */
 /* Supply Liquidity: USDC-test approve + DebtPool.deposit()           */
 /* ──────────────────────────────────────────────────────────────────── */
 
-function SupplyLiquidityForm() {
+function SupplyLiquidityForm({ onWriteSuccess }: FormProps) {
   const { address } = useAccount();
   const approveFlow = useWriteFlow();
   const depositFlow = useWriteFlow();
   const [amount, setAmount] = useState("");
+  const [txHistory, setTxHistory] = useState<TxHistoryEntry[]>([]);
+  const notifiedRef = useRef(false);
 
   const isApproved = approveFlow.status === "confirmed";
+
+  // Track completed approve step in history
+  useEffect(() => {
+    if (approveFlow.status === "confirmed" && approveFlow.txHash) {
+      setTxHistory((prev) => {
+        if (prev.some((e) => e.txHash === approveFlow.txHash)) return prev;
+        return [...prev, { label: "Approve USDC", txHash: approveFlow.txHash! }];
+      });
+    }
+  }, [approveFlow.status, approveFlow.txHash]);
+
+  // Notify parent when final deposit confirms
+  useEffect(() => {
+    if (depositFlow.status === "confirmed" && !notifiedRef.current) {
+      notifiedRef.current = true;
+      onWriteSuccess?.();
+    }
+  }, [depositFlow.status, onWriteSuccess]);
 
   function handleApprove(e: FormEvent) {
     e.preventDefault();
@@ -53,6 +78,8 @@ function SupplyLiquidityForm() {
     approveFlow.reset();
     depositFlow.reset();
     setAmount("");
+    setTxHistory([]);
+    notifiedRef.current = false;
   }
 
   return (
@@ -88,6 +115,7 @@ function SupplyLiquidityForm() {
           </button>
         )}
       </form>
+      <TxHistoryList entries={txHistory} />
       <TxStatusBanner
         status={isApproved ? depositFlow.status : approveFlow.status}
         txHash={isApproved ? depositFlow.txHash : approveFlow.txHash}
@@ -102,12 +130,14 @@ function SupplyLiquidityForm() {
 /* Deposit Collateral: PAS → WPAS wrap + approve + depositCollateral  */
 /* ──────────────────────────────────────────────────────────────────── */
 
-function DepositCollateralForm() {
+function DepositCollateralForm({ onWriteSuccess }: FormProps) {
   const { address } = useAccount();
   const wrapFlow = useWriteFlow();
   const approveFlow = useWriteFlow();
   const depositFlow = useWriteFlow();
   const [amount, setAmount] = useState("");
+  const [txHistory, setTxHistory] = useState<TxHistoryEntry[]>([]);
+  const notifiedRef = useRef(false);
 
   type Step = "wrap" | "approve" | "deposit";
   const step: Step =
@@ -118,6 +148,34 @@ function DepositCollateralForm() {
       : wrapFlow.status === "confirmed"
         ? "approve"
         : "wrap";
+
+  // Track completed wrap step in history
+  useEffect(() => {
+    if (wrapFlow.status === "confirmed" && wrapFlow.txHash) {
+      setTxHistory((prev) => {
+        if (prev.some((e) => e.txHash === wrapFlow.txHash)) return prev;
+        return [...prev, { label: "Wrap PAS → WPAS", txHash: wrapFlow.txHash! }];
+      });
+    }
+  }, [wrapFlow.status, wrapFlow.txHash]);
+
+  // Track completed approve step in history
+  useEffect(() => {
+    if (approveFlow.status === "confirmed" && approveFlow.txHash) {
+      setTxHistory((prev) => {
+        if (prev.some((e) => e.txHash === approveFlow.txHash)) return prev;
+        return [...prev, { label: "Approve WPAS", txHash: approveFlow.txHash! }];
+      });
+    }
+  }, [approveFlow.status, approveFlow.txHash]);
+
+  // Notify parent when final deposit confirms
+  useEffect(() => {
+    if (depositFlow.status === "confirmed" && !notifiedRef.current) {
+      notifiedRef.current = true;
+      onWriteSuccess?.();
+    }
+  }, [depositFlow.status, onWriteSuccess]);
 
   function handleWrap(e: FormEvent) {
     e.preventDefault();
@@ -158,6 +216,8 @@ function DepositCollateralForm() {
     approveFlow.reset();
     depositFlow.reset();
     setAmount("");
+    setTxHistory([]);
+    notifiedRef.current = false;
   }
 
   const activeFlow =
@@ -209,6 +269,7 @@ function DepositCollateralForm() {
           </button>
         )}
       </form>
+      <TxHistoryList entries={txHistory} />
       <TxStatusBanner
         status={activeFlow.status}
         txHash={activeFlow.txHash}
@@ -223,10 +284,19 @@ function DepositCollateralForm() {
 /* Borrow: LendingCore.borrow(amount)                                 */
 /* ──────────────────────────────────────────────────────────────────── */
 
-function BorrowForm() {
+function BorrowForm({ onWriteSuccess }: FormProps) {
   const { address } = useAccount();
   const flow = useWriteFlow();
   const [amount, setAmount] = useState("");
+  const notifiedRef = useRef(false);
+
+  // Notify parent when borrow confirms
+  useEffect(() => {
+    if (flow.status === "confirmed" && !notifiedRef.current) {
+      notifiedRef.current = true;
+      onWriteSuccess?.();
+    }
+  }, [flow.status, onWriteSuccess]);
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -238,6 +308,12 @@ function BorrowForm() {
       functionName: "borrow",
       args: [parsed],
     });
+  }
+
+  function handleReset() {
+    flow.reset();
+    setAmount("");
+    notifiedRef.current = false;
   }
 
   return (
@@ -262,7 +338,7 @@ function BorrowForm() {
           Borrow
         </button>
       </form>
-      <TxStatusBanner status={flow.status} txHash={flow.txHash} error={flow.error} onReset={flow.reset} />
+      <TxStatusBanner status={flow.status} txHash={flow.txHash} error={flow.error} onReset={handleReset} />
     </article>
   );
 }
@@ -271,13 +347,33 @@ function BorrowForm() {
 /* Repay: USDC-test approve + LendingCore.repay(amount)               */
 /* ──────────────────────────────────────────────────────────────────── */
 
-function RepayForm() {
+function RepayForm({ onWriteSuccess }: FormProps) {
   const { address } = useAccount();
   const approveFlow = useWriteFlow();
   const repayFlow = useWriteFlow();
   const [amount, setAmount] = useState("");
+  const [txHistory, setTxHistory] = useState<TxHistoryEntry[]>([]);
+  const notifiedRef = useRef(false);
 
   const isApproved = approveFlow.status === "confirmed";
+
+  // Track completed approve step in history
+  useEffect(() => {
+    if (approveFlow.status === "confirmed" && approveFlow.txHash) {
+      setTxHistory((prev) => {
+        if (prev.some((e) => e.txHash === approveFlow.txHash)) return prev;
+        return [...prev, { label: "Approve USDC", txHash: approveFlow.txHash! }];
+      });
+    }
+  }, [approveFlow.status, approveFlow.txHash]);
+
+  // Notify parent when final repay confirms
+  useEffect(() => {
+    if (repayFlow.status === "confirmed" && !notifiedRef.current) {
+      notifiedRef.current = true;
+      onWriteSuccess?.();
+    }
+  }, [repayFlow.status, onWriteSuccess]);
 
   function handleApprove(e: FormEvent) {
     e.preventDefault();
@@ -306,6 +402,8 @@ function RepayForm() {
     approveFlow.reset();
     repayFlow.reset();
     setAmount("");
+    setTxHistory([]);
+    notifiedRef.current = false;
   }
 
   return (
@@ -341,6 +439,7 @@ function RepayForm() {
           </button>
         )}
       </form>
+      <TxHistoryList entries={txHistory} />
       <TxStatusBanner
         status={isApproved ? repayFlow.status : approveFlow.status}
         txHash={isApproved ? repayFlow.txHash : approveFlow.txHash}
@@ -355,10 +454,19 @@ function RepayForm() {
 /* Withdraw Collateral: LendingCore.withdrawCollateral(amount)        */
 /* ──────────────────────────────────────────────────────────────────── */
 
-function WithdrawCollateralForm() {
+function WithdrawCollateralForm({ onWriteSuccess }: FormProps) {
   const { address } = useAccount();
   const flow = useWriteFlow();
   const [amount, setAmount] = useState("");
+  const notifiedRef = useRef(false);
+
+  // Notify parent when withdraw confirms
+  useEffect(() => {
+    if (flow.status === "confirmed" && !notifiedRef.current) {
+      notifiedRef.current = true;
+      onWriteSuccess?.();
+    }
+  }, [flow.status, onWriteSuccess]);
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -370,6 +478,12 @@ function WithdrawCollateralForm() {
       functionName: "withdrawCollateral",
       args: [parsed],
     });
+  }
+
+  function handleReset() {
+    flow.reset();
+    setAmount("");
+    notifiedRef.current = false;
   }
 
   return (
@@ -394,7 +508,7 @@ function WithdrawCollateralForm() {
           Withdraw
         </button>
       </form>
-      <TxStatusBanner status={flow.status} txHash={flow.txHash} error={flow.error} onReset={flow.reset} />
+      <TxStatusBanner status={flow.status} txHash={flow.txHash} error={flow.error} onReset={handleReset} />
     </article>
   );
 }
@@ -403,14 +517,34 @@ function WithdrawCollateralForm() {
 /* Liquidate: USDC-test approve + LendingCore.liquidate(borrower, amt)*/
 /* ──────────────────────────────────────────────────────────────────── */
 
-function LiquidateForm() {
+function LiquidateForm({ onWriteSuccess }: FormProps) {
   const { address } = useAccount();
   const approveFlow = useWriteFlow();
   const liquidateFlow = useWriteFlow();
   const [borrower, setBorrower] = useState("");
   const [amount, setAmount] = useState("");
+  const [txHistory, setTxHistory] = useState<TxHistoryEntry[]>([]);
+  const notifiedRef = useRef(false);
 
   const isApproved = approveFlow.status === "confirmed";
+
+  // Track completed approve step in history
+  useEffect(() => {
+    if (approveFlow.status === "confirmed" && approveFlow.txHash) {
+      setTxHistory((prev) => {
+        if (prev.some((e) => e.txHash === approveFlow.txHash)) return prev;
+        return [...prev, { label: "Approve USDC", txHash: approveFlow.txHash! }];
+      });
+    }
+  }, [approveFlow.status, approveFlow.txHash]);
+
+  // Notify parent when final liquidate confirms
+  useEffect(() => {
+    if (liquidateFlow.status === "confirmed" && !notifiedRef.current) {
+      notifiedRef.current = true;
+      onWriteSuccess?.();
+    }
+  }, [liquidateFlow.status, onWriteSuccess]);
 
   function handleApprove(e: FormEvent) {
     e.preventDefault();
@@ -440,6 +574,8 @@ function LiquidateForm() {
     liquidateFlow.reset();
     setAmount("");
     setBorrower("");
+    setTxHistory([]);
+    notifiedRef.current = false;
   }
 
   return (
@@ -496,6 +632,7 @@ function LiquidateForm() {
           </button>
         )}
       </form>
+      <TxHistoryList entries={txHistory} />
       <TxStatusBanner
         status={isApproved ? liquidateFlow.status : approveFlow.status}
         txHash={isApproved ? liquidateFlow.txHash : approveFlow.txHash}
@@ -510,7 +647,11 @@ function LiquidateForm() {
 /* Composite section: all 6 write forms                               */
 /* ──────────────────────────────────────────────────────────────────── */
 
-export function WritePathSection() {
+interface WritePathSectionProps {
+  onWriteSuccess?: () => void;
+}
+
+export function WritePathSection({ onWriteSuccess }: WritePathSectionProps) {
   const { isConnected } = useAccount();
 
   return (
@@ -525,12 +666,12 @@ export function WritePathSection() {
         </div>
       ) : (
         <div className="write-forms-grid">
-          <SupplyLiquidityForm />
-          <DepositCollateralForm />
-          <BorrowForm />
-          <RepayForm />
-          <WithdrawCollateralForm />
-          <LiquidateForm />
+          <SupplyLiquidityForm onWriteSuccess={onWriteSuccess} />
+          <DepositCollateralForm onWriteSuccess={onWriteSuccess} />
+          <BorrowForm onWriteSuccess={onWriteSuccess} />
+          <RepayForm onWriteSuccess={onWriteSuccess} />
+          <WithdrawCollateralForm onWriteSuccess={onWriteSuccess} />
+          <LiquidateForm onWriteSuccess={onWriteSuccess} />
         </div>
       )}
     </section>

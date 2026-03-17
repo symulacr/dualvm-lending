@@ -4,6 +4,12 @@ import type { Abi, Address } from "viem";
 
 export type WriteFlowStatus = "idle" | "pending" | "confirming" | "confirmed" | "error";
 
+/** A completed transaction step in a multi-step flow. */
+export interface TxHistoryEntry {
+  label: string;
+  txHash: `0x${string}`;
+}
+
 interface WriteFlowResult {
   status: WriteFlowStatus;
   txHash: `0x${string}` | undefined;

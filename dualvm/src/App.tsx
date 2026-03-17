@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import {
   DEFAULT_OBSERVER_ADDRESS,
@@ -87,6 +87,10 @@ export default function App() {
     setRefreshKey((current) => current + 1);
   }
 
+  const handleWriteSuccess = useCallback(() => {
+    setRefreshKey((current) => current + 1);
+  }, []);
+
   return (
     <main className="page-shell">
       <header className="app-header">
@@ -116,7 +120,7 @@ export default function App() {
 
       <ReadLayerSection readStatus={readStatus} snapshot={snapshot} />
 
-      <WritePathSection />
+      <WritePathSection onWriteSuccess={handleWriteSuccess} />
 
       <section className="panel-grid panel-grid-two">
         <ObserverSection
