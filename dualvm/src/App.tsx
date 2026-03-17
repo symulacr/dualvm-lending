@@ -1,5 +1,6 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
+import { useAccount } from "wagmi";
 import {
   DEFAULT_OBSERVER_ADDRESS,
   demoModeNotes,
@@ -17,14 +18,16 @@ import { OverviewSections } from "./components/sections/OverviewSections";
 import { ReadLayerSection } from "./components/sections/ReadLayerSection";
 import { RecentActivitySection } from "./components/sections/RecentActivitySection";
 import { SecuritySection } from "./components/sections/SecuritySection";
-import { WritePathSection } from "./components/sections/WritePathSection";
+import { WritePathSection, type TxHistoryEntry } from "./components/sections/WritePathSection";
 import { CompactMarketSnapshot } from "./components/CompactMarketSnapshot";
+import { TxHistoryList } from "./components/TxHistoryList";
 import { TabNav, type TabId } from "./components/TabNav";
 import { assetRegistry } from "./lib/assetRegistry";
 import { deploymentManifest, hasLivePolkadotHubTestnetDeployment } from "./lib/manifest";
 import { loadMarketSnapshot, type MarketSnapshot } from "./lib/readModel";
 
 export default function App() {
+  const { address } = useAccount();
   const [snapshot, setSnapshot] = useState<MarketSnapshot | null>(null);
   const [readError, setReadError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -32,6 +35,15 @@ export default function App() {
   const [trackedAddress, setTrackedAddress] = useState(DEFAULT_OBSERVER_ADDRESS);
   const [refreshKey, setRefreshKey] = useState(0);
   const [activeTab, setActiveTab] = useState<TabId>("lend-borrow");
+  const [txHistory, setTxHistory] = useState<TxHistoryEntry[]>([]);
+
+  // Auto-set observer to connected wallet address on initial connection or wallet change
+  useEffect(() => {
+    if (address) {
+      setObserverInput(address);
+      setTrackedAddress(address);
+    }
+  }, [address]);
 
   useEffect(() => {
     let cancelled = false;
@@ -96,6 +108,13 @@ export default function App() {
     setRefreshKey((current) => current + 1);
   }, []);
 
+  const handleTxHistoryEntry = useCallback((entry: TxHistoryEntry) => {
+    setTxHistory((prev) => {
+      if (prev.some((e) => e.txHash === entry.txHash)) return prev;
+      return [...prev, entry];
+    });
+  }, []);
+
   return (
     <main className="page-shell">
       <header className="app-header">
@@ -103,12 +122,13 @@ export default function App() {
         <ConnectButton />
       </header>
 
+      <TxHistoryList entries={txHistory} />
       <TabNav activeTab={activeTab} onTabChange={setActiveTab} />
 
       {activeTab === "lend-borrow" && (
         <div className="tab-content">
           <CompactMarketSnapshot snapshot={snapshot} isLoading={isLoading} />
-          <WritePathSection onWriteSuccess={handleWriteSuccess} observer={snapshot?.observer} />
+          <WritePathSection onWriteSuccess={handleWriteSuccess} observer={snapshot?.observer} onTxHistoryEntry={handleTxHistoryEntry} />
           <ObserverSection
             snapshot={snapshot}
             observerInput={observerInput}
