@@ -1,0 +1,59 @@
+{
+  "milestone": "frontend-write-path",
+  "round": 2,
+  "status": "fail",
+  "validatorsRun": {
+    "test": {
+      "passed": true,
+      "command": "cd \"/home/kpa/polkadot/dualvm\" && npm test",
+      "exitCode": 0
+    },
+    "typecheck": {
+      "passed": true,
+      "command": "cd \"/home/kpa/polkadot/dualvm\" && npx tsc --noEmit",
+      "exitCode": 0
+    },
+    "lint": {
+      "passed": true,
+      "command": "echo \"ESLint not configured yet — lint is a no-op until ci-enhancement feature adds it\"",
+      "exitCode": 0
+    }
+  },
+  "reviewsSummary": {
+    "total": 1,
+    "passed": 0,
+    "failed": 1,
+    "failedFeatures": [
+      "frontend-write-ux-fixes"
+    ]
+  },
+  "blockingIssues": [
+    {
+      "featureId": "frontend-write-ux-fixes",
+      "severity": "blocking",
+      "description": "The new `onWriteSuccess` callback bumps `refreshKey` in `dualvm/src/App.tsx`, but `dualvm/src/lib/readModel/marketSnapshot.ts` still returns a 10-second cached snapshot keyed only by observer address. Successful writes can therefore leave the market snapshot and embedded recent-activity payload stale until the cache expires, so the original post-write refresh blocker remains unresolved."
+    }
+  ],
+  "appliedUpdates": [
+    {
+      "target": "library",
+      "description": "Updated `.factory/library/architecture.md` to document that `loadMarketSnapshot()` uses a 10-second in-memory cache keyed only by observer address and that immediate post-write refresh flows must explicitly invalidate or bypass that cache.",
+      "sourceFeature": "frontend-write-ux-fixes"
+    }
+  ],
+  "suggestedGuidanceUpdates": [
+    {
+      "target": "frontend-worker skill",
+      "suggestion": "For refresh-related UX fixes, require workers to inspect the concrete read-model modules that own caching (`src/lib/readModel/*`) and verify that any proposed refresh trigger either invalidates or bypasses those caches before they mark the feature complete.",
+      "evidence": "The `frontend-write-ux-fixes` review found that the worker updated `App.tsx`, `WritePathSection.tsx`, and write-flow status handling but never inspected `src/lib/readModel/marketSnapshot.ts`, so a 10-second cache still masked confirmed writes and reintroduced the original stale-read blocker.",
+      "isSystemic": true
+    }
+  ],
+  "rejectedObservations": [
+    {
+      "observation": "Shared state does not currently document the frontend read cache at all.",
+      "reason": "The cache existence was already documented in `.factory/library/architecture.md`; this round only added the missing invalidation guidance for immediate post-write refreshes."
+    }
+  ],
+  "previousRound": ".factory/validation/frontend-write-path/scrutiny/synthesis.round-1.json"
+}

@@ -1,7 +1,7 @@
 {
   "milestone": "frontend-write-path",
-  "round": 2,
-  "status": "fail",
+  "round": 3,
+  "status": "pass",
   "validatorsRun": {
     "test": {
       "passed": true,
@@ -21,39 +21,18 @@
   },
   "reviewsSummary": {
     "total": 1,
-    "passed": 0,
-    "failed": 1,
-    "failedFeatures": [
-      "frontend-write-ux-fixes"
-    ]
+    "passed": 1,
+    "failed": 0,
+    "failedFeatures": []
   },
-  "blockingIssues": [
-    {
-      "featureId": "frontend-write-ux-fixes",
-      "severity": "blocking",
-      "description": "The new `onWriteSuccess` callback bumps `refreshKey` in `dualvm/src/App.tsx`, but `dualvm/src/lib/readModel/marketSnapshot.ts` still returns a 10-second cached snapshot keyed only by observer address. Successful writes can therefore leave the market snapshot and embedded recent-activity payload stale until the cache expires, so the original post-write refresh blocker remains unresolved."
-    }
-  ],
-  "appliedUpdates": [
-    {
-      "target": "library",
-      "description": "Updated `.factory/library/architecture.md` to document that `loadMarketSnapshot()` uses a 10-second in-memory cache keyed only by observer address and that immediate post-write refresh flows must explicitly invalidate or bypass that cache.",
-      "sourceFeature": "frontend-write-ux-fixes"
-    }
-  ],
-  "suggestedGuidanceUpdates": [
-    {
-      "target": "frontend-worker skill",
-      "suggestion": "For refresh-related UX fixes, require workers to inspect the concrete read-model modules that own caching (`src/lib/readModel/*`) and verify that any proposed refresh trigger either invalidates or bypasses those caches before they mark the feature complete.",
-      "evidence": "The `frontend-write-ux-fixes` review found that the worker updated `App.tsx`, `WritePathSection.tsx`, and write-flow status handling but never inspected `src/lib/readModel/marketSnapshot.ts`, so a 10-second cache still masked confirmed writes and reintroduced the original stale-read blocker.",
-      "isSystemic": true
-    }
-  ],
+  "blockingIssues": [],
+  "appliedUpdates": [],
+  "suggestedGuidanceUpdates": [],
   "rejectedObservations": [
     {
-      "observation": "Shared state does not currently document the frontend read cache at all.",
-      "reason": "The cache existence was already documented in `.factory/library/architecture.md`; this round only added the missing invalidation guidance for immediate post-write refreshes."
+      "observation": "The frontend-worker skill still lacks explicit guidance to inspect cache-owning read-model modules for refresh-related fixes.",
+      "reason": "already recommended in `.factory/validation/frontend-write-path/scrutiny/synthesis.round-2.json`; this re-review only confirmed the same systemic gap while the code fix itself passed."
     }
   ],
-  "previousRound": ".factory/validation/frontend-write-path/scrutiny/synthesis.round-1.json"
+  "previousRound": ".factory/validation/frontend-write-path/scrutiny/synthesis.round-2.json"
 }
