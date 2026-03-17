@@ -2,7 +2,7 @@ import { FormEvent } from "react";
 import { isAddress } from "viem";
 import { MetricCard } from "../MetricCard";
 import { formatAddress } from "../../lib/format";
-import type { MarketSnapshot } from "../../lib/readModel";
+import type { MarketSnapshot, ObserverSnapshot } from "../../lib/readModel";
 
 interface ObserverSectionProps {
   snapshot: MarketSnapshot | null;
@@ -10,6 +10,39 @@ interface ObserverSectionProps {
   setObserverInput: (value: string) => void;
   onTrackAddress: (event: FormEvent<HTMLFormElement>) => void;
   onRefresh: () => void;
+}
+
+type HfStatus = "safe" | "caution" | "at-risk" | "liquidatable";
+
+function getHfStatus(numeric: number | null): HfStatus {
+  if (numeric === null) return "safe"; // infinite → safe
+  if (numeric > 2.0) return "safe";
+  if (numeric >= 1.5) return "caution";
+  if (numeric >= 1.0) return "at-risk";
+  return "liquidatable";
+}
+
+const HF_LABELS: Record<HfStatus, string> = {
+  safe: "Safe",
+  caution: "Caution",
+  "at-risk": "At Risk",
+  liquidatable: "Liquidatable",
+};
+
+function HealthFactorDisplay({ observer }: { observer: ObserverSnapshot }) {
+  const status = getHfStatus(observer.healthFactorNumeric);
+  return (
+    <article className="metric-card">
+      <p className="metric-label">Health factor</p>
+      <p className={`metric-value hf-value hf-${status}`}>
+        {observer.healthFactor}
+        <span className={`hf-badge hf-badge-${status}`}>{HF_LABELS[status]}</span>
+      </p>
+      {observer.liquidationPrice !== null && (
+        <p className="hf-liq-price">Liquidation at PAS = ${observer.liquidationPrice}</p>
+      )}
+    </article>
+  );
 }
 
 export function ObserverSection({
@@ -46,7 +79,7 @@ export function ObserverSection({
           <MetricCard label="Tracked address" value={formatAddress(snapshot.observer.address)} />
           <MetricCard label="Current debt" value={snapshot.observer.currentDebt} />
           <MetricCard label="Available to borrow" value={snapshot.observer.availableToBorrow} />
-          <MetricCard label="Health factor" value={snapshot.observer.healthFactor} />
+          <HealthFactorDisplay observer={snapshot.observer} />
         </div>
       ) : (
         <div className="empty-state">

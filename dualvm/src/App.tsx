@@ -108,7 +108,7 @@ export default function App() {
       {activeTab === "lend-borrow" && (
         <div className="tab-content">
           <CompactMarketSnapshot snapshot={snapshot} isLoading={isLoading} />
-          <WritePathSection onWriteSuccess={handleWriteSuccess} />
+          <WritePathSection onWriteSuccess={handleWriteSuccess} observer={snapshot?.observer} />
           <ObserverSection
             snapshot={snapshot}
             observerInput={observerInput}

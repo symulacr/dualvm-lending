@@ -148,6 +148,13 @@ export const lendingCoreAbi = [
     type: "function",
   },
   {
+    inputs: [],
+    name: "maxConfiguredLiquidationThresholdBps",
+    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
     inputs: [{ internalType: "address", name: "borrower", type: "address" }],
     name: "currentDebt",
     outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
@@ -165,6 +172,19 @@ export const lendingCoreAbi = [
     inputs: [{ internalType: "address", name: "borrower", type: "address" }],
     name: "availableToBorrow",
     outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [{ internalType: "address", name: "", type: "address" }],
+    name: "positions",
+    outputs: [
+      { internalType: "uint256", name: "collateralAmount", type: "uint256" },
+      { internalType: "uint256", name: "principalDebt", type: "uint256" },
+      { internalType: "uint256", name: "accruedInterest", type: "uint256" },
+      { internalType: "uint256", name: "borrowRateBps", type: "uint256" },
+      { internalType: "uint256", name: "lastAccruedAt", type: "uint256" },
+    ],
     stateMutability: "view",
     type: "function",
   },

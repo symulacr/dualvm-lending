@@ -5,6 +5,7 @@ import { TxStatusBanner } from "../TxStatusBanner";
 import { TxHistoryList } from "../TxHistoryList";
 import { useWriteFlow, type TxHistoryEntry } from "../../hooks/useWriteFlow";
 import { deploymentManifest } from "../../lib/manifest";
+import type { ObserverSnapshot } from "../../lib/readModel";
 import {
   erc20ApproveAbi,
   wpasWriteAbi,
@@ -15,8 +16,14 @@ import {
 
 const { contracts } = deploymentManifest;
 
+/** Extract plain numeric string from formatted amounts like "100.00 USDC-test" → "100.00" */
+function extractAmount(formatted: string): string {
+  return formatted.split(" ")[0] ?? "";
+}
+
 interface FormProps {
   onWriteSuccess?: () => void;
+  observer?: ObserverSnapshot | null;
 }
 
 /* ──────────────────────────────────────────────────────────────────── */
@@ -284,7 +291,7 @@ function DepositCollateralForm({ onWriteSuccess }: FormProps) {
 /* Borrow: LendingCore.borrow(amount)                                 */
 /* ──────────────────────────────────────────────────────────────────── */
 
-function BorrowForm({ onWriteSuccess }: FormProps) {
+function BorrowForm({ onWriteSuccess, observer }: FormProps) {
   const { address } = useAccount();
   const flow = useWriteFlow();
   const [amount, setAmount] = useState("");
@@ -316,20 +323,34 @@ function BorrowForm({ onWriteSuccess }: FormProps) {
     notifiedRef.current = false;
   }
 
+  const maxAmount = observer ? extractAmount(observer.availableToBorrow) : null;
+
   return (
     <article className="write-form-card panel-card">
       <h3>Borrow</h3>
       <p className="write-form-hint">Draw USDC-test debt against your deposited WPAS collateral.</p>
       <form className="write-form" onSubmit={handleSubmit}>
-        <input
-          className="write-input"
-          type="text"
-          inputMode="decimal"
-          placeholder="USDC-test borrow amount"
-          value={amount}
-          onChange={(e) => setAmount(e.target.value)}
-          disabled={flow.status === "pending" || flow.status === "confirming"}
-        />
+        <div className="write-input-row">
+          <input
+            className="write-input"
+            type="text"
+            inputMode="decimal"
+            placeholder="USDC-test borrow amount"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            disabled={flow.status === "pending" || flow.status === "confirming"}
+          />
+          {maxAmount && maxAmount !== "0" && (
+            <button
+              type="button"
+              className="max-button"
+              onClick={() => setAmount(maxAmount)}
+              disabled={flow.status === "pending" || flow.status === "confirming"}
+            >
+              Max
+            </button>
+          )}
+        </div>
         <button
           className="action-button"
           type="submit"
@@ -347,7 +368,7 @@ function BorrowForm({ onWriteSuccess }: FormProps) {
 /* Repay: USDC-test approve + LendingCore.repay(amount)               */
 /* ──────────────────────────────────────────────────────────────────── */
 
-function RepayForm({ onWriteSuccess }: FormProps) {
+function RepayForm({ onWriteSuccess, observer }: FormProps) {
   const { address } = useAccount();
   const approveFlow = useWriteFlow();
   const repayFlow = useWriteFlow();
@@ -406,20 +427,35 @@ function RepayForm({ onWriteSuccess }: FormProps) {
     notifiedRef.current = false;
   }
 
+  const maxAmount = observer ? extractAmount(observer.currentDebt) : null;
+  const isDisabled = approveFlow.status === "pending" || approveFlow.status === "confirming";
+
   return (
     <article className="write-form-card panel-card">
       <h3>Repay</h3>
       <p className="write-form-hint">Approve and repay USDC-test debt. Interest is repaid first, then principal.</p>
       <form className="write-form" onSubmit={handleApprove}>
-        <input
-          className="write-input"
-          type="text"
-          inputMode="decimal"
-          placeholder="USDC-test repay amount"
-          value={amount}
-          onChange={(e) => setAmount(e.target.value)}
-          disabled={approveFlow.status === "pending" || approveFlow.status === "confirming"}
-        />
+        <div className="write-input-row">
+          <input
+            className="write-input"
+            type="text"
+            inputMode="decimal"
+            placeholder="USDC-test repay amount"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            disabled={isDisabled}
+          />
+          {maxAmount && maxAmount !== "0" && maxAmount !== "0.00" && (
+            <button
+              type="button"
+              className="max-button"
+              onClick={() => setAmount(maxAmount)}
+              disabled={isDisabled}
+            >
+              Max
+            </button>
+          )}
+        </div>
         {!isApproved ? (
           <button
             className="action-button"
@@ -649,9 +685,10 @@ function LiquidateForm({ onWriteSuccess }: FormProps) {
 
 interface WritePathSectionProps {
   onWriteSuccess?: () => void;
+  observer?: ObserverSnapshot | null;
 }
 
-export function WritePathSection({ onWriteSuccess }: WritePathSectionProps) {
+export function WritePathSection({ onWriteSuccess, observer }: WritePathSectionProps) {
   const { isConnected } = useAccount();
 
   return (
@@ -668,8 +705,8 @@ export function WritePathSection({ onWriteSuccess }: WritePathSectionProps) {
         <div className="write-forms-grid">
           <SupplyLiquidityForm onWriteSuccess={onWriteSuccess} />
           <DepositCollateralForm onWriteSuccess={onWriteSuccess} />
-          <BorrowForm onWriteSuccess={onWriteSuccess} />
-          <RepayForm onWriteSuccess={onWriteSuccess} />
+          <BorrowForm onWriteSuccess={onWriteSuccess} observer={observer} />
+          <RepayForm onWriteSuccess={onWriteSuccess} observer={observer} />
           <WithdrawCollateralForm onWriteSuccess={onWriteSuccess} />
           <LiquidateForm onWriteSuccess={onWriteSuccess} />
         </div>

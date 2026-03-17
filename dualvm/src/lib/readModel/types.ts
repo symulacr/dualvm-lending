@@ -5,6 +5,10 @@ export interface ObserverSnapshot {
   currentDebt: string;
   availableToBorrow: string;
   healthFactor: string;
+  /** Numeric health factor for color coding (null if no position or infinite) */
+  healthFactorNumeric: number | null;
+  /** Liquidation price in USDC-test per WPAS (null if no position) */
+  liquidationPrice: string | null;
 }
 
 export interface MarketSnapshot {
