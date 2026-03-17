@@ -73,6 +73,8 @@ contract LendingCore is AccessManaged, Pausable, ReentrancyGuard, IMigratableLen
     error NewDebtDisabled();
     error NoPosition();
     error ExistingPosition();
+    error ArrayLengthMismatch();
+    error BatchLiquidationFailed(uint256 index, bytes reason);
 
     event CollateralDeposited(address indexed account, uint256 amount);
     event CollateralWithdrawn(address indexed account, uint256 amount);
@@ -456,6 +458,31 @@ contract LendingCore is AccessManaged, Pausable, ReentrancyGuard, IMigratableLen
     }
 
     function liquidate(address borrower, uint256 requestedRepayAmount) external nonReentrant {
+        _liquidateOne(borrower, requestedRepayAmount);
+    }
+
+    function batchLiquidate(address[] calldata borrowers, uint256[] calldata amounts) external nonReentrant whenNotPaused {
+        if (borrowers.length != amounts.length) revert ArrayLengthMismatch();
+        for (uint256 i = 0; i < borrowers.length; i++) {
+            try this._liquidateOneDelegated(msg.sender, borrowers[i], amounts[i]) {}
+            catch (bytes memory reason) {
+                revert BatchLiquidationFailed(i, reason);
+            }
+        }
+    }
+
+    /// @dev External entry point callable only by this contract during batchLiquidate.
+    /// Required because try/catch only works on external calls.
+    function _liquidateOneDelegated(address liquidator, address borrower, uint256 requestedRepayAmount) external {
+        if (msg.sender != address(this)) revert InvalidConfiguration();
+        _liquidateOneFrom(liquidator, borrower, requestedRepayAmount);
+    }
+
+    function _liquidateOne(address borrower, uint256 requestedRepayAmount) internal {
+        _liquidateOneFrom(msg.sender, borrower, requestedRepayAmount);
+    }
+
+    function _liquidateOneFrom(address liquidator, address borrower, uint256 requestedRepayAmount) internal {
         if (requestedRepayAmount == 0) revert ZeroAmount();
         Position storage position = positions[borrower];
 
@@ -495,7 +522,7 @@ contract LendingCore is AccessManaged, Pausable, ReentrancyGuard, IMigratableLen
             collateralSeized = position.collateralAmount;
         }
 
-        debtAsset.safeTransferFrom(msg.sender, address(debtPool), actualRepay);
+        debtAsset.safeTransferFrom(liquidator, address(debtPool), actualRepay);
         {
             uint256 interestPaid = actualRepay < position.accruedInterest ? actualRepay : position.accruedInterest;
             position.accruedInterest -= interestPaid;
@@ -505,7 +532,7 @@ contract LendingCore is AccessManaged, Pausable, ReentrancyGuard, IMigratableLen
         }
 
         position.collateralAmount -= collateralSeized;
-        collateralAsset.safeTransfer(msg.sender, collateralSeized);
+        collateralAsset.safeTransfer(liquidator, collateralSeized);
 
         uint256 badDebtWrittenOff;
         uint256 remainingDebt = _currentDebt(position);
@@ -534,7 +561,7 @@ contract LendingCore is AccessManaged, Pausable, ReentrancyGuard, IMigratableLen
             position.borrowRateBps = postQuote.borrowRateBps;
         }
 
-        emit Liquidated(borrower, msg.sender, actualRepay, collateralSeized, badDebtWrittenOff);
+        emit Liquidated(borrower, liquidator, actualRepay, collateralSeized, badDebtWrittenOff);
     }
 
     function currentDebt(address borrower) public view returns (uint256) {
