@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-03-16T23:30:00.000Z",
+  "generatedAt": "2026-03-16T23:53:35.094Z",
   "manifestPath": "dualvm/deployments/polkadot-hub-testnet-canonical.json",
   "network": {
     "name": "Polkadot Hub TestNet",
@@ -7,71 +7,56 @@
     "rpcUrl": "https://eth-rpc-testnet.polkadot.io/",
     "explorerUrl": "https://blockscout-testnet.polkadot.io/"
   },
-  "status": "partial-consolidation",
-  "note": "This canonical manifest consolidates the governed deployment (multisig+timelock governance). A fresh Governor-based deployment was NOT executed because the designated wallet (0x36a83a44...) had 0 PAS balance. The contracts, probes, and smoke results below are from the governed deployment family.",
+  "status": "canonical-governor-deployment",
   "governanceRoot": {
-    "type": "multisig-timelock",
-    "multisig": {
-      "address": "0x52255308a98f0758958cAD26Df4aD45a8E918215",
-      "creationTxHash": "0x00f579c62f1949382aead2ae4f87620cd76429801a92523cd8f2673e605a0006",
-      "owners": [
-        "0x8fC704b520657b4CE36bebd82476106CB7F16070",
-        "0xE4CbBf848BEeb25459b62f4E39B0D3472f14050c",
-        "0x1c63925FE2c09ecf7be7983326D27717AcbDdd85"
-      ],
-      "threshold": 2
+    "type": "governor-timelock-accessmanager",
+    "governor": {
+      "address": "0xa6d2c210f8A11F2D87b08efA8F832B4e64e521b3",
+      "votingDelaySeconds": 1,
+      "votingPeriodSeconds": 300,
+      "quorumNumerator": 4
     },
     "timelock": {
-      "address": "0x6b7D4ea43CB286aF7367a7e1671de2530b10B630",
-      "creationTxHash": "0xd58f16d1e79e3995b07286ac58cca21167f62f894c236d169ccc6bbd6f766c68",
+      "address": "0x65712EEFD810F077c6C11Fd7c18988d3ce569C60",
       "minDelaySeconds": 60,
       "openExecutor": true
     },
-    "pendingUpgrade": "Governor-based governance (GovernanceToken + DualVMGovernor) is implemented and tested locally but requires a funded wallet for live deployment"
-  },
-  "deployments": {
+    "governanceToken": {
+      "address": "0x5C0201E6db2D4f1a97efeed09f4620A242116Bd1",
+      "totalSupply": "1000000000000000000000000"
+    },
     "accessManager": {
-      "address": "0x81E4361e0390478Bf344204f68ccB686d00d130B",
-      "creationTxHash": "0x8f26815b0d86ec273f48ad3d2cada7d7ac4412d4118e284c68035a5c01001df4"
-    },
-    "wpas": {
-      "address": "0x21B9960ba2E6AeB9CEe0dB192B3f6EA02eF7E347",
-      "creationTxHash": "0x5153e6b1de2c3c31c9f2bc6d0789504107c1e6b7957a95bd27661d335d6e4b7e"
-    },
-    "usdc": {
-      "address": "0x3694e73753AC6457A1AebdF2cB867Cb6C1Bc46bf",
-      "creationTxHash": "0x9a93b3d95cb807ddd28b817b44401a612b710b19f7bfcfeb8b6f0d9a24fe4287"
-    },
-    "oracle": {
-      "address": "0x0B0B5f9e5854774a299fa27706e24E3D9fE510F2",
-      "creationTxHash": "0x157d64ebf16762842ac29f303fa935b57ec8b1c1f56048eed9bfa105b1d38426"
-    },
-    "riskEngine": {
-      "address": "0xc0667015c860552886c413179A23BB1031F081bA",
-      "creationTxHash": "0xa35fbc808b5a8ef91036faec4dfe2cb48b7fd8139fc657a805be367633bf5629"
-    },
-    "quoteEngine": {
-      "address": "0x9a78F65b00E0AeD0830063eD0ea66a0B5d8876DE",
-      "creationTxHash": "0xab768ad65626896fc4a21e1600f47a964e35a29908114cb1051b9f2ec0b71a21",
-      "codeHash": "0xba8fe2a621062a30bba558a3846d0a18bfb2e9a09bfaed656b123e698b59af5b",
-      "type": "PVM-compiled PvmQuoteProbe"
-    },
-    "marketRegistry": {
-      "address": "0x7B6728BF2d4F8311b94a3B6B5696635A254d4872",
-      "creationTxHash": "0xc1efb7fc952bf5d83b8a2d108b73b5540a1d81b06a1f52a34a79a056f5d63b41"
-    },
-    "governanceTimelock": {
-      "address": "0x6b7D4ea43CB286aF7367a7e1671de2530b10B630",
-      "creationTxHash": "0xd58f16d1e79e3995b07286ac58cca21167f62f894c236d169ccc6bbd6f766c68"
-    },
-    "debtPool": {
-      "address": "0x7B9B95E380E8E43F836A6180f2e922Bfa1506CD5",
-      "creationTxHash": "0x3b3ae6e126dd8e189d1bf1b4f817ec8d823773e901679230c45b17be9ab03352"
-    },
-    "lendingCore": {
-      "address": "0xd0e4ec33d2b3857d6cbEbBd390653ea108FC2FBd",
-      "creationTxHash": "0xef9ea7535ad5216e38dde8986526b76082cf5cb0b58a1bfc47bcbafecf5a2806"
+      "address": "0x32d0a9eb8F4Bd54F0610c31c277fD2E62e4ac2f0",
+      "adminRole": "timelock (0x65712EEFD810F077c6C11Fd7c18988d3ce569C60)",
+      "deployerHasNoRoles": true
     }
+  },
+  "deployer": "0x36a83a4450744f4F9988c9Bc46cC556Ba5bFD2dF",
+  "deploymentTxHashes": {
+    "accessManager": "0x1840cddfafeb1d660a0fd081051560c9dab8c7ca878a606527e1f389f74e0dda",
+    "wpas": "0x285154d978aca1219410b8deaad8d8acb87ba24d877a800b97e04cc64c54d263",
+    "usdc": "0xd6f57bddd023863b22c5ebe1d3485f1154ccd810245f5565d06cd59ad2bd85dd",
+    "oracle": "0x979527cca0179bc1297973e08ef6b964bfa66e862a2ef98c7e36b65e47943fdf",
+    "riskEngine": "0x9144e38316161f9e99a915128d0fa79eb2cac01493702c215d6923d877f7bec7",
+    "quoteEngine": "0x9099a2547d1b13dfd91201625ffe97380227524b7d477f6c8c8c7146099a9e37",
+    "marketRegistry": "0x3edca1a130d1dc2cd6b58b5d70b4b860d1a18e873d02d89392e4e41a5a88bf9a",
+    "governanceToken": "0xb9feb426df26b2af1fab9650937283eb7ec09c151dd5031f93c9c04cf5026b3b",
+    "governanceTimelock": "0x2a5f6fb024939115a363af0fc7c4b6579b9cda19dab36e8f5480f91d07101096",
+    "governor": "0x11b2c06feaabf40c22b688bbda8b0c2d5359b2cef43e990afcba25cf8013ea57",
+    "debtPool": "0x13ec03b38b28ac26a87ba9530bd859eb023359c5ee8a4aa0ca7e634764759657",
+    "lendingCore": "0x5a79d464cd67746627ccaf7c9c2b43dbce251965144aa4b1837d176cce4ff091"
+  },
+  "governanceSetupTxHashes": {
+    "registerVersion": "0xa41ad4a34b3b2e6a5dfbd60a1e97302aa7da6bfd28cb468d3e9fac932d90c33d",
+    "activateVersion": "0x3278a9ee913be2f47907ae2921f8a1be2ec0d4525ee3b58e7092b1e2801a22eb",
+    "grantGovernorProposer": "0xb01c31ede34a32a92a36c4d9e42ddc25e18bc3fa046886882ae02dac80a500da",
+    "grantGovernorCanceller": "0xf5852dd3a45180b9c95e2c85632d1709f95baa108d484a6d66589a5e58ded720",
+    "renounceTimelockAdmin": "0x3d7f2b0e80d1f96ba6cb51d0c5d611da30bae4f08e77eb9ee2429537bb0c93d1",
+    "setGovernanceTokenMintRole": "0xf57850a11a5deec122afe238c195d93261539d1c38cb6c7ef01ac4f987566bf8",
+    "setRegistryGovernanceRole": "0x7110a9e4c4ec2cff06a68d860f86622fb9c6d99bde8611ced48a4c7d570a9145",
+    "grantTimelockGovernanceRole": "0xe707d668b63279c4bf94d7147d3d464d6d635d2b31f5fb64c9ac1001ea8cc9a2",
+    "grantTimelockAdminRole": "0xa77b66c6ccabcd92c527b58a0db998487cc51a0a78141fd6ed65d5feaa7dffd6",
+    "revokeDeployerAdminRole": "0x61c09d5353c0d3c0246f818a413780517e7b7d5510022330fb822ac67c41e863"
   },
   "probeVerdicts": {
     "A": true,
@@ -81,15 +66,40 @@
     "note": "All probe stages passed. D=false means interop IS defensible (a passing result)."
   },
   "smokeProof": {
-    "borrowTx": "0x5df52f12edcc29a54be74b669e6ce20d9fbd04a23c4a02e14eb78afbd76980f2",
-    "repayTx": "0xe5c41788ee658fbd656cf0ecf98b8ddd58ffa6f316f785c83916d658900b50b6",
-    "registerVersionTx": "0x9591bb9b43b5817c2bc9de3cd787a71bbc6e01a730d0ee498184495f41dcf23f",
-    "activateVersionTx": "0xb4f069531e76d0fd734233a7830a463fbb936afff4019df434455e5218d6c5f5",
-    "restoreVersionTx": "0xef84d3e3a47164c272b19c82175a8e4e9be73390a74c3d4b906b3410cb8863e7"
+    "borrowSmoke": {
+      "mintScheduleTx": "0xe4fbee425d61e6ff262537d0bcee7de7637c722ee46335e5134d2708148fae06",
+      "mintExecuteTx": "0xfc10b72be6e14e084f094f50356500e9d6edcb589a8d3fcb72029cdc31bb3bb1",
+      "depositPoolTx": "0x800fee1ee0ba57bb53b286f03ed4b7b0669fb48a666382eccdcfa9f713615d6e",
+      "wrapPasTx": "0x7a23614612b222574bc8799b6f3544a9b85675ae33fd0c40eeb5386855797323",
+      "depositCollateralTx": "0x947f27e1311f50b1cca2e13c164dd9fc995037434574e3276e392375b151f81c",
+      "borrowTx": "0x5a9edd08efd8aec5e1ccbe0295b97e03cebc1b75588acf19a2738a109deba532",
+      "result": {
+        "poolAssets": "1000 USDC",
+        "borrowerDebt": "100 USDC",
+        "outstandingPrincipal": "100 USDC"
+      }
+    },
+    "repaySmoke": {
+      "borrowTx": "0x6e05748e129e7ef3165a259176c116c934760c15374099db2fed257d051229a4",
+      "repayTx": "0x02825742b3d9cdc5e8c27b1ae30948d73885188c2e43a0de5c6105606c441dde",
+      "result": {
+        "debtBefore": "200.000002663622526636 USDC",
+        "debtAfter": "150.000002663622526636 USDC",
+        "debtReduced": true
+      }
+    },
+    "liquidationSmoke": {
+      "borrowTx": "0x31fb4aa85ac696e912771bbfe14e8c6229d4a610de0a6ac6606199d883e41abc",
+      "widenCircuitBreakerTx": "0xb6af5c6559d022259672766ba748ba0b2db408efecc9b30a49faf0d603a3d04d",
+      "dropOraclePriceTx": "0x5c10a2e68c4a0f4086ca92d277afec29c328e255d22e644bd4ee8fa31fd165c7",
+      "liquidationTx": "0xeec68ce067523113520a888e9344860ea9d9421c135a6db6823da56ebe12048b",
+      "result": "Liquidation executed successfully — borrower position cleared"
+    }
   },
-  "blockers": [
-    "Fresh Governor-based deployment requires funded wallet — designated wallet 0x36a83a4450744f4F9988c9Bc46cC556Ba5bFD2dF has 0 PAS",
-    "Old deployer wallet 0x31FA19B35fdBD96f381A0be838799ca40978D080 has ~4901 PAS but private key is not in any wallet file",
-    "Borrow/repay/liquidation smoke cannot be re-run against canonical manifest without funded operator keys"
-  ]
+  "probeProof": {
+    "echoTx": "0x282f32532f1bc337266e7a0d849edb1153449be7fad9d4b9feacec8aded641d0",
+    "quoteTx": "0x4f55eac1f75b6540e3d81d3618a8857574551809fce2b08bfc4e11a4b15b5698",
+    "roundtripSettleBorrowTx": "0x4284ace5171ead5bea7c5795ee78528ac815b5d65d450b6f85de06b56ebe2ad5",
+    "roundtripLiquidationCheckTx": "0x948fb4b1e4ea88d7a53cb2a911af55c50ab878521b2e98dd7f56dc94b40516de"
+  }
 }

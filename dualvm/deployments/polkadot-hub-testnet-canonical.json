@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-03-16T23:30:00.000Z",
+  "generatedAt": "2026-03-16T23:53:35.094Z",
   "networkName": "polkadotHubTestnet",
   "polkadotHubTestnet": {
     "name": "Polkadot Hub TestNet",
@@ -10,14 +10,14 @@
     "faucetUrl": "https://faucet.polkadot.io/"
   },
   "roles": {
-    "treasury": "0x1c63925FE2c09ecf7be7983326D27717AcbDdd85",
-    "emergencyAdmin": "0x8fC704b520657b4CE36bebd82476106CB7F16070",
-    "riskAdmin": "0xE4CbBf848BEeb25459b62f4E39B0D3472f14050c",
-    "treasuryOperator": "0x1c63925FE2c09ecf7be7983326D27717AcbDdd85",
-    "minter": "0x7cbEa57C2A68BBA5f575037C9D97f4B2A1A3f000"
+    "treasury": "0x519870b7b98a4FDc3D73cDb818634993cc942A86",
+    "emergencyAdmin": "0x519870b7b98a4FDc3D73cDb818634993cc942A86",
+    "riskAdmin": "0xE6E56B87EB128c081c59aC5a4EF8Bfe002E86944",
+    "treasuryOperator": "0x519870b7b98a4FDc3D73cDb818634993cc942A86",
+    "minter": "0x26fdAba4D98899b31239C1d26a98C74872bD6976"
   },
   "governance": {
-    "admin": "0x6b7D4ea43CB286aF7367a7e1671de2530b10B630",
+    "admin": "0x65712EEFD810F077c6C11Fd7c18988d3ce569C60",
     "executionDelaySeconds": {
       "emergency": 0,
       "riskAdmin": 60,
@@ -63,15 +63,17 @@
     }
   },
   "contracts": {
-    "accessManager": "0x81E4361e0390478Bf344204f68ccB686d00d130B",
-    "wpas": "0x21B9960ba2E6AeB9CEe0dB192B3f6EA02eF7E347",
-    "usdc": "0x3694e73753AC6457A1AebdF2cB867Cb6C1Bc46bf",
-    "oracle": "0x0B0B5f9e5854774a299fa27706e24E3D9fE510F2",
-    "riskEngine": "0xc0667015c860552886c413179A23BB1031F081bA",
+    "accessManager": "0x32d0a9eb8F4Bd54F0610c31c277fD2E62e4ac2f0",
+    "wpas": "0x9b9e0c534E0Bfc938674238aFA44bCD1690F10F1",
+    "usdc": "0x75d47bd99ECd7188FB63e00cD07035CDBBf7Ef06",
+    "oracle": "0x1CCE5059dc39A7cf8f064f6DA6Be9da09279Ee04",
+    "riskEngine": "0x67D0B226b5aE56A29E206840Ecd389670718Af66",
     "quoteEngine": "0x9a78F65b00E0AeD0830063eD0ea66a0B5d8876DE",
-    "marketRegistry": "0x7B6728BF2d4F8311b94a3B6B5696635A254d4872",
-    "governanceTimelock": "0x6b7D4ea43CB286aF7367a7e1671de2530b10B630",
-    "debtPool": "0x7B9B95E380E8E43F836A6180f2e922Bfa1506CD5",
-    "lendingCore": "0xd0e4ec33d2b3857d6cbEbBd390653ea108FC2FBd"
+    "marketRegistry": "0x47AE8aE7423bD8643Be8a86d4C0Df7fdcC57987d",
+    "governanceToken": "0x5C0201E6db2D4f1a97efeed09f4620A242116Bd1",
+    "governor": "0xa6d2c210f8A11F2D87b08efA8F832B4e64e521b3",
+    "governanceTimelock": "0x65712EEFD810F077c6C11Fd7c18988d3ce569C60",
+    "debtPool": "0xeEdA5d44810E09D8F881Fca537456E2a5eD437bB",
+    "lendingCore": "0x9faC289188229f40aBfaa4F8d720C14b8B448CF9"
   }
 }
