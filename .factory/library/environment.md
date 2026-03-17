@@ -36,3 +36,6 @@ Environment variables, external dependencies, and setup notes.
 ## Frontend Validation Notes
 - `dualvm/src/lib/wagmiConfig.ts` currently hardcodes the placeholder Reown/WalletConnect project ID `DUALVM_LENDING_HACKATHON`; injected wallet / MetaMask flows still work, but WalletConnect-style modal options can fail and emit expected 400/403 console noise until a real project ID is supplied.
 - On this machine, `npx vite build` may run out of memory for the frontend; if that happens, retry with `NODE_OPTIONS='--max-old-space-size=1024' npx vite build`.
+
+## Validator Environment Notes
+- On this machine, `/tmp` is currently a full tmpfs. Validators that create temporary files (notably `cd dualvm && npm test`) should be run with `TMPDIR=/var/tmp` to avoid `ENOSPC` failures from `os.tmpdir()`-based tests.

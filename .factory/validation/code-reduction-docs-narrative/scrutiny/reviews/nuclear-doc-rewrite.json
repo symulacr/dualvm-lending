@@ -1,0 +1,51 @@
+{
+  "featureId": "nuclear-doc-rewrite",
+  "reviewedAt": "2026-03-17T12:15:00Z",
+  "commitId": "ac56af3",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "fail",
+  "codeReview": {
+    "summary": "The rewrite removed many stale files and added new top-level docs, but it did not achieve canonical deployment truth. The new README/SPEC/submission copy overstates the live PVM proof results, and several retained docs under docs/dualvm still present superseded governance/manifests or dead references as if they are part of the active proof package.",
+    "issues": [
+      {
+        "file": "README.md",
+        "line": 153,
+        "severity": "blocking",
+        "description": "The rewritten README claims Roundtrip Settlement proves a full REVM\u2192PVM\u2192REVM settlement and later says only the callback probe fails, but the authoritative source `dualvm/deployments/polkadot-hub-testnet-probe-results.json` marks both `stage2` and `stage3` as `failed` (`stage2.summary`: no defensible PVM\u2192REVM callback proven; `stage3.summary`: no defensible REVM settlement mutation proven). This violates the feature requirement to rewrite judge-facing docs with canonical deployment truth."
+      },
+      {
+        "file": "docs/dualvm/dualvm_vm_interop_proof.md",
+        "line": 231,
+        "severity": "blocking",
+        "description": "A retained proof artifact still states `Stage 2 \u2014 PVM -> REVM callback` has `Status: passed` and later records Stage 3 as passed, while the current authoritative probe-results file says Stage 2 failed with `execution reverted` and Stage 3 failed overall. Because README still points judges at this proof artifact, contradictory judge-facing docs remain after the rewrite."
+      },
+      {
+        "file": "docs/dualvm/dualvm_governed_root_proof.md",
+        "line": 8,
+        "severity": "blocking",
+        "description": "The rewrite left superseded proof docs in place and still surfaced them from README. This file still describes the old `2-of-3` multisig \u2192 `DualVMTimelockController` governance root and points at deleted `polkadot-hub-testnet-governed.json`; similarly `docs/dualvm/dualvm_versioned_market_proof.md:14` and `docs/dualvm/dualvm_quote_ticket_cutover_proof.md:12-15` still point at deleted versioned/quote-ticket manifests, and `docs/dualvm/submission_evidence/wording_audit.md:5-9` references deleted docs. That means the nuclear rewrite did not actually eliminate contradicting/stale judge-facing docs from `docs/dualvm/`."
+      },
+      {
+        "file": "docs/dualvm/dualvm_submission_final.md",
+        "line": 25,
+        "severity": "non_blocking",
+        "description": "The DoraHacks submission file is labeled as a final submission artifact but still contains a placeholder for the hosted frontend URL, so it is not yet ready for direct copy/paste into a submission form."
+      }
+    ]
+  },
+  "sharedStateObservations": [
+    {
+      "area": "skills",
+      "observation": "The docs-worker procedure does not require auditing the docs that are intentionally kept (proof artifacts and submission_evidence) for contradictions or broken references after a rewrite. It only tells the worker to verify deleted docs are not referenced by code before deleting them.",
+      "evidence": "`.factory/skills/docs-worker/SKILL.md` step 6 only says to list stale docs, verify they are not imported/referenced by code, and delete them. The transcript skeleton then explicitly chose `dualvm_governed_root_proof.md`, `dualvm_versioned_market_proof.md`, `dualvm_quote_ticket_cutover_proof.md`, and `submission_evidence/` as files to keep, and the resulting commit left stale multisig/old-manifest references in those files (`docs/dualvm/dualvm_governed_root_proof.md:8-13`, `docs/dualvm/dualvm_versioned_market_proof.md:14`, `docs/dualvm/dualvm_quote_ticket_cutover_proof.md:12-15`, `docs/dualvm/submission_evidence/wording_audit.md:5-9`)."
+    },
+    {
+      "area": "knowledge",
+      "observation": "The shared library does not capture the current authoritative PVM probe verdicts, so future docs work can easily reuse stale success narratives instead of the deployment results file.",
+      "evidence": "`.factory/library/architecture.md` documents the canonical architecture and says the quote engine is a genuine cross-VM call, but it does not note that the current authoritative `dualvm/deployments/polkadot-hub-testnet-probe-results.json` records `stage2.status = failed` and `stage3.status = failed`. The reviewed docs then overclaimed callback/roundtrip proof success in `README.md:153-154`, `dualvm/SPEC.md:34-37`, and `docs/dualvm/dualvm_submission_final.md:16,68,75`."
+    }
+  ],
+  "addressesFailureFrom": null,
+  "summary": "Review failed. The feature successfully removed many stale files and rewrote the main docs, but it still leaves contradictory judge-facing documentation: current README/SPEC/submission text overclaims PVM callback/roundtrip proof success, and retained docs under `docs/dualvm/` still advertise superseded multisig/versioned/quote-ticket artifacts and deleted file paths."
+}

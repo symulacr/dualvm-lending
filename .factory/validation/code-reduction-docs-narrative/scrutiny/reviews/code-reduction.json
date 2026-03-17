@@ -1,0 +1,38 @@
+{
+  "featureId": "code-reduction",
+  "reviewedAt": "2026-03-17T12:00:58+00:00",
+  "commitId": "0e13af7",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "pass",
+  "codeReview": {
+    "summary": "Pass with one non-blocking coverage note. I reviewed the feature metadata, worker handoff, transcript skeleton, commit `0e13af7`, and the refactored files (`smokeContext`, `serializeManifest`, `probeUtils`, `deploymentManifest`, and the three barrel tests). The main refactors preserve the prior behavior and match the feature goals: the smoke/operator scripts still build the same manifest/actor/contract contexts, manifest serialization/parser behavior is materially unchanged, probe helpers are safely deduplicated, and the commit achieves the required 800+ net line reduction. I did not find a blocking regression in the implementation.",
+    "issues": [
+      {
+        "file": "dualvm/test/barrel-src.ts",
+        "line": 6,
+        "severity": "non_blocking",
+        "description": "The replacement `src` barrel no longer exercises the deleted frontend render smoke coverage for `src/App`, `src/main.renderApp`, and `MetricCard` that existed in the removed TSX tests. That does not break the current Hardhat validation path because those `.tsx` tests were dead, but it means the handoff's claim of 'identical import-safety coverage' is slightly overstated."
+      }
+    ]
+  },
+  "sharedStateObservations": [
+    {
+      "area": "skills",
+      "observation": "The `docs-worker` skill still tells code-reduction workers to measure reductions with before/after `wc -l`, but this feature's authoritative net reduction came from `git diff --cached --stat -- dualvm/`. The skill should explicitly recommend git diff stats for net line-reduction features.",
+      "evidence": "/home/kpa/polkadot/.factory/skills/docs-worker/SKILL.md:38-42 and /home/kpa/.factory/missions/dc664f26-9086-4d9b-896d-ba8f3bde8d71/handoffs/2026-03-17T11-42-48-124Z__code-reduction__2da1709e-ee87-4a40-83df-46941530416b.json:25-29,121-126"
+    },
+    {
+      "area": "knowledge",
+      "observation": "Shared state does not currently record that `npx tsc --noEmit` is already failing in this repo due to existing `viem` declaration gaps and implicit-`any` errors in `src/lib/readModel/activity.ts`. Because both AGENTS and the docs-worker skill present typecheck as a normal clean validator, workers have to rediscover that these failures predate their feature work.",
+      "evidence": "/home/kpa/.factory/missions/dc664f26-9086-4d9b-896d-ba8f3bde8d71/handoffs/2026-03-17T11-42-48-124Z__code-reduction__2da1709e-ee87-4a40-83df-46941530416b.json:20-24,104-114; /home/kpa/.factory/missions/dc664f26-9086-4d9b-896d-ba8f3bde8d71/AGENTS.md:68-81; /home/kpa/polkadot/.factory/skills/docs-worker/SKILL.md:55-57; /home/kpa/polkadot/.factory/library/environment.md:29-38"
+    },
+    {
+      "area": "knowledge",
+      "observation": "The repo guidance does not note that the Hardhat test invocation used here was not discovering `.tsx` tests, which is how 13 dead frontend smoke tests accumulated under `dualvm/test/src/` and `dualvm/test/frontendModules.tsx`. That discovery is actionable shared-state information for future test work.",
+      "evidence": "/home/kpa/.factory/missions/dc664f26-9086-4d9b-896d-ba8f3bde8d71/handoffs/2026-03-17T11-42-48-124Z__code-reduction__2da1709e-ee87-4a40-83df-46941530416b.json:11,115-118 and /home/kpa/.factory/missions/dc664f26-9086-4d9b-896d-ba8f3bde8d71/AGENTS.md:29,68-72"
+    }
+  ],
+  "addressesFailureFrom": null,
+  "summary": "Pass. The code-reduction commit achieves the requested large net reduction and the refactors I reviewed do not introduce a blocking functional regression. One non-blocking note: the new `barrel-src.ts` does not fully replace the deleted dead TSX frontend smoke coverage, so the handoff's 'identical coverage' wording is a bit broader than the code now provides."
+}
