@@ -1,0 +1,64 @@
+{
+  "surface": "terminal-live-onchain",
+  "group": "xcm-live",
+  "assertions": [
+    {
+      "id": "VAL-ARCH-004",
+      "status": "pass",
+      "reason": "Artifact records xcmExecute success for tx 0xea5ecc4be7c66ef062414ffd80f322727f48475749b6f141fa67226a6cbdc9cd, and fallback RPC independently showed the tx targeted CrossChainQuoteEstimator 0xe38B539871FdeFE84449845a1C224Ed43b86F072 with executeLocalXcm selector 0x6ffac710, receipt status 0x1, and XcmExecuted log topic 0x28acd9413969d099b5b8d549f643f41d7cac14bb7f22a1bb9277525a04858108.",
+      "evidence": [
+        "artifact: /home/kpa/polkadot/dualvm/deployments/polkadot-hub-testnet-xcm-full-integration.json -> provenOnChain.xcmExecute.txHash=0xea5ecc4be7c66ef062414ffd80f322727f48475749b6f141fa67226a6cbdc9cd, success=true, message=\"XCM V5 ClearOrigin (0x05040a)\"",
+        "evidence file: contract-architecture-hardening/xcm-live/xcm-live-artifact-extract.json",
+        "evidence file: contract-architecture-hardening/xcm-live/xcm-live-rpc-verification.json -> VAL-ARCH-004 tx.to=0xe38b539871fdefe84449845a1c224ed43b86f072, inputSelector=0x6ffac710, receipt.status=0x1, receipt.logTopic0=0x28acd9413969d099b5b8d549f643f41d7cac14bb7f22a1bb9277525a04858108",
+        "explorer URL: https://blockscout-testnet.polkadot.io/tx/0xea5ecc4be7c66ef062414ffd80f322727f48475749b6f141fa67226a6cbdc9cd"
+      ]
+    },
+    {
+      "id": "VAL-ARCH-005",
+      "status": "pass",
+      "reason": "Artifact records xcmSend success for tx 0x26d74cf7b7a73aa0dce1b0314129338fabd6d9b94391387d431ab53a32bf5468, and fallback RPC independently showed the tx targeted CrossChainQuoteEstimator 0xe38B539871FdeFE84449845a1C224Ed43b86F072 with sendCrossChainNotification selector 0x7d1d810f, receipt status 0x1, and XcmSent log topic 0x3236823f7f04a8d92d51554651ba742e0bbe7e7ec538132a2eeab0e4919fdad1.",
+      "evidence": [
+        "artifact: /home/kpa/polkadot/dualvm/deployments/polkadot-hub-testnet-xcm-full-integration.json -> provenOnChain.xcmSend.txHash=0x26d74cf7b7a73aa0dce1b0314129338fabd6d9b94391387d431ab53a32bf5468, success=true, destination=\"0x050100 (V5 relay chain parent)\"",
+        "evidence file: contract-architecture-hardening/xcm-live/xcm-live-artifact-extract.json",
+        "evidence file: contract-architecture-hardening/xcm-live/xcm-live-rpc-verification.json -> VAL-ARCH-005 tx.to=0xe38b539871fdefe84449845a1c224ed43b86f072, inputSelector=0x7d1d810f, receipt.status=0x1, receipt.logTopic0=0x3236823f7f04a8d92d51554651ba742e0bbe7e7ec538132a2eeab0e4919fdad1",
+        "explorer URL: https://blockscout-testnet.polkadot.io/tx/0x26d74cf7b7a73aa0dce1b0314129338fabd6d9b94391387d431ab53a32bf5468"
+      ]
+    }
+  ],
+  "commandsRun": [
+    {
+      "command": "python3 - <<'PY'\nimport json, urllib.request\nurl='https://blockscout-testnet.polkadot.io/api/v2/transactions/0xea5ecc4be7c66ef062414ffd80f322727f48475749b6f141fa67226a6cbdc9cd'\nwith urllib.request.urlopen(url, timeout=30) as resp:\n    print(resp.status)\nPY",
+      "exitCode": 1,
+      "observation": "Blockscout API request returned HTTP 403 from this environment, so explorer API was not used as the primary verifier."
+    },
+    {
+      "command": "node - <<'NODE'\nconst { id } = require('/home/kpa/polkadot/dualvm/node_modules/ethers');\nconsole.log(JSON.stringify({ executeSelector: id('executeLocalXcm(bytes,uint64,uint64)').slice(0,10), sendSelector: id('sendCrossChainNotification(bytes,bytes)').slice(0,10), executedTopic: id('XcmExecuted(address,uint64,uint64)'), sentTopic: id('XcmSent(address,bytes)') }, null, 2));\nNODE",
+      "exitCode": 0,
+      "observation": "Computed executeLocalXcm selector 0x6ffac710, sendCrossChainNotification selector 0x7d1d810f, XcmExecuted topic 0x28acd9413969d099b5b8d549f643f41d7cac14bb7f22a1bb9277525a04858108, and XcmSent topic 0x3236823f7f04a8d92d51554651ba742e0bbe7e7ec538132a2eeab0e4919fdad1."
+    },
+    {
+      "command": "python3 - <<'PY'\nimport json, subprocess\nrpc='https://services.polkadothub-rpc.com/testnet/'\npayload=json.dumps([{\"jsonrpc\":\"2.0\",\"id\":\"tx-execute\",\"method\":\"eth_getTransactionByHash\",\"params\":[\"0xea5ecc4be7c66ef062414ffd80f322727f48475749b6f141fa67226a6cbdc9cd\"]},{\"jsonrpc\":\"2.0\",\"id\":\"rcpt-execute\",\"method\":\"eth_getTransactionReceipt\",\"params\":[\"0xea5ecc4be7c66ef062414ffd80f322727f48475749b6f141fa67226a6cbdc9cd\"]},{\"jsonrpc\":\"2.0\",\"id\":\"tx-send\",\"method\":\"eth_getTransactionByHash\",\"params\":[\"0x26d74cf7b7a73aa0dce1b0314129338fabd6d9b94391387d431ab53a32bf5468\"]},{\"jsonrpc\":\"2.0\",\"id\":\"rcpt-send\",\"method\":\"eth_getTransactionReceipt\",\"params\":[\"0x26d74cf7b7a73aa0dce1b0314129338fabd6d9b94391387d431ab53a32bf5468\"]}])\nout=subprocess.check_output(['curl','-sS','-H','Content-Type: application/json','--data',payload,rpc], text=True)\nprint(out)\nPY",
+      "exitCode": 0,
+      "observation": "Fallback RPC returned both tx objects and receipts: execute receipt status=0x1 at block 0x637710 and send receipt status=0x1 at block 0x637711, each with the expected contract address and event topic."
+    }
+  ],
+  "toolsUsed": [
+    "Read",
+    "Grep",
+    "Glob",
+    "Execute"
+  ],
+  "frictions": [
+    {
+      "description": "Primary read surfaces blocked scripted access from this environment: Blockscout /api/v2/transactions/... and the primary ETH RPC both returned HTTP 403 during validation.",
+      "resolved": true,
+      "resolution": "Used the documented fallback RPC https://services.polkadothub-rpc.com/testnet/ for one sparse batched eth_getTransactionByHash/eth_getTransactionReceipt query.",
+      "affectedAssertions": [
+        "VAL-ARCH-004",
+        "VAL-ARCH-005"
+      ]
+    }
+  ],
+  "blockers": [],
+  "testedAt": "2026-03-17T22:11:33.838711+00:00"
+}

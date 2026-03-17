@@ -1,0 +1,88 @@
+{
+  "surface": "terminal-hardhat",
+  "group": "arch-core",
+  "assertions": [
+    {
+      "id": "VAL-ARCH-001",
+      "status": "pass",
+      "reason": "Targeted Hardhat coverage proved RiskAdapter.quote() inline math matches the DeterministicRiskModel quote engine across five utilization levels, and a borrow path emitted QuoteVerified when quoteViaTicket verified the PVM quote engine match.",
+      "evidence": [
+        "Command: npx hardhat test --no-compile test/UnifiedRiskGateway.ts test/BatchLiquidation.ts",
+        "Passed test: test/UnifiedRiskGateway.ts:42 inline math matches DeterministicRiskModel.quote() for 5 utilization levels",
+        "Passed test: test/UnifiedRiskGateway.ts:122 cross-VM verification emits QuoteVerified when inline matches PVM engine",
+        "Source refs: contracts/RiskAdapter.sol:89 quote(), contracts/RiskAdapter.sol:98 quoteViaTicket(), contracts/RiskAdapter.sol:110 inline canonical compute, contracts/RiskAdapter.sol:114/_verifyCrossVM() at 162",
+        "Evidence log: /home/kpa/.factory/missions/dc664f26-9086-4d9b-896d-ba8f3bde8d71/evidence/contract-architecture-hardening/arch-core/hardhat-arch-core-tests.log"
+      ]
+    },
+    {
+      "id": "VAL-ARCH-002",
+      "status": "pass",
+      "reason": "RiskAdapter is AccessManaged and direct quoteViaTicket() calls from unauthorized EOAs reverted with AccessManagedUnauthorized, while the authorized LendingCore borrow path succeeded and emitted QuoteVerified.",
+      "evidence": [
+        "Passed test: test/UnifiedRiskGateway.ts:91 unauthorized caller to quoteViaTicket reverts with AccessManagedUnauthorized",
+        "Passed test: test/UnifiedRiskGateway.ts:122 cross-VM verification emits QuoteVerified when inline matches PVM engine",
+        "Source refs: contracts/RiskAdapter.sol:10 contract RiskAdapter is IRiskAdapter, AccessManaged; contracts/RiskAdapter.sol:98 quoteViaTicket() is restricted; contracts/LendingCore.sol:219 and 226 call riskEngine.quoteViaTicket(...)",
+        "Role wiring ref: lib/deployment/deployMarketVersion.ts:141-155 grants ROLE_IDS.LENDING_CORE to LendingCore and maps quoteViaTicket selector to that role",
+        "Evidence log: /home/kpa/.factory/missions/dc664f26-9086-4d9b-896d-ba8f3bde8d71/evidence/contract-architecture-hardening/arch-core/hardhat-arch-core-tests.log"
+      ]
+    },
+    {
+      "id": "VAL-ARCH-003",
+      "status": "pass",
+      "reason": "Targeted Hardhat tests proved LendingCore.batchLiquidate() cleared three underwater borrowers in one transaction and the receipt contained three Liquidated events.",
+      "evidence": [
+        "Passed test: test/BatchLiquidation.ts:61 batch liquidates 3 underwater positions in a single TX",
+        "Passed test: test/BatchLiquidation.ts:195 emits individual Liquidated events per position in batch",
+        "Source refs: contracts/LendingCore.sol:464 batchLiquidate(...); contracts/LendingCore.sol:474 _liquidateOneDelegated external entrypoint for try/catch batching",
+        "Test refs: test/BatchLiquidation.ts:94 executes batchLiquidate for 3 borrowers; test/BatchLiquidation.ts:99-105 parses receipt logs and asserts 3 Liquidated events",
+        "Evidence log: /home/kpa/.factory/missions/dc664f26-9086-4d9b-896d-ba8f3bde8d71/evidence/contract-architecture-hardening/arch-core/hardhat-arch-core-tests.log"
+      ]
+    },
+    {
+      "id": "VAL-ARCH-006",
+      "status": "pass",
+      "reason": "Source inspection showed the live source contract is contracts/pvm/DeterministicRiskModel.sol, no source contract file named PvmRiskEngine.sol exists under contracts/, and deployment/test/build code paths reference DeterministicRiskModel.",
+      "evidence": [
+        "Source ref: contracts/pvm/DeterministicRiskModel.sol:7-8 documents the honest rename and declares contract DeterministicRiskModel",
+        "Source refs: lib/deployment/deployMarketVersion.ts:78 and 85 deploy DeterministicRiskModel; scripts/build-pvm.mjs:15-16 builds contracts/pvm/DeterministicRiskModel.sol",
+        "Inspection log: /home/kpa/.factory/missions/dc664f26-9086-4d9b-896d-ba8f3bde8d71/evidence/contract-architecture-hardening/arch-core/source-rename-inspection.log",
+        "Supplemental broad scan log: /home/kpa/.factory/missions/dc664f26-9086-4d9b-896d-ba8f3bde8d71/evidence/contract-architecture-hardening/arch-core/rename-inspection.log"
+      ]
+    }
+  ],
+  "commandsRun": [
+    {
+      "command": "cd /home/kpa/polkadot/dualvm && TMPDIR=/var/tmp npx hardhat test --no-compile test/UnifiedRiskGateway.ts test/BatchLiquidation.ts",
+      "exitCode": 0,
+      "observation": "8 targeted tests passed. Relevant passes covered inline vs DeterministicRiskModel matching, AccessManagedUnauthorized revert on unauthorized quoteViaTicket, QuoteVerified on borrow, and 3-position batch liquidation with individual Liquidated events."
+    },
+    {
+      "command": "python3 source inspection over /home/kpa/polkadot/dualvm/{contracts,lib,test,scripts} for DeterministicRiskModel and PvmRiskEngine",
+      "exitCode": 0,
+      "observation": "contracts/pvm/DeterministicRiskModel.sol exists; no contracts/**/PvmRiskEngine.sol exists; active source code paths reference DeterministicRiskModel while the legacy name appears only in explanatory comments."
+    },
+    {
+      "command": "python3 broad repo scan over /home/kpa/polkadot/dualvm for DeterministicRiskModel and PvmRiskEngine",
+      "exitCode": 0,
+      "observation": "Broad scan found legacy PvmRiskEngine strings in generated artifacts and historical/non-source files, so rename validation was scoped to source/contracts per assignment."
+    }
+  ],
+  "toolsUsed": [
+    "Read",
+    "Grep",
+    "LS",
+    "Execute"
+  ],
+  "frictions": [
+    {
+      "description": "A broad repo-wide name scan surfaced legacy PvmRiskEngine strings in generated artifacts and historical files (for example artifacts/, out/, typechain-types/, and critique docs), which would obscure the source-level rename check if not narrowed to active source roots.",
+      "resolved": true,
+      "resolution": "Used a second source-only inspection scoped to contracts/, lib/, test/, and scripts/, matching the task instruction to verify the source contract rename.",
+      "affectedAssertions": [
+        "VAL-ARCH-006"
+      ]
+    }
+  ],
+  "blockers": [],
+  "testedAt": "2026-03-17T22:12:07.079630+00:00"
+}

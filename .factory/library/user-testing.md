@@ -39,6 +39,7 @@ Testing surface, tools, and resource cost classification.
 
 ### Terminal / live on-chain reads
 - Public RPC reads against Polkadot Hub TestNet are lightweight, but repeated contract calls and explorer lookups can still trigger rate limits.
+- During the `contract-architecture-hardening` run, scripted requests to the primary ETH RPC and Blockscout API returned HTTP 403 from this environment; the documented fallback RPC `https://services.polkadothub-rpc.com/testnet/` worked for sparse batched receipt checks.
 - **Max concurrent validators: 2** for read-heavy live validation batches.
 
 ### Terminal / doc audit
@@ -63,6 +64,7 @@ Testing surface, tools, and resource cost classification.
 - **Isolation boundary:** Validators may read shared project sources and run read/compile/test commands only. They must not edit code, rewrite `.env`, delete caches, or kill shared processes.
 - **Shared-state rule:** Assume `artifacts/` and `cache/` are shared. Use the precompiled artifacts prepared by the parent validator and prefer `--no-compile` to avoid collisions.
 - **Evidence rule:** Record the exact test commands run, the named test cases that passed, and any concrete values/assertions observed directly from terminal output or test code paths.
+- **Rename audits:** When validating source renames, scope the assertion to active source roots (`contracts/`, `lib/`, `scripts/`, `test/`). Generated outputs and historical critique/docs can preserve legacy names and should not be treated as current source-of-truth.
 - **Safe parallelism:** At most 2 concurrent validators on this surface for this machine state; batch additional validators after the first wave completes.
 
 ## Flow Validator Guidance: terminal-live-onchain
