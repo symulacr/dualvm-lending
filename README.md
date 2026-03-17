@@ -24,6 +24,252 @@ Built for the [Polkadot Solidity Hackathon 2026](https://dorahacks.io/) — targ
 
 Connect your wallet (MetaMask or any injected wallet) to Polkadot Hub TestNet (chain ID 420420417) to deposit, borrow, repay, and liquidate directly from the browser.
 
+## Architecture
+
+The system spans EVM (REVM) and PVM (PolkaVM) execution environments with OpenZeppelin Governor governance.
+
+### System Overview
+
+```mermaid
+flowchart TB
+  subgraph Governance
+    GT["GovernanceToken\n(ERC20Votes)"] --> GOV["DualVMGovernor"]
+    GOV --> TL["TimelockController"]
+    TL --> AM["AccessManager"]
+  end
+
+  subgraph Market["Lending Market (Immutable Version)"]
+    LC["LendingCore\n(collateral, debt, liquidation)"]
+    DP["DebtPool\n(ERC-4626 LP vault)"]
+    MO["ManualOracle\n(price feed + circuit breaker)"]
+    RA["RiskAdapter\n(quote ticket publication)"]
+    LC <--> DP
+    MO --> LC
+    RA --> LC
+  end
+
+  subgraph PVM["PVM Risk Engine (Live Cross-VM)"]
+    QE["PvmQuoteProbe\n(resolc-compiled, PolkaVM)"]
+  end
+
+  subgraph Probes["Interop Proof Package"]
+    RQC["RevmQuoteCallerProbe"]
+    RRTS["RevmRoundTripSettlement"]
+    PCB["PvmCallbackProbe"]
+    RCR["RevmCallbackReceiver"]
+  end
+
+  subgraph Assets
+    WPAS["WPAS\n(wrapped PAS)"]
+    USDC["USDCMock\n(test stablecoin)"]
+  end
+
+  subgraph Registry
+    MVR["MarketVersionRegistry"]
+    MMC["MarketMigrationCoordinator"]
+  end
+
+  AM --> LC & DP & MO & MVR
+  RA --> QE
+  RQC --> QE
+  RRTS --> QE
+  PCB --> RCR
+  WPAS --> LC
+  USDC --> DP
+  MVR --> LC
+  MMC --> LC
+
+  FE["Browser Frontend\n(wagmi + RainbowKit)"] --> LC & DP & MO & MVR
+```
+
+### Borrow Call Flow
+
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant LC as LendingCore
+    participant MO as ManualOracle
+    participant RA as RiskAdapter
+    participant PVM as PvmQuoteProbe
+    participant DP as DebtPool
+    U->>LC: 1. borrow(amount)
+    LC->>MO: 2. getPrice()
+    MO-->>LC: price, timestamp
+    LC->>RA: 3. getQuote(collateral, debt)
+    RA->>PVM: 4. quote(params)
+    PVM-->>RA: borrowRateBps, maxLtvBps
+    RA-->>LC: QuoteTicket
+    LC->>LC: 5. healthFactor >= threshold?
+    LC->>DP: 6. drawPrincipal(amount)
+    DP-->>U: 7. USDC-test tokens
+```
+
+### Contract Dependency Graph
+
+```mermaid
+graph TD
+    GOV[DualVMGovernor] --> TL[TimelockController]
+    TL --> AM[AccessManager]
+    AM -->|controls| LC[LendingCore]
+    AM -->|controls| DP[DebtPool]
+    AM -->|controls| MO[ManualOracle]
+    AM -->|controls| MVR[MarketVersionRegistry]
+    LC --> MO
+    LC --> RA[RiskAdapter]
+    LC <--> DP
+    RA --> QE[PvmQuoteProbe]
+    LC --- WPAS[WPAS Collateral]
+    DP --- USDC[USDCMock Debt]
+    MVR --> MMC[MarketMigrationCoordinator]
+```
+
+### Governance Lifecycle
+
+```mermaid
+stateDiagram-v2
+    [*] --> Pending : propose()
+    Pending --> Active : votingDelay passes
+    Active --> Succeeded : quorum + majority for
+    Active --> Defeated : quorum missed or majority against
+    Succeeded --> Queued : queue()
+    Defeated --> [*]
+    Queued --> Executed : timelock delay + execute()
+    Executed --> [*]
+```
+
+### Dual-VM Execution Boundary
+
+```mermaid
+graph LR
+    subgraph EVM["EVM (REVM) — product contracts"]
+        LC[LendingCore]
+        DP[DebtPool]
+        MO[ManualOracle]
+        RA[RiskAdapter]
+        GV[Governor stack]
+    end
+    subgraph PVM["PVM (PolkaVM)"]
+        QE["PvmQuoteProbe (resolc-compiled)"]
+    end
+    RA -->|cross-VM call| QE
+    QE -->|risk params| RA
+    RA -->|inline math primary| LC
+```
+
+### Migration State Machine
+
+```mermaid
+stateDiagram-v2
+    [*] --> Registered : registerVersion(v2)
+    Registered --> Activated : governance activateVersion()
+    Activated --> RouteOpen : openMigrationRoute(v1 to v2)
+    RouteOpen --> Migrating : migrateBorrower(account)
+    Migrating --> RouteOpen : next borrower
+    RouteOpen --> Complete : all positions migrated
+    Complete --> [*]
+```
+
+### Oracle Update Flow
+
+```mermaid
+sequenceDiagram
+    participant Op as Operator
+    participant MO as ManualOracle
+    Op->>MO: setPrice(newPrice)
+    MO->>MO: check minPrice <= newPrice <= maxPrice
+    MO->>MO: check delta <= maxChangeBps
+    alt circuit breaker passes
+        MO->>MO: price = newPrice, epoch++
+        MO-->>Op: emit PriceUpdated
+    else circuit breaker trips
+        MO-->>Op: revert CircuitBreakerTripped
+    end
+```
+
+### ERC-4626 Pool Flow
+
+```mermaid
+sequenceDiagram
+    participant LP
+    participant DP as DebtPool
+    participant LC as LendingCore
+    LP->>DP: deposit(usdc)
+    DP->>DP: mint shares proportional
+    DP-->>LP: ERC-4626 shares
+    LC->>DP: drawPrincipal(amount)
+    DP-->>LC: USDC transferred, principal tracked
+    LC->>DP: repayPrincipal(principal + interest)
+    DP->>DP: reserve split by reserveFactor
+    DP-->>LP: share value increases
+```
+
+### AccessManager Role Graph
+
+```mermaid
+graph TD
+    GOV[DualVMGovernor] --> TL[TimelockController]
+    TL --> AM[AccessManager admin]
+    AM --> RISK["RISK_ADMIN delay:60s"]
+    AM --> TREAS["TREASURY delay:60s"]
+    AM --> MINT["MINTER delay:60s"]
+    AM --> EMRG["EMERGENCY delay:0s"]
+    RISK --> fn1["RiskAdapter.setQuoteEngine\nManualOracle.setParams"]
+    TREAS --> fn2[DebtPool.setReserveFactor]
+    MINT --> fn3[USDCMock.mint]
+    EMRG --> fn4["*.pause / freezeNewDebt"]
+```
+
+### Liquidation Flow
+
+```mermaid
+sequenceDiagram
+    participant Liq as Liquidator
+    participant LC as LendingCore
+    participant MO as ManualOracle
+    participant DP as DebtPool
+    Liq->>LC: liquidate(borrower, amount)
+    LC->>MO: getPrice()
+    MO-->>LC: price
+    LC->>LC: healthFactor < liquidationThreshold?
+    alt position healthy
+        LC-->>Liq: revert NotLiquidatable
+    else position underwater
+        LC->>DP: repayPrincipal(amount)
+        LC->>LC: seize collateral + bonus
+        LC-->>Liq: WPAS collateral
+        opt bad debt
+            LC->>LC: record shortfall
+        end
+    end
+```
+
+### How PVM Interop Works
+
+The PVM risk engine is **live, not decorative**. Here is the proof chain:
+
+1. **PvmQuoteProbe** is compiled via `resolc` (Polkadot's Solidity-to-PolkaVM compiler) and deployed on-chain with PVM code hash `0xba8fe2a621062a30bba558a3846d0a18bfb2e9a09bfaed656b123e698b59af5b`.
+2. **RiskAdapter** in the product-path LendingCore calls this PVM contract as its quote engine for risk parameters (borrow rate, max LTV, liquidation threshold).
+3. **Probe stages** independently verify the cross-VM capability on the public testnet:
+   - **Stage 0 (Capability gate)**: ✅ All REVM and PVM probe contracts exist on-chain with recorded deploy TXs
+   - **Stage 1A (Echo)**: ✅ REVM sends bytes32 to PVM, receives identical bytes back (data integrity proven)
+   - **Stage 1B (Quote)**: ✅ REVM requests risk parameters from PVM, receives deterministic results (borrowRateBps=700, maxLtvBps=7500, liquidationThresholdBps=8500)
+   - **Stage 2 (PVM→REVM callback)**: ❌ Reverts on-chain — platform-level cross-VM callback path is not yet supported on the public testnet. Earlier probe runs against fresh contracts succeeded, but the canonical probe-results.json records the revert honestly.
+   - **Stage 3 (Roundtrip settlement)**: ⚠️ Mixed — `settleBorrow` shows accumulated state from multiple probe runs (principalDebt=2140 vs expected 1070, settlementCount=3) causing a mismatch verdict, while `settleLiquidationCheck` passed. The PVM-derived quote values (borrowRateBps=700, maxLtvBps=7500, liquidationThresholdBps=8500) are correct in both sub-stages — the failure is accumulated on-chain state, not a computation error.
+4. **Verdicts**: A=true (REVM→PVM direct compute), B=true (roundtrip settlement proven), C=true (callback proven in earlier runs), D=false (D=false means interop IS defensible). These verdicts reflect the overall interop capability across probe runs, not just the latest canonical run.
+5. **XCM Precompile**: CrossChainQuoteEstimator calls the XCM precompile at `0x...0a0000` for `weighMessage`, proving precompile awareness (refTime=979880000, proofSize=10943).
+
+### Governance Architecture
+
+The governance root follows the **Governor→TimelockController→AccessManager** pattern:
+
+- **GovernanceToken**: ERC20 + ERC20Permit + ERC20Votes with timestamp-based CLOCK_MODE
+- **DualVMGovernor**: Governor + GovernorCountingSimple + GovernorVotes + GovernorVotesQuorumFraction + GovernorTimelockControl
+- **TimelockController**: Holds AccessManager admin role. Governor is the proposer.
+- **AccessManager**: System-wide role management with non-zero execution delays (riskAdmin: 60s, treasury: 60s, minter: 60s, emergency: 0s)
+- **Deployer has NO residual roles** — admin was renounced after setup.
+
+Demo-friendly parameters: voting delay ~1s, voting period ~300s, timelock ~60s, quorum 4%.
+
 ## Canonical Deployment (Governor-Governed)
 
 All contracts deployed under a single canonical Governor→TimelockController→AccessManager governance root.
@@ -96,87 +342,6 @@ All contracts deployed under a single canonical Governor→TimelockController→
 | Operation | TX Hash |
 |-----------|---------|
 | weighMessage Proof | [`0xc147ac14...`](https://blockscout-testnet.polkadot.io/tx/0xc147ac140cc9591bcdd444478ed27d72ce4fd05312d5f8ef16f4e6dfe7439cc0) |
-
-## Architecture
-
-```mermaid
-flowchart TB
-  subgraph Governance
-    GT["GovernanceToken\n(ERC20Votes)"] --> GOV["DualVMGovernor"]
-    GOV --> TL["TimelockController"]
-    TL --> AM["AccessManager"]
-  end
-
-  subgraph Market["Lending Market (Immutable Version)"]
-    LC["LendingCore\n(collateral, debt, liquidation)"]
-    DP["DebtPool\n(ERC-4626 LP vault)"]
-    MO["ManualOracle\n(price feed + circuit breaker)"]
-    RA["RiskAdapter\n(quote ticket publication)"]
-    LC <--> DP
-    MO --> LC
-    RA --> LC
-  end
-
-  subgraph PVM["PVM Risk Engine (Live Cross-VM)"]
-    QE["PvmQuoteProbe\n(resolc-compiled, PolkaVM)"]
-  end
-
-  subgraph Probes["Interop Proof Package"]
-    RQC["RevmQuoteCallerProbe"]
-    RRTS["RevmRoundTripSettlement"]
-    PCB["PvmCallbackProbe"]
-    RCR["RevmCallbackReceiver"]
-  end
-
-  subgraph Assets
-    WPAS["WPAS\n(wrapped PAS)"]
-    USDC["USDCMock\n(test stablecoin)"]
-  end
-
-  subgraph Registry
-    MVR["MarketVersionRegistry"]
-    MMC["MarketMigrationCoordinator"]
-  end
-
-  AM --> LC & DP & MO & MVR
-  RA --> QE
-  RQC --> QE
-  RRTS --> QE
-  PCB --> RCR
-  WPAS --> LC
-  USDC --> DP
-  MVR --> LC
-  MMC --> LC
-  
-  FE["Browser Frontend\n(wagmi + RainbowKit)"] --> LC & DP & MO & MVR
-```
-
-### How PVM Interop Works
-
-The PVM risk engine is **live, not decorative**. Here is the proof chain:
-
-1. **PvmQuoteProbe** is compiled via `resolc` (Polkadot's Solidity-to-PolkaVM compiler) and deployed on-chain with PVM code hash `0xba8fe2a621062a30bba558a3846d0a18bfb2e9a09bfaed656b123e698b59af5b`.
-2. **RiskAdapter** in the product-path LendingCore calls this PVM contract as its quote engine for risk parameters (borrow rate, max LTV, liquidation threshold).
-3. **Probe stages** independently verify the cross-VM capability on the public testnet:
-   - **Stage 0 (Capability gate)**: ✅ All REVM and PVM probe contracts exist on-chain with recorded deploy TXs
-   - **Stage 1A (Echo)**: ✅ REVM sends bytes32 to PVM, receives identical bytes back (data integrity proven)
-   - **Stage 1B (Quote)**: ✅ REVM requests risk parameters from PVM, receives deterministic results (borrowRateBps=700, maxLtvBps=7500, liquidationThresholdBps=8500)
-   - **Stage 2 (PVM→REVM callback)**: ❌ Reverts on-chain — platform-level cross-VM callback path is not yet supported on the public testnet. Earlier probe runs against fresh contracts succeeded, but the canonical probe-results.json records the revert honestly.
-   - **Stage 3 (Roundtrip settlement)**: ⚠️ Mixed — `settleBorrow` shows accumulated state from multiple probe runs (principalDebt=2140 vs expected 1070, settlementCount=3) causing a mismatch verdict, while `settleLiquidationCheck` passed. The PVM-derived quote values (borrowRateBps=700, maxLtvBps=7500, liquidationThresholdBps=8500) are correct in both sub-stages — the failure is accumulated on-chain state, not a computation error.
-4. **Verdicts**: A=true (REVM→PVM direct compute), B=true (roundtrip settlement proven), C=true (callback proven in earlier runs), D=false (D=false means interop IS defensible). These verdicts reflect the overall interop capability across probe runs, not just the latest canonical run.
-5. **XCM Precompile**: CrossChainQuoteEstimator calls the XCM precompile at `0x...0a0000` for `weighMessage`, proving precompile awareness (refTime=979880000, proofSize=10943).
-
-### Governance Architecture
-
-The governance root follows the **Governor→TimelockController→AccessManager** pattern:
-
-- **GovernanceToken**: ERC20 + ERC20Permit + ERC20Votes with timestamp-based CLOCK_MODE
-- **DualVMGovernor**: Governor + GovernorCountingSimple + GovernorVotes + GovernorVotesQuorumFraction + GovernorTimelockControl
-- **TimelockController**: Holds AccessManager admin role. Governor is the proposer.
-- **AccessManager**: System-wide role management with non-zero execution delays (riskAdmin: 60s, treasury: 60s, minter: 60s, emergency: 0s)
-- **Deployer has NO residual roles** — admin was renounced after setup.
-
-Demo-friendly parameters: voting delay ~1s, voting period ~300s, timelock ~60s, quorum 4%.
 
 ## Bootstrap
 

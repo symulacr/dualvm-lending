@@ -13,6 +13,8 @@ DualVM Lending is a single isolated lending market on Polkadot Hub TestNet. It c
 
 ## Contract Architecture
 
+> Visual diagrams for all architectural flows (borrow call flow, contract dependencies, governance lifecycle, dual-VM boundary, migration state machine, oracle update flow, ERC-4626 pool flow, AccessManager roles, and liquidation flow) are in the [Architecture section of README.md](../README.md#architecture).
+
 ### Core Market (Immutable per version)
 
 - **LendingCore** — Collateral deposits, borrowing, repayment, liquidation. Immutable per deployed version; new versions are activated via MarketVersionRegistry.
