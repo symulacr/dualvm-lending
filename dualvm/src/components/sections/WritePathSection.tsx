@@ -10,6 +10,7 @@ import {
   erc20ApproveAbi,
   wpasWriteAbi,
   lendingCoreWriteAbi,
+  lendingRouterWriteAbi,
   debtPoolWriteAbi,
   usdcMintAbi,
 } from "../../lib/abi";
@@ -139,6 +140,38 @@ function SupplyLiquidityForm({ onWriteSuccess }: FormProps) {
 
 function DepositCollateralForm({ onWriteSuccess }: FormProps) {
   const { address } = useAccount();
+
+  // ── 1-click flow (LendingRouter) ────────────────────────────────── //
+  const oneClickFlow = useWriteFlow();
+  const [oneClickAmount, setOneClickAmount] = useState("");
+  const oneClickNotifiedRef = useRef(false);
+
+  useEffect(() => {
+    if (oneClickFlow.status === "confirmed" && !oneClickNotifiedRef.current) {
+      oneClickNotifiedRef.current = true;
+      onWriteSuccess?.();
+    }
+  }, [oneClickFlow.status, onWriteSuccess]);
+
+  function handleOneClick(e: FormEvent) {
+    e.preventDefault();
+    if (!oneClickAmount || !contracts.lendingRouter) return;
+    const parsed = parseEther(oneClickAmount);
+    oneClickFlow.write({
+      address: contracts.lendingRouter,
+      abi: lendingRouterWriteAbi,
+      functionName: "depositCollateralFromPAS",
+      value: parsed,
+    });
+  }
+
+  function handleOneClickReset() {
+    oneClickFlow.reset();
+    setOneClickAmount("");
+    oneClickNotifiedRef.current = false;
+  }
+
+  // ── 3-step fallback flow ─────────────────────────────────────────── //
   const wrapFlow = useWriteFlow();
   const approveFlow = useWriteFlow();
   const depositFlow = useWriteFlow();
@@ -236,6 +269,48 @@ function DepositCollateralForm({ onWriteSuccess }: FormProps) {
       <p className="write-form-hint">
         Wrap native PAS into WPAS, approve, and deposit collateral into LendingCore.
       </p>
+
+      {/* ── 1-click option (only shown when LendingRouter is deployed) ── */}
+      {contracts.lendingRouter && (
+        <div className="write-form-oneclick">
+          <p className="write-form-hint write-form-hint--accent">⚡ Deposit PAS (1-click) — wraps &amp; deposits in one TX</p>
+          <form className="write-form" onSubmit={handleOneClick}>
+            <input
+              className="write-input"
+              type="text"
+              inputMode="decimal"
+              placeholder="PAS amount"
+              value={oneClickAmount}
+              onChange={(e) => setOneClickAmount(e.target.value)}
+              disabled={oneClickFlow.status === "pending" || oneClickFlow.status === "confirming"}
+            />
+            <button
+              className="action-button action-button--accent"
+              type="submit"
+              disabled={
+                !address ||
+                !oneClickAmount ||
+                oneClickFlow.status === "pending" ||
+                oneClickFlow.status === "confirming"
+              }
+            >
+              Deposit PAS (1-click)
+            </button>
+          </form>
+          <TxStatusBanner
+            status={oneClickFlow.status}
+            txHash={oneClickFlow.txHash}
+            error={oneClickFlow.error}
+            onReset={handleOneClickReset}
+          />
+          <hr className="write-form-divider" />
+        </div>
+      )}
+
+      {/* ── 3-step fallback ──────────────────────────────────────────── */}
+      {contracts.lendingRouter && (
+        <p className="write-form-hint write-form-hint--muted">Or use the manual 3-step flow:</p>
+      )}
       <form className="write-form" onSubmit={handleWrap}>
         <input
           className="write-input"

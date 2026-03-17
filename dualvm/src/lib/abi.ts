@@ -79,6 +79,17 @@ export const lendingCoreWriteAbi = [
   },
 ] as const;
 
+/* ── LendingRouter: 1-click PAS → collateral ─────────────────────── */
+export const lendingRouterWriteAbi = [
+  {
+    inputs: [],
+    name: "depositCollateralFromPAS",
+    outputs: [],
+    stateMutability: "payable",
+    type: "function",
+  },
+] as const;
+
 /* ── DebtPool write functions (ERC-4626) ──────────────────────────── */
 export const debtPoolWriteAbi = [
   {
