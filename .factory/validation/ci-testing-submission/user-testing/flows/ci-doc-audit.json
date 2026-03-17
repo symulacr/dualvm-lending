@@ -1,0 +1,43 @@
+{
+  "surface": "terminal-doc-audit",
+  "assertions": [
+    {
+      "id": "VAL-DOC-006",
+      "status": "pass",
+      "reason": "The CI workflow includes explicit TypeScript typecheck, lint, and read-only testnet smoke steps, and the smoke script is a contract-existence check via eth_getCode.",
+      "evidence": [
+        "/home/kpa/polkadot/.github/workflows/ci.yml:27 `- name: TypeScript typecheck`",
+        "/home/kpa/polkadot/.github/workflows/ci.yml:28 `run: npx tsc --noEmit`",
+        "/home/kpa/polkadot/.github/workflows/ci.yml:30 `- name: Lint`",
+        "/home/kpa/polkadot/.github/workflows/ci.yml:31 `run: npm run lint`",
+        "/home/kpa/polkadot/.github/workflows/ci.yml:39 `- name: Testnet smoke (read-only contract existence)`",
+        "/home/kpa/polkadot/.github/workflows/ci.yml:40 `run: node scripts/ci-smoke.mjs`",
+        "/home/kpa/polkadot/.github/workflows/ci.yml:41 `continue-on-error: true`",
+        "/home/kpa/polkadot/dualvm/package.json:32 `\"lint\": \"eslint .\"`",
+        "/home/kpa/polkadot/dualvm/scripts/ci-smoke.mjs:6 `verifies each has non-zero bytecode on-chain via eth_getCode.`",
+        "/home/kpa/polkadot/dualvm/scripts/ci-smoke.mjs:8 `This is a read-only, stateless check — safe to run in CI.`",
+        "/home/kpa/polkadot/dualvm/scripts/ci-smoke.mjs:37 `const TARGET_KEYS = [\"lendingCore\", \"debtPool\", \"accessManager\"];`"
+      ]
+    },
+    {
+      "id": "VAL-DOC-009",
+      "status": "pass",
+      "reason": "A demo video file exists in the repository and is referenced from the demo guide and final submission materials.",
+      "evidence": [
+        "/home/kpa/polkadot/docs/dualvm/demo-video.webm (regular file, 3576819 bytes)",
+        "/home/kpa/polkadot/docs/dualvm/demo_guide.md:3 `A recorded demo video is available at docs/dualvm/demo-video.webm.`",
+        "/home/kpa/polkadot/docs/dualvm/demo_guide.md:133 `A recorded browser walkthrough is saved at docs/dualvm/demo-video.webm (3.4 MB, WebM format).`",
+        "/home/kpa/polkadot/docs/dualvm/dualvm_submission_final.md:29 `A browser walkthrough demo video is included in the repository at docs/dualvm/demo-video.webm (WebM format).`"
+      ]
+    }
+  ],
+  "toolsUsed": [
+    "Read",
+    "Grep",
+    "Glob",
+    "Execute"
+  ],
+  "frictions": [],
+  "blockers": [],
+  "testedAt": "2026-03-17T13:14:52.712555+00:00"
+}

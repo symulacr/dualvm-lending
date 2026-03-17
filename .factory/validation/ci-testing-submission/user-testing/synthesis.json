@@ -1,0 +1,22 @@
+{
+  "milestone": "ci-testing-submission",
+  "round": 1,
+  "status": "pass",
+  "assertionsSummary": {
+    "total": 5,
+    "passed": 5,
+    "failed": 0,
+    "blocked": 0
+  },
+  "passedAssertions": [
+    "VAL-DOC-006",
+    "VAL-DOC-007",
+    "VAL-DOC-008",
+    "VAL-DOC-009",
+    "VAL-DOC-012"
+  ],
+  "failedAssertions": [],
+  "blockedAssertions": [],
+  "appliedUpdates": [],
+  "previousRound": null
+}
