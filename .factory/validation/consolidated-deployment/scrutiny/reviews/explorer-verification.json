@@ -1,0 +1,39 @@
+{
+  "featureId": "explorer-verification",
+  "reviewedAt": "2026-03-17T01:24:56Z",
+  "commitId": "263b86cbfbdd30aee933d4ac0274a3a87f3325b1",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "fail",
+  "codeReview": {
+    "summary": "`verifyAll.ts` was correctly extended to cover the governance contracts and emit a verification artifact, but the resulting artifact still records `PvmRiskEngine` as failed. That means the implementation does not satisfy the feature's own expected behavior that all contracts in the canonical manifest have verified Blockscout source.",
+    "issues": [
+      {
+        "file": "dualvm/deployments/polkadot-hub-testnet-canonical-verification.json",
+        "line": 40,
+        "severity": "blocking",
+        "description": "The shipped verification artifact still marks `PvmRiskEngine` as `failed`, so the feature did not achieve `features.json`'s requirement that all canonical contracts have verified source on Blockscout. The script explicitly treats this as an expected limitation instead of producing alternative verification evidence that would close the requirement."
+      },
+      {
+        "file": "/home/kpa/.factory/missions/dc664f26-9086-4d9b-896d-ba8f3bde8d71/handoffs/2026-03-17T00-21-19-628Z__explorer-verification__a315b6b4-14bd-4018-8ab6-58cf5e940e65.json",
+        "line": 10,
+        "severity": "non_blocking",
+        "description": "The handoff's salient summary says 'Explorer-verified all 12 canonical contracts on Blockscout' even though the same handoff and the artifact show only 11/12 succeeded. That overstates completion and is misleading evidence for synthesis."
+      }
+    ]
+  },
+  "sharedStateObservations": [
+    {
+      "area": "skills",
+      "observation": "`deployment-worker` does not document the current repo reality that PVM-compiled contracts cannot be source-verified through standard Blockscout verification and must be defended with `revive.accountInfoOf`/code-hash evidence instead.",
+      "evidence": ".factory/skills/deployment-worker/SKILL.md:41-43 only instructs generic Blockscout verification and :79 says failures may need a different approach; dualvm/scripts/verifyAll.ts:87-89 and dualvm/deployments/polkadot-hub-testnet-canonical-verification.json:94 encode the missing caveat, and the handoff skillFeedback explicitly suggests adding it."
+    },
+    {
+      "area": "knowledge",
+      "observation": "The shared environment library is stale about the default manifest path, which can mislead future deployment/verification workers using `manifestStore`.",
+      "evidence": ".factory/library/environment.md:26 says `DEPLOYMENT_MANIFEST_PATH` defaults to the baseline manifest, but dualvm/lib/deployment/manifestStore.ts:5 now defaults to `polkadot-hub-testnet-canonical.json`."
+    }
+  ],
+  "addressesFailureFrom": null,
+  "summary": "Review failed. The commit usefully broadened explorer verification coverage and generated the requested artifact, but the artifact itself proves one canonical contract (`PvmRiskEngine`) remains unverified on Blockscout, so the feature does not fully meet its stated acceptance criteria. I also noted a misleading handoff summary plus shared-state gaps in the deployment skill and environment library."
+}

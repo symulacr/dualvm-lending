@@ -1,0 +1,103 @@
+{
+  "milestone": "consolidated-deployment",
+  "round": 1,
+  "status": "fail",
+  "validatorsRun": {
+    "test": {
+      "passed": true,
+      "command": "cd \"/home/kpa/polkadot/dualvm\" && npm test",
+      "exitCode": 0
+    },
+    "typecheck": {
+      "passed": true,
+      "command": "cd \"/home/kpa/polkadot/dualvm\" && npx tsc --noEmit",
+      "exitCode": 0
+    },
+    "lint": {
+      "passed": true,
+      "command": "echo \"ESLint not configured yet — lint is a no-op until ci-enhancement feature adds it\"",
+      "exitCode": 0
+    }
+  },
+  "reviewsSummary": {
+    "total": 4,
+    "passed": 1,
+    "failed": 3,
+    "failedFeatures": [
+      "consolidated-deploy",
+      "explorer-verification",
+      "live-migration-proof"
+    ]
+  },
+  "blockingIssues": [
+    {
+      "featureId": "consolidated-deploy",
+      "severity": "blocking",
+      "description": "The committed canonical manifest is incomplete because `dualvm/deployments/polkadot-hub-testnet-canonical.json` stores `contracts.governanceToken` as a masked placeholder instead of a real address, which breaks manifest consumers and fails the feature's requirement to write a complete canonical manifest."
+    },
+    {
+      "featureId": "consolidated-deploy",
+      "severity": "blocking",
+      "description": "`dualvm/deployments/polkadot-hub-testnet-canonical-results.json` overstates proof coverage by claiming all four probe stages passed fresh on the consolidated deployment even though the reviewed handoff says callback and roundtrip verdicts were carried forward from prior runs after partial failures."
+    },
+    {
+      "featureId": "explorer-verification",
+      "severity": "blocking",
+      "description": "`dualvm/deployments/polkadot-hub-testnet-canonical-verification.json` still records `PvmRiskEngine` verification as failed, so the feature does not satisfy its own acceptance criteria that all canonical contracts are explorer-verified on Blockscout."
+    },
+    {
+      "featureId": "live-migration-proof",
+      "severity": "blocking",
+      "description": "`dualvm/scripts/liveMigrationProof.ts` derives the source version from `marketRegistry.activeVersionId()` instead of pinning the canonical v1 source market, making the proof non-resumable and capable of targeting the wrong migration path after a partial run or later registry change."
+    },
+    {
+      "featureId": "live-migration-proof",
+      "severity": "blocking",
+      "description": "The checked-in migration proof artifact is not reproducible from the checked-in script: `liveMigrationProof.ts` does not persist the full transaction-hash structure present in `dualvm/deployments/polkadot-hub-testnet-migration-proof.json`, and the reviewed transcript says the final JSON was manually recreated after an ad-hoc restore helper was used."
+    }
+  ],
+  "appliedUpdates": [
+    {
+      "target": "services.yaml",
+      "description": "Added a reusable `balance_check` command for `cd dualvm && node scripts/check-testnet-balance.mjs` so deployment workers can use the shared command registry instead of ad hoc commands.",
+      "sourceFeature": "xcm-precompile-live-test"
+    },
+    {
+      "target": "library",
+      "description": "Updated `.factory/library/environment.md` to document that `DEPLOYMENT_MANIFEST_PATH` now defaults to the canonical manifest `dualvm/deployments/polkadot-hub-testnet-canonical.json`.",
+      "sourceFeature": "consolidated-deploy, explorer-verification"
+    },
+    {
+      "target": "library",
+      "description": "Updated `.factory/library/xcm-precompile.md` with the live Polkadot Hub TestNet `weighMessage()` proof and recorded non-zero weight values from `polkadot-hub-testnet-xcm-proof.json`.",
+      "sourceFeature": "xcm-precompile-live-test"
+    },
+    {
+      "target": "library",
+      "description": "Updated `.factory/library/architecture.md` with the canonical deployment state and the migration/admin-delay constraint discovered during the live migration proof.",
+      "sourceFeature": "live-migration-proof"
+    }
+  ],
+  "suggestedGuidanceUpdates": [
+    {
+      "target": "deployment-worker skill",
+      "suggestion": "Document Polkadot pallet-revive deployment caveats: identical PVM bytecode can hit `Transaction Already Imported`, and PVM contracts may need reuse/code-hash evidence instead of assuming every probe can always be freshly redeployed and Blockscout-verified like EVM contracts.",
+      "evidence": "`consolidated-deploy` had to reuse an existing `PvmQuoteProbe` after duplicate-bytecode deployment behavior, and `explorer-verification` still could not verify `PvmRiskEngine` through standard Blockscout flow.",
+      "isSystemic": true
+    },
+    {
+      "target": "deployment-worker skill",
+      "suggestion": "Add governed-deployment guidance for live smokes and proofs: note when extra funded role wallets or governed-specific scripts are required, and require long timeouts plus restart-safe scripts for multi-proposal propose→vote→queue→execute flows.",
+      "evidence": "`consolidated-deploy` needed governed-specific liquidation handling and extra funded role wallets, while `live-migration-proof` timed out mid-restore and exposed the need for resumable governed proof scripts.",
+      "isSystemic": true
+    },
+    {
+      "target": "deployment-worker skill",
+      "suggestion": "Add a secret-safety note for `.env` checks: workers should validate presence/configuration without echoing any private-key material into transcripts.",
+      "evidence": "The `xcm-precompile-live-test` transcript checked `.env` by grepping `PRIVATE_KEY=` and echoed part of the secret value into the transcript.",
+      "isSystemic": true
+    }
+  ],
+  "rejectedObservations": [],
+  "previousRound": null
+}

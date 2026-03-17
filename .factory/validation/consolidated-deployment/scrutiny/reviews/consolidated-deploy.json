@@ -1,0 +1,44 @@
+{
+  "featureId": "consolidated-deploy",
+  "reviewedAt": "2026-03-17T01:25:09Z",
+  "commitId": "cc5b351",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "fail",
+  "codeReview": {
+    "summary": "Fail. The reviewed commit updates the canonical deployment artifacts, but the committed manifest is incomplete and the results artifact overstates fresh proof coverage for the consolidated deployment.",
+    "issues": [
+      {
+        "file": "dualvm/deployments/polkadot-hub-testnet-canonical.json",
+        "line": 73,
+        "severity": "blocking",
+        "description": "The canonical manifest stores `contracts.governanceToken` as `******************************************` instead of a real `0x...` address. This violates the feature requirement to write a complete canonical manifest, and it breaks manifest consumers because `src/lib/manifest.ts` / `lib/deployment/manifestStore.ts` parse addresses via `parseDeploymentManifest`, which rejects non-address strings."
+      },
+      {
+        "file": "dualvm/deployments/polkadot-hub-testnet-canonical-results.json",
+        "line": 66,
+        "severity": "blocking",
+        "description": "The results artifact says \"All probe stages passed\" as canonical proof, but the handoff admits only echo/quote were rerun fresh and that callback/roundtrip had partial failures from the new wallet with verdicts carried forward from prior runs. That does not satisfy the feature's requirement to rerun all four probe stages against the consolidated deployment, so the evidence is materially misleading."
+      }
+    ]
+  },
+  "sharedStateObservations": [
+    {
+      "area": "skills",
+      "observation": "The deployment-worker skill does not document Polkadot pallet-revive's duplicate-bytecode behavior for PVM deployments. The worker had to deviate from the skill's 'deploy fresh PVM probes' instruction and reuse the existing PvmQuoteProbe after hitting 'Transaction Already Imported'.",
+      "evidence": "SKILL.md:30-34 still tells workers to deploy PVM probes fresh; handoff lines 73-75 and 92-95 explain that identical PVM bytecode cannot be redeployed and the existing quote engine had to be reused."
+    },
+    {
+      "area": "skills",
+      "observation": "The deployment-worker skill still points governed deployments at the generic `liveLiquidationSmoke.ts`, but this feature needed a governed-specific liquidation path plus funded role wallets. Future workers will repeat the same dead end unless the skill is updated.",
+      "evidence": "SKILL.md:24-27 and 36-39 only mention a single funded wallet and `liveLiquidationSmoke.ts`; handoff lines 11-12, 77-85, and 103-105 say the governed deployment required extra role-wallet funding and a separate `liveGovernedLiquidationSmoke.ts` because `registerVersion/activateVersion` are governance-only."
+    },
+    {
+      "area": "knowledge",
+      "observation": "The shared environment library is stale about the default deployment manifest path after the consolidation work.",
+      "evidence": "`.factory/library/environment.md`:26 says `DEPLOYMENT_MANIFEST_PATH` defaults to the baseline manifest, but `dualvm/lib/deployment/manifestStore.ts`:5-12 now defaults to `polkadot-hub-testnet-canonical.json`, and `dualvm/src/lib/manifest.ts`:1-4 imports the canonical manifest directly."
+    }
+  ],
+  "addressesFailureFrom": null,
+  "summary": "Reviewed handoff `4f050ef8-4cac-47ee-b481-c1d59e5124dd`, transcript skeleton, and commit `cc5b351`. The feature should not pass scrutiny because the committed canonical manifest was incomplete (masked governanceToken address) and the canonical results file claimed fresh all-stage probe proof that the handoff itself says was not actually rerun successfully for callback/roundtrip."
+}

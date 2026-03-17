@@ -23,4 +23,8 @@ struct Weight {
 ## Local testing note
 - On local Hardhat, the XCM precompile address has no code, so live `weighMessage` calls revert.
 - Local tests should verify wrapper compilation, ABI/interface correctness, and explicit handling of the missing precompile.
-- Live `weighMessage` behavior must be validated on Polkadot Hub TestNet.
+
+## Live testnet proof
+- Polkadot Hub TestNet live proof now exists at `dualvm/deployments/polkadot-hub-testnet-xcm-proof.json`.
+- `CrossChainQuoteEstimator.estimateCrossChainQuoteCost(...)` succeeded on the deployed contract and returned non-zero weight values: `refTime=979880000`, `proofSize=10943`.
+- This confirms `weighMessage()` is callable through the canonical XCM precompile on the live REVM route.

@@ -1,0 +1,51 @@
+{
+  "featureId": "live-migration-proof",
+  "reviewedAt": "2026-03-17T01:26:25+00:00",
+  "commitId": "28b8f4ea19fc5c19e942e5d369aaab42cd6dc495",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "fail",
+  "codeReview": {
+    "summary": "The commit contains a credible on-chain migration proof, but the checked-in implementation does not fully satisfy the feature contract. Two blocking problems remain: the script derives the source market from whatever version is currently active instead of the canonical v1 market, and it does not actually generate the committed proof artifact with all transaction hashes. The transcript confirms the first run timed out before restore, a second run targeted the wrong source version, and the worker had to use an uncommitted helper plus a hand-authored JSON file to finish the deliverable.",
+    "issues": [
+      {
+        "file": "/home/kpa/polkadot/dualvm/scripts/liveMigrationProof.ts",
+        "line": 87,
+        "severity": "blocking",
+        "description": "The script sets `v1VersionId` from `marketRegistry.activeVersionId()` instead of pinning the canonical source version that the feature description requires (v1→v2). That makes the script non-resumable and can migrate the wrong market after any partial run or later registry change. The transcript shows this already happened: after the first run timed out before restore, a rerun observed active version 2 and attempted a different migration path, which forced the worker to recover with an ad-hoc `finishRestore.ts` helper outside the committed diff."
+      },
+      {
+        "file": "/home/kpa/polkadot/dualvm/scripts/liveMigrationProof.ts",
+        "line": 151,
+        "severity": "blocking",
+        "description": "Step (9) in the feature requires a results file with all transaction hashes, but this script discards the wrap/approve/deposit/borrow receipts by awaiting `openBorrowPosition()` without capturing any hashes, and later only persists a flat subset of proposal hashes. The committed artifact `/home/kpa/polkadot/dualvm/deployments/polkadot-hub-testnet-migration-proof.json` includes `borrowerPositionTxHashes`, nested `governanceProposal1` / `restoreV1` sections, and `summary.allTxHashes` that this code never produces. The transcript confirms the worker manually recreated the JSON after using an uncommitted restore helper, so the checked-in proof artifact is not reproducible from the checked-in script."
+      },
+      {
+        "file": "/home/kpa/polkadot/dualvm/scripts/liveMigrationProof.ts",
+        "line": 240,
+        "severity": "non_blocking",
+        "description": "The governance batch grants role 0 (ADMIN) to `MarketMigrationCoordinator`, and the script explicitly leaves that grant in place afterward (see the cleanup comment later in the file). That is broader than the feature description's requested restricted migration permission and leaves an extra privileged contract on the canonical deployment, which increases regression risk even though the coordinator currently exposes only migration-specific entrypoints."
+      },
+      {
+        "file": "/home/kpa/polkadot/dualvm/scripts/liveMigrationProof.ts",
+        "line": 323,
+        "severity": "non_blocking",
+        "description": "The feature metadata says this work fulfills `VAL-MIG-003`, but the live script only exercises the happy-path migration after the route has already been opened. There is no attempt to prove the required `MigrationRouteClosed` revert or to record evidence for that validation item in the proof artifact, so the feature currently over-claims its live verification coverage."
+      }
+    ]
+  },
+  "sharedStateObservations": [
+    {
+      "area": "skills",
+      "observation": "The deployment-worker skill is missing guidance for long-running governed live proofs that require full propose→vote→queue→execute cycles, long command timeouts, and resumable/restart-safe scripts. That gap contributed directly to this worker timing out mid-restore and recovering with ad-hoc helper scripts plus a manually recreated artifact.",
+      "evidence": "`/home/kpa/polkadot/.factory/skills/deployment-worker/SKILL.md:30-39,47-51` covers deployment/smoke/verification but says nothing about governed multi-proposal flows or resumability. The handoff `/home/kpa/.factory/missions/dc664f26-9086-4d9b-896d-ba8f3bde8d71/handoffs/2026-03-17T01-16-42-060Z__live-migration-proof__e9e4b7bf-331b-47d5-9292-ac2726815f14.json` explicitly notes the first run timed out during restore and suggests updating the skill for governed deployments; the transcript skeleton shows the worker then created `finishRestore.ts` and manually rewrote the proof JSON."
+    },
+    {
+      "area": "knowledge",
+      "observation": "The shared library does not capture a key canonical-deployment constraint: existing market targets effectively have a long admin-delay posture that prevents quick function-role remapping during live migration proofs, which is why this worker escalated to granting the coordinator ADMIN_ROLE instead of a narrower migration role.",
+      "evidence": "`/home/kpa/polkadot/.factory/library/architecture.md:19-31` mentions `MarketMigrationCoordinator` and the governance chain but not the live admin-delay limitation or the resulting migration-role workaround. The same handoff records: 'The v1 LendingCore has a 3600s targetAdminDelay which prevents quick function-role mapping changes. The migration proof works around this by granting the coordinator ADMIN_ROLE (role 0) instead...' Future workers attempting migration work would benefit from having that constraint recorded in shared state up front."
+    }
+  ],
+  "addressesFailureFrom": null,
+  "summary": "Fail. I reviewed the feature metadata, handoff, transcript skeleton, commit diff, migration proof script, and proof artifact. The on-chain migration itself appears real, but the committed implementation is not self-consistent: the script is not restart-safe for the required v1→v2 path, and the checked-in results JSON was manually reconstructed rather than produced by the checked-in code."
+}

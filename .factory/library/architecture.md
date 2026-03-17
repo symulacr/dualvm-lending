@@ -21,6 +21,11 @@ MarketVersionRegistry
 
 MarketMigrationCoordinator
   └── migrateBorrower() / migrateLiquidity()
+
+## Migration constraint on canonical deployment
+- The live canonical deployment currently has a long target-admin delay posture on existing market targets, so quick function-role remapping is not practical during time-sensitive migration proofs.
+- The recorded live migration proof therefore used a temporary broader AccessManager grant to the `MarketMigrationCoordinator` rather than a fast narrow remap on the already-deployed v1 market.
+- Future migration work should assume governed migration scripts must be restart-safe and explicit about any temporary privilege escalation/cleanup.
 ```
 
 ## Governance Chain
@@ -36,11 +41,11 @@ MarketMigrationCoordinator
 - LendingCore uses `quoteViaTicket()` which auto-publishes if ticket missing
 - Quote engine is PVM-compiled PvmQuoteProbe — genuine cross-VM call
 
-## Deployment Families (HISTORICAL — being consolidated)
-- Baseline: `polkadot-hub-testnet.json` (old, separate roles, explorer-verified)
-- Versioned: `polkadot-hub-testnet-versioned.json` (immutable kernel, but single EOA)
-- Governed: `polkadot-hub-testnet-governed.json` (multisig+timelock, but not verified)
-- CANONICAL: will be single governed+versioned deployment with Governor
+## Deployment state
+- Canonical deployment: `dualvm/deployments/polkadot-hub-testnet-canonical.json`
+- Governance root: `Governor -> TimelockController -> AccessManager`
+- Frontend manifest import points directly at the canonical manifest.
+- Older baseline/versioned/governed manifests are historical and superseded by the canonical deployment path.
 
 ## Frontend Architecture
 - Vite + React 18

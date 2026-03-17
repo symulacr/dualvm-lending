@@ -23,7 +23,7 @@ Environment variables, external dependencies, and setup notes.
 ## Environment Variables (.env)
 - `.env` is gitignored, `.env.example` is the template
 - Key variables: PRIVATE_KEY, POLKADOT_HUB_TESTNET_RPC_URL, role-specific keys
-- DEPLOYMENT_MANIFEST_PATH controls which manifest scripts use (default: baseline)
+- DEPLOYMENT_MANIFEST_PATH controls which manifest scripts use (default: `dualvm/deployments/polkadot-hub-testnet-canonical.json`)
 - Frontend does NOT use DEPLOYMENT_MANIFEST_PATH — it statically imports from `src/lib/manifest.ts`
 
 ## Dependencies
