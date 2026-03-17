@@ -1,11 +1,8 @@
-import { managedActivateVersion, managedRegisterVersion, type ManagedCallContext } from "../lib/ops/managedAccess";
-import { managedMintUsdc } from "../lib/ops/managedAccess";
+import { managedActivateVersion, managedRegisterVersion, managedMintUsdc } from "../lib/ops/managedAccess";
 import { openBorrowPosition, seedDebtPoolLiquidity, waitForDebtToAccrue } from "../lib/ops/liveScenario";
 import { ORACLE_CIRCUIT_BREAKER_DEFAULTS, ORACLE_DEFAULTS, WAD } from "../lib/config/marketConfig";
 import { deployMarketVersion } from "../lib/deployment/deployMarketVersion";
-import { loadDeploymentManifest } from "../lib/deployment/manifestStore";
-import { loadActors } from "../lib/runtime/actors";
-import { attachManifestContract } from "../lib/runtime/contracts";
+import { createSmokeContext, buildManagedContext } from "../lib/runtime/smokeContext";
 import { formatWad, waitForTransaction } from "../lib/runtime/transactions";
 import { runEntrypoint } from "../lib/runtime/entrypoint";
 
@@ -23,35 +20,27 @@ const HIGH_RATE_CONFIG = {
 } as const;
 
 export async function main() {
-  const manifest = loadDeploymentManifest();
+  const { manifest, actors, attach } = await createSmokeContext(
+    ["admin", "minter", "riskAdmin", "lender", "borrower", "liquidator"] as const,
+  );
   if (!manifest.contracts.marketRegistry) {
     throw new Error("Deployment manifest does not include marketRegistry");
   }
-
-  const { admin, minter, riskAdmin, lender, borrower, liquidator } = loadActors(
-    ["admin", "minter", "riskAdmin", "lender", "borrower", "liquidator"] as const,
-  );
+  const { admin, minter, riskAdmin, lender, borrower, liquidator } = actors;
 
   const [accessManagerMinter, accessManagerRisk, marketRegistry, wpas, usdcAdmin] = await Promise.all([
-    attachManifestContract(manifest, "accessManager", "DualVMAccessManager", minter),
-    attachManifestContract(manifest, "accessManager", "DualVMAccessManager", riskAdmin),
-    attachManifestContract(manifest, "marketRegistry", "MarketVersionRegistry", riskAdmin),
-    attachManifestContract(manifest, "wpas", "WPAS", borrower),
-    attachManifestContract(manifest, "usdc", "USDCMock", admin),
+    attach("accessManager", "DualVMAccessManager", minter),
+    attach("accessManager", "DualVMAccessManager", riskAdmin),
+    attach("marketRegistry", "MarketVersionRegistry", riskAdmin),
+    attach("wpas", "WPAS", borrower),
+    attach("usdc", "USDCMock", admin),
   ]);
   const usdcLiquidator = usdcAdmin.connect(liquidator) as any;
   const usdcLender = usdcAdmin.connect(lender) as any;
 
-  const managedMinterContext: ManagedCallContext = {
-    accessManager: accessManagerMinter,
-    signer: minter,
-    executionDelaySeconds: manifest.governance?.executionDelaySeconds?.minter ?? 0,
-  };
-  const managedRiskContext: ManagedCallContext = {
-    accessManager: accessManagerRisk,
-    signer: riskAdmin,
-    executionDelaySeconds: manifest.governance?.executionDelaySeconds?.riskAdmin ?? 0,
-  };
+  const minterCtx = buildManagedContext(manifest, accessManagerMinter, minter, "minter");
+  const riskCtx = buildManagedContext(manifest, accessManagerRisk, riskAdmin, "riskAdmin");
+
   const originalVersionId = await marketRegistry.activeVersionId();
   const temporaryVersion = await deployMarketVersion({
     deployer: admin,
@@ -68,27 +57,19 @@ export async function main() {
   });
 
   await managedRegisterVersion(
-    managedRiskContext,
-    marketRegistry,
-    await temporaryVersion.lendingCore.getAddress(),
-    await temporaryVersion.debtPool.getAddress(),
-    await temporaryVersion.oracle.getAddress(),
-    await temporaryVersion.riskEngine.getAddress(),
+    riskCtx, marketRegistry,
+    await temporaryVersion.lendingCore.getAddress(), await temporaryVersion.debtPool.getAddress(),
+    await temporaryVersion.oracle.getAddress(), await temporaryVersion.riskEngine.getAddress(),
     "register temporary liquidation market version",
   );
   const temporaryVersionId = await marketRegistry.latestVersionId();
-  await managedActivateVersion(
-    managedRiskContext,
-    marketRegistry,
-    temporaryVersionId,
-    "activate temporary liquidation market version",
-  );
+  await managedActivateVersion(riskCtx, marketRegistry, temporaryVersionId, "activate temporary liquidation market version");
 
   const debtPoolLender = temporaryVersion.debtPool.connect(lender) as any;
   const debtPoolAdmin = temporaryVersion.debtPool.connect(admin) as any;
-  const lendingCoreAdmin = temporaryVersion.lendingCore.connect(admin) as any;
   const lendingCoreBorrower = temporaryVersion.lendingCore.connect(borrower) as any;
   const lendingCoreLiquidator = temporaryVersion.lendingCore.connect(liquidator) as any;
+  const lendingCoreAdmin = temporaryVersion.lendingCore.connect(admin) as any;
   const oracle = temporaryVersion.oracle.connect(riskAdmin) as any;
 
   const lenderSeed = 20_000n * WAD;
@@ -96,22 +77,11 @@ export async function main() {
   const collateralPas = 20n * WAD;
   const borrowAmount = 10_000n * WAD;
 
-  await seedDebtPoolLiquidity(managedMinterContext, usdcAdmin, usdcLender, debtPoolLender, lender.address, lenderSeed, "lender");
-  await managedMintUsdc(managedMinterContext, usdcAdmin, liquidator.address, liquidatorSeed, "mint liquidator usdc-test");
-  await openBorrowPosition({
-    wpas,
-    lendingCore: lendingCoreBorrower,
-    collateralPas,
-    borrowAmount,
-    labelPrefix: "borrower",
-  });
+  await seedDebtPoolLiquidity(minterCtx, usdcAdmin, usdcLender, debtPoolLender, lender.address, lenderSeed, "lender");
+  await managedMintUsdc(minterCtx, usdcAdmin, liquidator.address, liquidatorSeed, "mint liquidator usdc-test");
+  await openBorrowPosition({ wpas, lendingCore: lendingCoreBorrower, collateralPas, borrowAmount, labelPrefix: "borrower" });
+  await waitForDebtToAccrue(lendingCoreAdmin, borrower.address, borrowAmount, "wait for liquidation scenario debt growth");
 
-  await waitForDebtToAccrue(
-    lendingCoreAdmin,
-    borrower.address,
-    borrowAmount,
-    "wait for liquidation scenario debt growth",
-  );
   const dropOracleTx = await oracle.setPrice(21n * WAD);
   await dropOracleTx.wait();
   await waitForTransaction(usdcLiquidator.approve(await lendingCoreAdmin.getAddress(), 2n ** 256n - 1n), "liquidator approve core");
@@ -130,20 +100,13 @@ export async function main() {
     wpas.balanceOf(liquidator.address),
   ]);
 
-  await managedActivateVersion(managedRiskContext, marketRegistry, originalVersionId, "restore original market version");
+  await managedActivateVersion(riskCtx, marketRegistry, originalVersionId, "restore original market version");
   const restoredVersion = await marketRegistry.activeVersion();
 
   console.log(
     JSON.stringify(
       {
-        roles: {
-          admin: admin.address,
-          minter: minter.address,
-          riskAdmin: riskAdmin.address,
-          lender: lender.address,
-          borrower: borrower.address,
-          liquidator: liquidator.address,
-        },
+        roles: { admin: admin.address, minter: minter.address, riskAdmin: riskAdmin.address, lender: lender.address, borrower: borrower.address, liquidator: liquidator.address },
         deployment: manifest.contracts,
         governance: manifest.governance,
         temporaryVersionId: temporaryVersionId.toString(),

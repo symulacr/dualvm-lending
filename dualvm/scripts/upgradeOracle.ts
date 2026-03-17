@@ -1,33 +1,28 @@
-import { managedActivateVersion, managedRegisterVersion, type ManagedCallContext } from "../lib/ops/managedAccess";
+import { managedActivateVersion, managedRegisterVersion } from "../lib/ops/managedAccess";
 import { ORACLE_CIRCUIT_BREAKER_DEFAULTS } from "../lib/config/marketConfig";
 import { deployMarketVersion } from "../lib/deployment/deployMarketVersion";
-import { loadDeploymentManifest, writeDeploymentManifest } from "../lib/deployment/manifestStore";
+import { writeDeploymentManifest } from "../lib/deployment/manifestStore";
 import type { HexAddress } from "../lib/shared/deploymentManifest";
-import { loadActors } from "../lib/runtime/actors";
-import { attachManifestContract } from "../lib/runtime/contracts";
+import { createSmokeContext, buildManagedContext } from "../lib/runtime/smokeContext";
 import { runEntrypoint } from "../lib/runtime/entrypoint";
 
 export async function main() {
-  const manifest = loadDeploymentManifest();
+  const { manifest, actors, attach } = await createSmokeContext(["admin", "riskAdmin"] as const);
   if (!manifest.contracts.marketRegistry) {
     throw new Error("Deployment manifest does not include marketRegistry");
   }
+  const { admin, riskAdmin } = actors;
 
-  const { admin, riskAdmin } = loadActors(["admin", "riskAdmin"] as const);
   const [accessManagerRisk, marketRegistry, oldOracle, riskAdapter] = await Promise.all([
-    attachManifestContract(manifest, "accessManager", "DualVMAccessManager", riskAdmin),
-    attachManifestContract(manifest, "marketRegistry", "MarketVersionRegistry", riskAdmin),
-    attachManifestContract(manifest, "oracle", "ManualOracle", admin),
-    attachManifestContract(manifest, "riskEngine", "RiskAdapter", admin),
+    attach("accessManager", "DualVMAccessManager", riskAdmin),
+    attach("marketRegistry", "MarketVersionRegistry", riskAdmin),
+    attach("oracle", "ManualOracle", admin),
+    attach("riskEngine", "RiskAdapter", admin),
   ]);
 
   const [currentPrice, currentMaxAge] = await Promise.all([oldOracle.priceWad(), oldOracle.maxAge()]);
   const quoteEngineAddress = (manifest.contracts.quoteEngine ?? (await riskAdapter.quoteEngine())) as HexAddress;
-  const managedRiskContext: ManagedCallContext = {
-    accessManager: accessManagerRisk,
-    signer: riskAdmin,
-    executionDelaySeconds: manifest.governance?.executionDelaySeconds?.riskAdmin ?? 0,
-  };
+  const managedRiskContext = buildManagedContext(manifest, accessManagerRisk, riskAdmin, "riskAdmin");
 
   const upgradedVersion = await deployMarketVersion({
     deployer: admin,

@@ -1,6 +1,6 @@
 import hre from "hardhat";
 import { type ProbeTransportMode, loadProbeDeploymentManifest, writeProbeDeploymentManifest } from "../../lib/probes/probeStore";
-import { requireEnv } from "../../lib/runtime/env";
+import { createProbeSigner } from "../../lib/probes/probeUtils";
 import { runEntrypoint } from "../../lib/runtime/entrypoint";
 
 const { ethers } = hre;
@@ -15,27 +15,16 @@ async function deployContract(name: string, signer: any, args: unknown[] = []) {
   if (!deployTx) {
     throw new Error(`Missing deployment transaction for ${name}`);
   }
-  return {
-    contract,
-    deployTxHash: deployTx.hash as `0x${string}`,
-  };
+  return { contract, deployTxHash: deployTx.hash as `0x${string}` };
 }
 
 export async function main() {
-  const privateKey = requireEnv("PRIVATE_KEY");
   const manifest = loadProbeDeploymentManifest();
   if (!manifest.pvm.quoteProbe?.address || !manifest.pvm.quoteProbe.codeHash) {
     throw new Error("PVM quote probe must be deployed before REVM probes");
   }
 
-  const provider = ethers.provider;
-  const deployer = new ethers.Wallet(privateKey, provider);
-  const balanceWei = await provider.getBalance(deployer.address);
-  if (balanceWei === 0n) {
-    throw new Error(
-      `Probe deployer ${deployer.address} has 0 PAS. Fund it from ${manifest.polkadotHubTestnet.faucetUrl} before deploying REVM probes.`,
-    );
-  }
+  const { signer: deployer, balance: balanceWei } = await createProbeSigner(manifest.polkadotHubTestnet.faucetUrl);
 
   const callbackReceiver = await deployContract("RevmCallbackReceiver", deployer);
   const quoteCaller = await deployContract("RevmQuoteCallerProbe", deployer, [

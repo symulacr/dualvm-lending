@@ -1,44 +1,30 @@
 import hre from "hardhat";
-import type { ManagedCallContext } from "../lib/ops/managedAccess";
+import { createSmokeContext, buildManagedContext } from "../lib/runtime/smokeContext";
 import { openBorrowPosition, seedDebtPoolLiquidity } from "../lib/ops/liveScenario";
-import { loadDeploymentManifest } from "../lib/deployment/manifestStore";
-import { loadActors } from "../lib/runtime/actors";
-import { attachManifestContract } from "../lib/runtime/contracts";
 import { formatWad } from "../lib/runtime/transactions";
 import { runEntrypoint } from "../lib/runtime/entrypoint";
 
 const { ethers } = hre;
 
 export async function main() {
-  const manifest = loadDeploymentManifest();
-  const { admin, minter } = loadActors(["admin", "minter"] as const);
+  const { manifest, actors, attach } = await createSmokeContext(["admin", "minter"] as const);
+  const { admin, minter } = actors;
 
   const [accessManager, wpas, usdcAdmin, debtPool, lendingCore] = await Promise.all([
-    attachManifestContract(manifest, "accessManager", "DualVMAccessManager", minter),
-    attachManifestContract(manifest, "wpas", "WPAS", admin),
-    attachManifestContract(manifest, "usdc", "USDCMock", admin),
-    attachManifestContract(manifest, "debtPool", "DebtPool", admin),
-    attachManifestContract(manifest, "lendingCore", "LendingCore", admin),
+    attach("accessManager", "DualVMAccessManager", minter),
+    attach("wpas", "WPAS", admin),
+    attach("usdc", "USDCMock", admin),
+    attach("debtPool", "DebtPool", admin),
+    attach("lendingCore", "LendingCore", admin),
   ]);
 
-  const managedMinterContext: ManagedCallContext = {
-    accessManager,
-    signer: minter,
-    executionDelaySeconds: manifest.governance?.executionDelaySeconds?.minter ?? 0,
-  };
-
+  const ctx = buildManagedContext(manifest, accessManager, minter, "minter");
   const poolSeed = ethers.parseUnits("1000", 18);
   const collateralPas = ethers.parseUnits("2", 18);
   const borrowAmount = ethers.parseUnits("100", 18);
 
-  await seedDebtPoolLiquidity(managedMinterContext, usdcAdmin, usdcAdmin, debtPool, admin.address, poolSeed, "deployer");
-  await openBorrowPosition({
-    wpas,
-    lendingCore,
-    collateralPas,
-    borrowAmount,
-    labelPrefix: "deployer",
-  });
+  await seedDebtPoolLiquidity(ctx, usdcAdmin, usdcAdmin, debtPool, admin.address, poolSeed, "deployer");
+  await openBorrowPosition({ wpas, lendingCore, collateralPas, borrowAmount, labelPrefix: "deployer" });
 
   const [usdcBalance, poolAssets, outstandingPrincipal, deployerDebt, collateralBalance] = await Promise.all([
     usdcAdmin.balanceOf(admin.address),

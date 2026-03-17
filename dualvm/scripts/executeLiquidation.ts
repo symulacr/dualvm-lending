@@ -1,8 +1,6 @@
-import { loadDeploymentManifest } from "../lib/deployment/manifestStore";
-import { loadActors } from "../lib/runtime/actors";
-import { attachManifestContract } from "../lib/runtime/contracts";
 import { requireEnv } from "../lib/runtime/env";
 import { waitForTransaction } from "../lib/runtime/transactions";
+import { createSmokeContext } from "../lib/runtime/smokeContext";
 import { runEntrypoint } from "../lib/runtime/entrypoint";
 import hre from "hardhat";
 
@@ -10,12 +8,12 @@ const { ethers } = hre;
 
 export async function main() {
   const borrower = requireEnv("BORROWER_ADDRESS");
-  const manifest = loadDeploymentManifest();
-  const { liquidator } = loadActors(["liquidator"] as const);
+  const { actors, attach } = await createSmokeContext(["liquidator"] as const);
+  const { liquidator } = actors;
 
   const [usdc, lendingCore] = await Promise.all([
-    attachManifestContract(manifest, "usdc", "USDCMock", liquidator),
-    attachManifestContract(manifest, "lendingCore", "LendingCore", liquidator),
+    attach("usdc", "USDCMock", liquidator),
+    attach("lendingCore", "LendingCore", liquidator),
   ]);
 
   const [debt, healthFactor] = await Promise.all([

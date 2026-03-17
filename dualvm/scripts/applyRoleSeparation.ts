@@ -1,18 +1,17 @@
 import { LIVE_ROLE_EXECUTION_DELAYS_SECONDS, ROLE_IDS } from "../lib/config/marketConfig";
-import { loadDeploymentManifest, writeDeploymentManifest } from "../lib/deployment/manifestStore";
+import { writeDeploymentManifest } from "../lib/deployment/manifestStore";
 import type { HexAddress } from "../lib/shared/deploymentManifest";
-import { loadActors } from "../lib/runtime/actors";
-import { attachManifestContract } from "../lib/runtime/contracts";
+import { createSmokeContext } from "../lib/runtime/smokeContext";
 import { waitForTransaction } from "../lib/runtime/transactions";
 import { runEntrypoint } from "../lib/runtime/entrypoint";
 
 export async function main() {
-  const manifest = loadDeploymentManifest();
-  const { admin, emergency, riskAdmin, treasury, minter } = loadActors(
+  const { manifest, actors, attach } = await createSmokeContext(
     ["admin", "emergency", "riskAdmin", "treasury", "minter"] as const,
   );
+  const { admin, emergency, riskAdmin, treasury, minter } = actors;
 
-  const accessManager = await attachManifestContract(manifest, "accessManager", "DualVMAccessManager", admin);
+  const accessManager = await attach("accessManager", "DualVMAccessManager", admin);
 
   await waitForTransaction(
     accessManager.grantRole(ROLE_IDS.EMERGENCY, emergency.address, LIVE_ROLE_EXECUTION_DELAYS_SECONDS.emergency),

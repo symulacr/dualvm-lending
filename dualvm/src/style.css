@@ -213,10 +213,6 @@ h2 {
 .metric-grid {
   display: grid;
   gap: 14px;
-}
-
-.address-grid,
-.metric-grid {
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
 }
 
@@ -245,10 +241,6 @@ h2 {
   color: #f3f8ff;
   font-size: 1rem;
   line-height: 1.5;
-}
-
-.metric-value {
-  font-size: 1.02rem;
 }
 
 .empty-state {

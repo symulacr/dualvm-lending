@@ -6,23 +6,14 @@ import {
   loadProbeResultsManifest,
   writeProbeResultsManifest,
 } from "../../lib/probes/probeStore";
-import { requireEnv } from "../../lib/runtime/env";
+import { PROBE_QUOTE_INPUT, createProbeSigner, txUrl } from "../../lib/probes/probeUtils";
 import { runEntrypoint } from "../../lib/runtime/entrypoint";
 
 const { ethers } = hre;
 const abiCoder = AbiCoder.defaultAbiCoder();
 
 const ECHO_INPUT = "0x111122223333444455556666777788889999aaaabbbbccccddddeeeeffff0000";
-const QUOTE_INPUT = {
-  utilizationBps: 5_000n,
-  collateralRatioBps: 20_000n,
-  oracleAgeSeconds: 60n,
-  oracleFresh: true,
-};
-
-function txUrl(baseUrl: string, hash: string) {
-  return `${baseUrl}tx/${hash}`;
-}
+const QUOTE_INPUT = PROBE_QUOTE_INPUT;
 
 function transportModeName(value: number) {
   switch (value) {
@@ -53,15 +44,13 @@ function ensureResults(results: ProbeResultsManifest) {
 }
 
 export async function main() {
-  const privateKey = requireEnv("PRIVATE_KEY");
   const manifest = loadProbeDeploymentManifest();
   if (!manifest.revm.quoteCaller?.address) {
     throw new Error("REVM quote caller probe is not deployed");
   }
 
   const results = ensureResults(loadProbeResultsManifest());
-  const provider = ethers.provider;
-  const signer = new ethers.Wallet(privateKey, provider);
+  const { signer } = await createProbeSigner(manifest.polkadotHubTestnet.faucetUrl);
   const quoteCaller = (await ethers.getContractFactory("RevmQuoteCallerProbe", signer)).attach(
     manifest.revm.quoteCaller.address,
   ) as any;

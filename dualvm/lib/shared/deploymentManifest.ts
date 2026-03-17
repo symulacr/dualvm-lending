@@ -116,95 +116,73 @@ function readAddress(record: Record<string, unknown>, key: string, path: string)
   return value as HexAddress;
 }
 
+function readStrings(record: Record<string, unknown>, keys: string[], path: string) {
+  for (const key of keys) readString(record, key, path);
+}
+
+function readNumbers(record: Record<string, unknown>, keys: string[], path: string) {
+  for (const key of keys) readNumber(record, key, path);
+}
+
+function readAddresses(record: Record<string, unknown>, keys: string[], path: string) {
+  for (const key of keys) readAddress(record, key, path);
+}
+
+function readOptionalAddresses(record: Record<string, unknown>, keys: string[], path: string) {
+  for (const key of keys) {
+    if (record[key] !== undefined) readAddress(record, key, path);
+  }
+}
+
 export function parseDeploymentManifest(value: unknown): DeploymentManifest {
   assertRecord(value, "manifest");
-  assertRecord(value.polkadotHubTestnet, "manifest.polkadotHubTestnet");
-  assertRecord(value.roles, "manifest.roles");
-  assertRecord(value.governance, "manifest.governance");
-  assertRecord(value.governance.executionDelaySeconds, "manifest.governance.executionDelaySeconds");
-  assertRecord(value.config, "manifest.config");
-  assertRecord(value.config.pool, "manifest.config.pool");
-  assertRecord(value.config.core, "manifest.config.core");
-  assertRecord(value.config.riskEngine, "manifest.config.riskEngine");
-  assertRecord(value.contracts, "manifest.contracts");
+  for (const [key, path] of [
+    ["polkadotHubTestnet", "manifest.polkadotHubTestnet"],
+    ["roles", "manifest.roles"],
+    ["governance", "manifest.governance"],
+    ["config", "manifest.config"],
+    ["contracts", "manifest.contracts"],
+  ] as const) {
+    assertRecord(value[key], path);
+  }
+  const net = value.polkadotHubTestnet as Record<string, unknown>;
+  const roles = value.roles as Record<string, unknown>;
+  const governance = value.governance as Record<string, unknown>;
+  const config = value.config as Record<string, unknown>;
+  const contracts = value.contracts as Record<string, unknown>;
 
-  if (value.config.oracle !== undefined) {
-    assertRecord(value.config.oracle, "manifest.config.oracle");
-    assertRecord(value.config.oracle.circuitBreaker, "manifest.config.oracle.circuitBreaker");
+  assertRecord(governance.executionDelaySeconds, "manifest.governance.executionDelaySeconds");
+  const delays = governance.executionDelaySeconds as Record<string, unknown>;
+  for (const sub of ["pool", "core", "riskEngine"] as const) assertRecord(config[sub], `manifest.config.${sub}`);
+  const pool = config.pool as Record<string, unknown>;
+  const core = config.core as Record<string, unknown>;
+
+  if (config.oracle !== undefined) {
+    assertRecord(config.oracle, "manifest.config.oracle");
+    assertRecord((config.oracle as Record<string, unknown>).circuitBreaker, "manifest.config.oracle.circuitBreaker");
   }
 
-  readString(value, "generatedAt", "manifest");
-  readString(value, "networkName", "manifest");
+  readStrings(value, ["generatedAt", "networkName"], "manifest");
+  readStrings(net, ["name", "rpcUrl", "fallbackRpcUrl", "explorerUrl", "faucetUrl"], "manifest.polkadotHubTestnet");
+  readNumber(net, "chainId", "manifest.polkadotHubTestnet");
+  readAddresses(roles, ["treasury", "emergencyAdmin", "riskAdmin", "treasuryOperator", "minter"], "manifest.roles");
+  readAddress(governance, "admin", "manifest.governance");
+  readNumbers(delays, ["emergency", "riskAdmin", "treasury", "minter"], "manifest.governance.executionDelaySeconds");
+  readNumbers(config, ["adminDelaySeconds", "oracleMaxAgeSeconds"], "manifest.config");
+  readStrings(config, ["oraclePriceWad", "initialLiquidity"], "manifest.config");
+  readStrings(pool, ["supplyCap", "initialLiquidity"], "manifest.config.pool");
+  readStrings(core, ["borrowCap", "minBorrowAmount", "reserveFactorBps", "maxLtvBps", "liquidationThresholdBps", "liquidationBonusBps"], "manifest.config.core");
 
-  readString(value.polkadotHubTestnet, "name", "manifest.polkadotHubTestnet");
-  readNumber(value.polkadotHubTestnet, "chainId", "manifest.polkadotHubTestnet");
-  readString(value.polkadotHubTestnet, "rpcUrl", "manifest.polkadotHubTestnet");
-  readString(value.polkadotHubTestnet, "fallbackRpcUrl", "manifest.polkadotHubTestnet");
-  readString(value.polkadotHubTestnet, "explorerUrl", "manifest.polkadotHubTestnet");
-  readString(value.polkadotHubTestnet, "faucetUrl", "manifest.polkadotHubTestnet");
-
-  readAddress(value.roles, "treasury", "manifest.roles");
-  readAddress(value.roles, "emergencyAdmin", "manifest.roles");
-  readAddress(value.roles, "riskAdmin", "manifest.roles");
-  readAddress(value.roles, "treasuryOperator", "manifest.roles");
-  readAddress(value.roles, "minter", "manifest.roles");
-
-  readAddress(value.governance, "admin", "manifest.governance");
-  readNumber(value.governance.executionDelaySeconds, "emergency", "manifest.governance.executionDelaySeconds");
-  readNumber(value.governance.executionDelaySeconds, "riskAdmin", "manifest.governance.executionDelaySeconds");
-  readNumber(value.governance.executionDelaySeconds, "treasury", "manifest.governance.executionDelaySeconds");
-  readNumber(value.governance.executionDelaySeconds, "minter", "manifest.governance.executionDelaySeconds");
-
-  readNumber(value.config, "adminDelaySeconds", "manifest.config");
-  readNumber(value.config, "oracleMaxAgeSeconds", "manifest.config");
-  readString(value.config, "oraclePriceWad", "manifest.config");
-  readString(value.config, "initialLiquidity", "manifest.config");
-  readString(value.config.pool, "supplyCap", "manifest.config.pool");
-  readString(value.config.pool, "initialLiquidity", "manifest.config.pool");
-  readString(value.config.core, "borrowCap", "manifest.config.core");
-  readString(value.config.core, "minBorrowAmount", "manifest.config.core");
-  readString(value.config.core, "reserveFactorBps", "manifest.config.core");
-  readString(value.config.core, "maxLtvBps", "manifest.config.core");
-  readString(value.config.core, "liquidationThresholdBps", "manifest.config.core");
-  readString(value.config.core, "liquidationBonusBps", "manifest.config.core");
-
-  for (const [key, engineValue] of Object.entries(value.config.riskEngine)) {
-    if (typeof engineValue !== "string") {
-      throw new Error(`Expected string at manifest.config.riskEngine.${key}`);
-    }
+  for (const [key, engineValue] of Object.entries(config.riskEngine as Record<string, unknown>)) {
+    if (typeof engineValue !== "string") throw new Error(`Expected string at manifest.config.riskEngine.${key}`);
   }
 
-  if (value.config.oracle !== undefined) {
-    const circuitBreaker = value.config.oracle.circuitBreaker as Record<string, unknown>;
-    readString(circuitBreaker, "minPriceWad", "manifest.config.oracle.circuitBreaker");
-    readString(circuitBreaker, "maxPriceWad", "manifest.config.oracle.circuitBreaker");
-    readString(circuitBreaker, "maxPriceChangeBps", "manifest.config.oracle.circuitBreaker");
+  if (config.oracle !== undefined) {
+    readStrings((config.oracle as Record<string, unknown>).circuitBreaker as Record<string, unknown>, ["minPriceWad", "maxPriceWad", "maxPriceChangeBps"], "manifest.config.oracle.circuitBreaker");
   }
 
-  readAddress(value.contracts, "accessManager", "manifest.contracts");
-  readAddress(value.contracts, "wpas", "manifest.contracts");
-  readAddress(value.contracts, "usdc", "manifest.contracts");
-  readAddress(value.contracts, "oracle", "manifest.contracts");
-  readAddress(value.contracts, "riskEngine", "manifest.contracts");
-  readAddress(value.contracts, "debtPool", "manifest.contracts");
-  readAddress(value.contracts, "lendingCore", "manifest.contracts");
-  if (value.contracts.quoteEngine !== undefined) {
-    readAddress(value.contracts, "quoteEngine", "manifest.contracts");
-  }
-  if (value.contracts.marketRegistry !== undefined) {
-    readAddress(value.contracts, "marketRegistry", "manifest.contracts");
-  }
-  if (value.contracts.governanceToken !== undefined) {
-    readAddress(value.contracts, "governanceToken", "manifest.contracts");
-  }
-  if (value.contracts.governor !== undefined) {
-    readAddress(value.contracts, "governor", "manifest.contracts");
-  }
-  if (value.contracts.governanceMultisig !== undefined) {
-    readAddress(value.contracts, "governanceMultisig", "manifest.contracts");
-  }
-  if (value.contracts.governanceTimelock !== undefined) {
-    readAddress(value.contracts, "governanceTimelock", "manifest.contracts");
-  }
+  readAddresses(contracts, ["accessManager", "wpas", "usdc", "oracle", "riskEngine", "debtPool", "lendingCore"], "manifest.contracts");
+  readOptionalAddresses(contracts, ["quoteEngine", "marketRegistry", "governanceToken", "governor", "governanceMultisig", "governanceTimelock"], "manifest.contracts");
+
   return value as unknown as DeploymentManifest;
 }

@@ -6,22 +6,13 @@ import {
   loadProbeResultsManifest,
   writeProbeResultsManifest,
 } from "../../lib/probes/probeStore";
-import { requireEnv } from "../../lib/runtime/env";
+import { PROBE_QUOTE_INPUT, createProbeSigner, txUrl } from "../../lib/probes/probeUtils";
 import { runEntrypoint } from "../../lib/runtime/entrypoint";
 
 const { ethers } = hre;
 const abiCoder = AbiCoder.defaultAbiCoder();
-const QUOTE_INPUT = {
-  utilizationBps: 5_000n,
-  collateralRatioBps: 20_000n,
-  oracleAgeSeconds: 60n,
-  oracleFresh: true,
-};
+const QUOTE_INPUT = PROBE_QUOTE_INPUT;
 const CALLBACK_NAMESPACE = keccak256(toUtf8Bytes("DUALVM_PVM_CALLBACK_PROBE_V1"));
-
-function txUrl(baseUrl: string, hash: string) {
-  return `${baseUrl}tx/${hash}`;
-}
 
 function fingerprintHash(receiver: string, callId: string) {
   return keccak256(abiCoder.encode(["bytes32", "address", "bytes32"], [CALLBACK_NAMESPACE, receiver, callId]));
@@ -48,19 +39,12 @@ async function executeCallback(label: string, txPromise: Promise<any>, explorerB
 }
 
 export async function main() {
-  const privateKey = requireEnv("PRIVATE_KEY");
   const manifest = loadProbeDeploymentManifest();
   if (!manifest.pvm.callbackProbe?.address || !manifest.revm.callbackReceiver?.address) {
     throw new Error("PVM callback probe and REVM callback receiver must be deployed before Stage 2");
   }
 
-  const provider = ethers.provider;
-  const signer = new ethers.Wallet(privateKey, provider);
-  const balanceWei = await provider.getBalance(signer.address);
-  if (balanceWei === 0n) {
-    throw new Error(`Probe deployer ${signer.address} has 0 PAS. Fund it before running Stage 2.`);
-  }
-
+  const { signer } = await createProbeSigner(manifest.polkadotHubTestnet.faucetUrl);
   const callbackProbe = (await ethers.getContractFactory("PvmCallbackProbe", signer)).attach(
     manifest.pvm.callbackProbe.address,
   ) as any;

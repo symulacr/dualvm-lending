@@ -1,7 +1,7 @@
-import hre from "hardhat";
 import { deployGovernedSystem } from "../lib/deployment/deployGovernedSystem";
 import { writeDeploymentManifest } from "../lib/deployment/manifestStore";
-import { type DeploymentManifest, type HexAddress } from "../lib/shared/deploymentManifest";
+import { serializeDeploymentManifest } from "../lib/deployment/serializeManifest";
+import type { HexAddress } from "../lib/shared/deploymentManifest";
 import { LIVE_ROLE_EXECUTION_DELAYS_SECONDS, WAD } from "../lib/config/marketConfig";
 import { runEntrypoint } from "../lib/runtime/entrypoint";
 
@@ -43,58 +43,13 @@ export async function main() {
     quorumNumerator: process.env.QUORUM_NUMERATOR ? Number(process.env.QUORUM_NUMERATOR) : 4,
   });
 
-  const { network } = hre;
-  const manifest: DeploymentManifest = {
-    generatedAt: new Date().toISOString(),
-    networkName: network.name,
-    polkadotHubTestnet: deployment.network,
-    roles: deployment.roles as DeploymentManifest["roles"],
-    governance: deployment.governance as DeploymentManifest["governance"],
-    config: {
-      ...deployment.config,
-      oraclePriceWad: deployment.config.oraclePriceWad.toString(),
-      initialLiquidity: deployment.config.initialLiquidity.toString(),
-      pool: {
-        supplyCap: deployment.config.pool.supplyCap.toString(),
-        initialLiquidity: deployment.config.pool.initialLiquidity.toString(),
-      },
-      core: {
-        borrowCap: deployment.config.core.borrowCap.toString(),
-        minBorrowAmount: deployment.config.core.minBorrowAmount.toString(),
-        reserveFactorBps: deployment.config.core.reserveFactorBps.toString(),
-        maxLtvBps: deployment.config.core.maxLtvBps.toString(),
-        liquidationThresholdBps: deployment.config.core.liquidationThresholdBps.toString(),
-        liquidationBonusBps: deployment.config.core.liquidationBonusBps.toString(),
-      },
-      riskEngine: Object.fromEntries(
-        Object.entries(deployment.config.riskEngine).map(([key, value]) => [key, value.toString()]),
-      ),
-      oracle: deployment.config.oracle
-        ? {
-            circuitBreaker: {
-              minPriceWad: deployment.config.oracle.circuitBreaker.minPriceWad.toString(),
-              maxPriceWad: deployment.config.oracle.circuitBreaker.maxPriceWad.toString(),
-              maxPriceChangeBps: deployment.config.oracle.circuitBreaker.maxPriceChangeBps.toString(),
-            },
-          }
-        : undefined,
-    },
+  const manifest = await serializeDeploymentManifest(deployment, {
     contracts: {
-      accessManager: (await deployment.contracts.accessManager.getAddress()) as HexAddress,
-      wpas: (await deployment.contracts.wpas.getAddress()) as HexAddress,
-      usdc: (await deployment.contracts.usdc.getAddress()) as HexAddress,
-      oracle: (await deployment.contracts.oracle.getAddress()) as HexAddress,
-      riskEngine: (await deployment.contracts.riskEngine.getAddress()) as HexAddress,
-      quoteEngine: (await deployment.contracts.quoteEngine.getAddress()) as HexAddress,
-      marketRegistry: (await deployment.contracts.marketRegistry.getAddress()) as HexAddress,
       governanceToken: (await deployment.governanceRoot.governanceToken.getAddress()) as HexAddress,
       governor: (await deployment.governanceRoot.governor.getAddress()) as HexAddress,
       governanceTimelock: (await deployment.governanceRoot.timelock.getAddress()) as HexAddress,
-      debtPool: (await deployment.contracts.debtPool.getAddress()) as HexAddress,
-      lendingCore: (await deployment.contracts.lendingCore.getAddress()) as HexAddress,
     },
-  };
-
+  });
   const outPath = writeDeploymentManifest(manifest);
   console.log(`Deployment manifest written to ${outPath}`);
   console.log(JSON.stringify(manifest, null, 2));

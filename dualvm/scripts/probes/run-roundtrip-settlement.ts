@@ -1,23 +1,13 @@
 import hre from "hardhat";
 import { type ProbeStageRecord, loadProbeDeploymentManifest, loadProbeResultsManifest, writeProbeResultsManifest } from "../../lib/probes/probeStore";
-import { requireEnv } from "../../lib/runtime/env";
+import { PROBE_QUOTE_INPUT, createProbeSigner, txUrl } from "../../lib/probes/probeUtils";
 import { runEntrypoint } from "../../lib/runtime/entrypoint";
 
 const { ethers } = hre;
-const QUOTE_INPUT = {
-  utilizationBps: 5_000n,
-  collateralRatioBps: 20_000n,
-  oracleAgeSeconds: 60n,
-  oracleFresh: true,
-};
+const QUOTE_INPUT = PROBE_QUOTE_INPUT;
 const DEBT_DELTA = 1_000n;
 
-function txUrl(baseUrl: string, hash: string) {
-  return `${baseUrl}tx/${hash}`;
-}
-
 export async function main() {
-  const privateKey = requireEnv("PRIVATE_KEY");
   const manifest = loadProbeDeploymentManifest();
   const results = loadProbeResultsManifest();
   if (!manifest.revm.roundTripSettlement?.address) {
@@ -34,8 +24,7 @@ export async function main() {
     return;
   }
 
-  const provider = ethers.provider;
-  const signer = new ethers.Wallet(privateKey, provider);
+  const { signer } = await createProbeSigner(manifest.polkadotHubTestnet.faucetUrl);
   const settlementProbe = (await ethers.getContractFactory("RevmRoundTripSettlementProbe", signer)).attach(
     manifest.revm.roundTripSettlement.address,
   ) as any;

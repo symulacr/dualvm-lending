@@ -1,28 +1,18 @@
-import {
-  managedSetOracleCircuitBreaker,
-  managedSetOraclePrice,
-  type ManagedCallContext,
-} from "../lib/ops/managedAccess";
+import { managedSetOracleCircuitBreaker, managedSetOraclePrice } from "../lib/ops/managedAccess";
 import { WAD } from "../lib/config/marketConfig";
-import { loadDeploymentManifest } from "../lib/deployment/manifestStore";
-import { loadActors } from "../lib/runtime/actors";
-import { attachManifestContract } from "../lib/runtime/contracts";
+import { createSmokeContext, buildManagedContext } from "../lib/runtime/smokeContext";
 import { formatWad } from "../lib/runtime/transactions";
 import { runEntrypoint } from "../lib/runtime/entrypoint";
 
 export async function main() {
-  const manifest = loadDeploymentManifest();
-  const { riskAdmin } = loadActors(["riskAdmin"] as const);
+  const { manifest, actors, attach } = await createSmokeContext(["riskAdmin"] as const);
+  const { riskAdmin } = actors;
 
   const [accessManager, oracle] = await Promise.all([
-    attachManifestContract(manifest, "accessManager", "DualVMAccessManager", riskAdmin),
-    attachManifestContract(manifest, "oracle", "ManualOracle", riskAdmin),
+    attach("accessManager", "DualVMAccessManager", riskAdmin),
+    attach("oracle", "ManualOracle", riskAdmin),
   ]);
-  const managedRiskContext: ManagedCallContext = {
-    accessManager,
-    signer: riskAdmin,
-    executionDelaySeconds: manifest.governance?.executionDelaySeconds?.riskAdmin ?? 0,
-  };
+  const ctx = buildManagedContext(manifest, accessManager, riskAdmin, "riskAdmin");
 
   const before = {
     price: await oracle.priceWad(),
@@ -31,24 +21,10 @@ export async function main() {
     maxPriceChangeBps: await oracle.maxPriceChangeBps(),
   };
 
-  await managedSetOracleCircuitBreaker(
-    managedRiskContext,
-    oracle,
-    1n * WAD,
-    20_000n * WAD,
-    10_000n,
-    "oracle smoke widen circuit breaker",
-  );
-  await managedSetOraclePrice(managedRiskContext, oracle, 950n * WAD, "oracle smoke set intermediate price");
-  await managedSetOraclePrice(managedRiskContext, oracle, 1_000n * WAD, "oracle smoke restore baseline price");
-  await managedSetOracleCircuitBreaker(
-    managedRiskContext,
-    oracle,
-    before.minPriceWad,
-    before.maxPriceWad,
-    before.maxPriceChangeBps,
-    "oracle smoke restore circuit breaker",
-  );
+  await managedSetOracleCircuitBreaker(ctx, oracle, 1n * WAD, 20_000n * WAD, 10_000n, "oracle smoke widen circuit breaker");
+  await managedSetOraclePrice(ctx, oracle, 950n * WAD, "oracle smoke set intermediate price");
+  await managedSetOraclePrice(ctx, oracle, 1_000n * WAD, "oracle smoke restore baseline price");
+  await managedSetOracleCircuitBreaker(ctx, oracle, before.minPriceWad, before.maxPriceWad, before.maxPriceChangeBps, "oracle smoke restore circuit breaker");
 
   const after = {
     price: await oracle.priceWad(),
