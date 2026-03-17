@@ -1,0 +1,19 @@
+{
+  "timestamp": "2026-03-17T01:19:41.908Z",
+  "network": "polkadotHubTestnet",
+  "chainId": 420420417,
+  "deployer": "0x36a83a4450744f4F9988c9Bc46cC556Ba5bFD2dF",
+  "estimatorAddress": "0x5bC4e5BbF72b67Acb202546e88849dAcF8985A7F",
+  "explorerUrl": "https://blockscout-testnet.polkadot.io/address/0x5bC4e5BbF72b67Acb202546e88849dAcF8985A7F",
+  "deployTxHash": "0xc147ac140cc9591bcdd444478ed27d72ce4fd05312d5f8ef16f4e6dfe7439cc0",
+  "xcmPrecompileAddress": "0x00000000000000000000000000000000000A0000",
+  "xcmPrecompileHasCode": true,
+  "sampleXcmMessage": "0x050c000401000003008c86471301000003008c8647000d010101000000010100368e8759910dab756d344995f1d3c79374ca8f70066d3a709e48029f6bf0ee7e",
+  "weighMessageAttempt": {
+    "success": true,
+    "refTime": "979880000",
+    "proofSize": "10943",
+    "error": null
+  },
+  "knownLimitation": null
+}
