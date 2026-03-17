@@ -212,14 +212,14 @@ contract LendingCore is AccessManaged, Pausable, ReentrancyGuard, IMigratableLen
         );
     }
 
-    function publishCurrentQuoteTicket(address borrower) external returns (bytes32 ticketId) {
+    function publishCurrentQuoteTicket(address borrower) external restricted returns (bytes32 ticketId) {
         IRiskEngine.QuoteInput memory input = currentQuoteInput(borrower);
         IRiskAdapter.QuoteContext memory context = currentQuoteContext();
         ticketId = riskEngine.quoteTicketId(context, input);
         riskEngine.quoteViaTicket(context, input);
     }
 
-    function publishProjectedBorrowQuoteTicket(address borrower, uint256 additionalDebt) external returns (bytes32 ticketId) {
+    function publishProjectedBorrowQuoteTicket(address borrower, uint256 additionalDebt) external restricted returns (bytes32 ticketId) {
         IRiskEngine.QuoteInput memory input = projectedBorrowQuoteInput(borrower, additionalDebt);
         IRiskAdapter.QuoteContext memory context = currentQuoteContext();
         ticketId = riskEngine.quoteTicketId(context, input);

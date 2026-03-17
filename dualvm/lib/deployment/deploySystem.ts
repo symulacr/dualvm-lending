@@ -155,16 +155,8 @@ export async function deployDualVmSystem(overrides: DeployDualVmOverrides = {}) 
     ),
   );
 
-  // Grant LendingCore the LENDING_CORE role and restrict quoteViaTicket on RiskAdapter
-  await waitFor(accessManager.labelRole(ROLE_IDS.LENDING_CORE, "LENDING_CORE_ROLE"));
-  await waitFor(accessManager.grantRole(ROLE_IDS.LENDING_CORE, await lendingCore.getAddress(), 0));
-  await waitFor(
-    accessManager.setTargetFunctionRole(
-      await riskEngine.getAddress(),
-      [selector(riskEngine, "quoteViaTicket")],
-      ROLE_IDS.LENDING_CORE,
-    ),
-  );
+  // Note: LENDING_CORE role wiring (grantRole + setTargetFunctionRole for quoteViaTicket) is now
+  // handled inside deployMarketVersion, so it does not need to be repeated here.
 
   await waitFor(accessManager.setTargetFunctionRole(await usdc.getAddress(), [selector(usdc, "mint")], ROLE_IDS.MINTER));
   await waitFor(

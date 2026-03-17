@@ -180,13 +180,16 @@ describe("Batch liquidation", function () {
     expect(hf2).to.be.lt(WAD);
     expect(hf3).to.be.gt(WAD);
 
-    // Batch with healthy borrower3 should revert
+    // Batch with healthy borrower3 should revert with BatchLiquidationFailed at index 1
+    // (borrower2 at index 0 is underwater and succeeds; borrower3 at index 1 is healthy and fails)
     await expect(
       core.connect(liquidator).batchLiquidate(
         [borrower2.address, borrower3.address],
         [ethers.MaxUint256, ethers.MaxUint256],
       ),
-    ).to.be.reverted; // Will revert at index 1 where borrower3's position is healthy
+    )
+      .to.be.revertedWithCustomError(core, "BatchLiquidationFailed")
+      .withArgs(1n, anyValue);
   });
 
   it("emits individual Liquidated events per position in batch", async function () {

@@ -10,6 +10,14 @@ import {
 
 const { ethers } = hre;
 
+function getSelector(contract: { interface: { getFunction(name: string): { selector: string } | null } }, name: string) {
+  const fragment = contract.interface.getFunction(name);
+  if (!fragment) {
+    throw new Error(`Missing function selector for ${name}`);
+  }
+  return fragment.selector;
+}
+
 export interface DeployMarketVersionParams {
   deployer: any;
   authority: string;
@@ -128,6 +136,25 @@ export async function deployMarketVersion(params: DeployMarketVersionParams) {
   if (autoWireLendingCore) {
     const setLendingCoreTx = await debtPool.setLendingCore(await lendingCore.getAddress());
     await setLendingCoreTx.wait();
+  }
+
+  // Wire LENDING_CORE role: grant lendingCore the role and restrict quoteViaTicket on riskEngine.
+  // Only performed when the deployer holds AccessManager admin rights (ADMIN_ROLE = 0).
+  // In governed deployments where admin has already been transferred to the timelock,
+  // the caller must wire this role through governance instead.
+  const accessManager = await ethers.getContractAt("DualVMAccessManager", params.authority, params.deployer);
+  const ADMIN_ROLE = 0n;
+  const [deployerIsAdmin] = await accessManager.hasRole(ADMIN_ROLE, await params.deployer.getAddress());
+  if (deployerIsAdmin) {
+    await (await accessManager.labelRole(ROLE_IDS.LENDING_CORE, "LENDING_CORE_ROLE")).wait();
+    await (await accessManager.grantRole(ROLE_IDS.LENDING_CORE, await lendingCore.getAddress(), 0)).wait();
+    await (
+      await accessManager.setTargetFunctionRole(
+        await riskEngine.getAddress(),
+        [getSelector(riskEngine, "quoteViaTicket")],
+        ROLE_IDS.LENDING_CORE,
+      )
+    ).wait();
   }
 
   return {
