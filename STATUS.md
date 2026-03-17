@@ -2,6 +2,7 @@
 
 **Network**: Polkadot Hub TestNet · Chain ID `420420417`  
 **Explorer**: [Blockscout](https://blockscout-testnet.polkadot.io/)  
+**Frontend**: [https://dualvm-lending.vercel.app](https://dualvm-lending.vercel.app) (backup: [eyawa.me/dualvm-lending/](http://eyawa.me/dualvm-lending/))  
 **Governance Root**: Governor → TimelockController → AccessManager (deployer has no roles)
 
 ## Contract Addresses

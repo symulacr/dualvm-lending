@@ -15,6 +15,15 @@ Built for the [Polkadot Solidity Hackathon 2026](https://dorahacks.io/) — targ
 | Explorer | [Blockscout](https://blockscout-testnet.polkadot.io/) |
 | Faucet | [Polkadot Faucet](https://faucet.polkadot.io/) (Network: Polkadot testnet Paseo, Chain: Hub smart contracts) |
 
+## Live Frontend
+
+| Hosting | URL |
+|---------|-----|
+| **Primary (Vercel)** | [https://dualvm-lending.vercel.app](https://dualvm-lending.vercel.app) |
+| Backup (GitHub Pages) | [http://eyawa.me/dualvm-lending/](http://eyawa.me/dualvm-lending/) |
+
+Connect your wallet (MetaMask or any injected wallet) to Polkadot Hub TestNet (chain ID 420420417) to deposit, borrow, repay, and liquidate directly from the browser.
+
 ## Canonical Deployment (Governor-Governed)
 
 All contracts deployed under a single canonical Governor→TimelockController→AccessManager governance root.
