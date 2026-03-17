@@ -32,3 +32,7 @@ Environment variables, external dependencies, and setup notes.
 - @parity/hardhat-polkadot for PVM compilation
 - @polkadot/api for substrate RPC (PVM probe operations)
 - Foundry (optional secondary compiler, `foundry.toml`)
+
+## Frontend Validation Notes
+- `dualvm/src/lib/wagmiConfig.ts` currently hardcodes the placeholder Reown/WalletConnect project ID `DUALVM_LENDING_HACKATHON`; injected wallet / MetaMask flows still work, but WalletConnect-style modal options can fail and emit expected 400/403 console noise until a real project ID is supplied.
+- On this machine, `npx vite build` may run out of memory for the frontend; if that happens, retry with `NODE_OPTIONS='--max-old-space-size=1024' npx vite build`.
