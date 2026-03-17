@@ -1,0 +1,147 @@
+{
+  "generatedAt": "2026-03-16T23:54:35.435Z",
+  "verdicts": {
+    "A": true,
+    "B": true,
+    "C": true,
+    "D": false
+  },
+  "finalSummary": "Outcome B proven: REVM -> PVM -> REVM roundtrip settlement was demonstrated on the public testnet.",
+  "stages": {
+    "stage1Echo": {
+      "status": "passed",
+      "summary": "REVM caller stored the exact bytes32 returned from the direct sync VM path.",
+      "txHash": "0x282f32532f1bc337266e7a0d849edb1153449be7fad9d4b9feacec8aded641d0",
+      "explorerUrl": "https://blockscout-testnet.polkadot.io/tx/0x282f32532f1bc337266e7a0d849edb1153449be7fad9d4b9feacec8aded641d0",
+      "expected": {
+        "echoOutput": "0x111122223333444455556666777788889999aaaabbbbccccddddeeeeffff0000",
+        "transportMode": "DirectSync"
+      },
+      "observed": {
+        "echoOutput": "0x111122223333444455556666777788889999aaaabbbbccccddddeeeeffff0000",
+        "transportMode": "DirectSync"
+      },
+      "readbacks": {
+        "lastEchoInput": "0x111122223333444455556666777788889999aaaabbbbccccddddeeeeffff0000",
+        "lastEchoOutput": "0x111122223333444455556666777788889999aaaabbbbccccddddeeeeffff0000",
+        "pvmTargetId": "0xba8fe2a621062a30bba558a3846d0a18bfb2e9a09bfaed656b123e698b59af5b"
+      }
+    },
+    "stage1Quote": {
+      "status": "passed",
+      "summary": "REVM caller stored and emitted the exact deterministic risk quote via the direct sync VM path.",
+      "txHash": "0x4f55eac1f75b6540e3d81d3618a8857574551809fce2b08bfc4e11a4b15b5698",
+      "explorerUrl": "https://blockscout-testnet.polkadot.io/tx/0x4f55eac1f75b6540e3d81d3618a8857574551809fce2b08bfc4e11a4b15b5698",
+      "expected": {
+        "utilizationBps": "5000",
+        "collateralRatioBps": "20000",
+        "oracleAgeSeconds": "60",
+        "oracleFresh": true,
+        "lastInputHash": "0x7431463ff24a5f7497bdfc86b516ce3323be8e12d761f0ac39eab8171fd6170c",
+        "lastResultHash": "0x29ff247cb200e3f80b21f04440957ce31334b5d3bab145708fb91a8dc8652352",
+        "borrowRateBps": "700",
+        "maxLtvBps": "7500",
+        "liquidationThresholdBps": "8500",
+        "transportMode": "DirectSync"
+      },
+      "observed": {
+        "callCount": "2",
+        "lastInputHash": "0x7431463ff24a5f7497bdfc86b516ce3323be8e12d761f0ac39eab8171fd6170c",
+        "lastResultHash": "0x29ff247cb200e3f80b21f04440957ce31334b5d3bab145708fb91a8dc8652352",
+        "lastBorrowRateBps": "700",
+        "lastMaxLtvBps": "7500",
+        "lastLiquidationThresholdBps": "8500",
+        "pvmTargetId": "0xba8fe2a621062a30bba558a3846d0a18bfb2e9a09bfaed656b123e698b59af5b",
+        "transportMode": "DirectSync"
+      },
+      "readbacks": {
+        "callCount": "2",
+        "lastInputHash": "0x7431463ff24a5f7497bdfc86b516ce3323be8e12d761f0ac39eab8171fd6170c",
+        "lastResultHash": "0x29ff247cb200e3f80b21f04440957ce31334b5d3bab145708fb91a8dc8652352",
+        "lastBorrowRateBps": "700",
+        "lastMaxLtvBps": "7500",
+        "lastLiquidationThresholdBps": "8500",
+        "pvmTargetId": "0xba8fe2a621062a30bba558a3846d0a18bfb2e9a09bfaed656b123e698b59af5b",
+        "transportMode": "DirectSync"
+      }
+    },
+    "stage2": {
+      "status": "failed",
+      "summary": "No defensible live PVM->REVM callback was proven on-chain.",
+      "subresults": {
+        "callbackFingerprint": {
+          "status": "failed",
+          "summary": "PVM callbackFingerprint submission failed on-chain.",
+          "error": "execution reverted"
+        },
+        "callbackQuote": {
+          "status": "failed",
+          "summary": "PVM callbackQuote submission failed on-chain.",
+          "error": "execution reverted"
+        }
+      },
+      "readbacks": {
+        "callbackReceiver": "0x2b059760bb836128A287AE071167f9e3F4489c71",
+        "callbackProbe": "0xc60E223A91aEbf1589A5509F308b4787cF6607AE",
+        "operator": "0x36a83a4450744f4F9988c9Bc46cC556Ba5bFD2dF"
+      }
+    },
+    "stage3": {
+      "status": "failed",
+      "summary": "No defensible REVM settlement state mutation depending on a PVM-derived quote was proven.",
+      "subresults": {
+        "settleBorrow": {
+          "status": "failed",
+          "summary": "Roundtrip settlement transaction landed, but stored settlement state did not match the expected PVM-dependent values.",
+          "txHash": "0x4284ace5171ead5bea7c5795ee78528ac815b5d65d450b6f85de06b56ebe2ad5",
+          "explorerUrl": "https://blockscout-testnet.polkadot.io/tx/0x4284ace5171ead5bea7c5795ee78528ac815b5d65d450b6f85de06b56ebe2ad5",
+          "expected": {
+            "principalDebt": "1070",
+            "borrowRateBps": "700",
+            "maxLtvBps": "7500",
+            "liquidationThresholdBps": "8500"
+          },
+          "observed": {
+            "principalDebt": "2140",
+            "lastBorrowRateBps": "700",
+            "lastMaxLtvBps": "7500",
+            "lastLiquidationThresholdBps": "8500",
+            "lastQuoteHash": "0x29ff247cb200e3f80b21f04440957ce31334b5d3bab145708fb91a8dc8652352",
+            "settlementCount": "3"
+          },
+          "readbacks": {
+            "principalDebt": "2140",
+            "lastBorrowRateBps": "700",
+            "lastMaxLtvBps": "7500",
+            "lastLiquidationThresholdBps": "8500",
+            "lastQuoteHash": "0x29ff247cb200e3f80b21f04440957ce31334b5d3bab145708fb91a8dc8652352",
+            "settlementCount": "3"
+          }
+        },
+        "settleLiquidationCheck": {
+          "status": "passed",
+          "summary": "Roundtrip settleLiquidationCheck executed through the same quote adapter path.",
+          "txHash": "0x948fb4b1e4ea88d7a53cb2a911af55c50ab878521b2e98dd7f56dc94b40516de",
+          "explorerUrl": "https://blockscout-testnet.polkadot.io/tx/0x948fb4b1e4ea88d7a53cb2a911af55c50ab878521b2e98dd7f56dc94b40516de",
+          "readbacks": {
+            "settlementCount": "4",
+            "lastBorrowRateBps": "700",
+            "lastMaxLtvBps": "7500",
+            "lastLiquidationThresholdBps": "8500"
+          }
+        }
+      }
+    },
+    "stage0": {
+      "status": "passed",
+      "summary": "Both REVM and PVM probe targets exist on the public Polkadot Hub TestNet with recorded deployment transactions.",
+      "readbacks": {
+        "pvmQuoteProbe": "0x9a78F65b00E0AeD0830063eD0ea66a0B5d8876DE",
+        "pvmCallbackProbe": "0xc60E223A91aEbf1589A5509F308b4787cF6607AE",
+        "revmCallbackReceiver": "0x2b059760bb836128A287AE071167f9e3F4489c71",
+        "revmQuoteCaller": "0xD08583e1AC7aCc75FF5365909Be808ea2AD5d942",
+        "revmRoundTripSettlement": "0xB97286570473a5728669ee487BC05763E2f22fE1"
+      }
+    }
+  }
+}
