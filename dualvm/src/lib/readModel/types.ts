@@ -23,6 +23,8 @@ export interface MarketSnapshot {
   oracleMinPrice: string;
   oracleMaxPrice: string;
   oracleMaxPriceChange: string;
+  activeVersionId: string | null;
+  latestVersionId: string | null;
   observer: ObserverSnapshot | null;
   recentActivity: RecentActivity[];
   recentActivitySource: "live" | "snapshot";

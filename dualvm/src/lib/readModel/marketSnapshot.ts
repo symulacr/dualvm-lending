@@ -1,5 +1,5 @@
 import { createPublicClient, http } from "viem";
-import { debtPoolAbi, lendingCoreAbi, manualOracleAbi } from "../abi";
+import { debtPoolAbi, lendingCoreAbi, manualOracleAbi, marketRegistryAbi } from "../abi";
 import { formatTokenAmount, formatTimestamp } from "../format";
 import { deploymentManifest, hasLivePolkadotHubTestnetDeployment } from "../manifest";
 import { loadRecentActivityFeed, describeRecentActivityWindow } from "./activity";
@@ -31,6 +31,8 @@ export async function loadMarketSnapshot(observerAddress?: string | null): Promi
     transport: http(deploymentManifest.polkadotHubTestnet.rpcUrl),
   });
 
+  const registryAddress = deploymentManifest.contracts.marketRegistry;
+
   const [
     totalAssets,
     availableLiquidity,
@@ -48,6 +50,7 @@ export async function loadMarketSnapshot(observerAddress?: string | null): Promi
     oracleMaxPriceChange,
     observer,
     recentActivity,
+    versionInfo,
   ] = await Promise.all([
     client.readContract({
       address: deploymentManifest.contracts.debtPool,
@@ -121,6 +124,20 @@ export async function loadMarketSnapshot(observerAddress?: string | null): Promi
     }),
     loadObserverSnapshot(client, observerAddress),
     loadRecentActivityFeed(client),
+    registryAddress
+      ? Promise.all([
+          client.readContract({
+            address: registryAddress,
+            abi: marketRegistryAbi,
+            functionName: "activeVersionId",
+          }),
+          client.readContract({
+            address: registryAddress,
+            abi: marketRegistryAbi,
+            functionName: "latestVersionId",
+          }),
+        ]).catch(() => null)
+      : Promise.resolve(null),
   ]);
 
   const snapshot: MarketSnapshot = {
@@ -139,6 +156,8 @@ export async function loadMarketSnapshot(observerAddress?: string | null): Promi
     oracleMinPrice: `${formatTokenAmount(oracleMinPrice)} USDC-test / WPAS`,
     oracleMaxPrice: `${formatTokenAmount(oracleMaxPrice)} USDC-test / WPAS`,
     oracleMaxPriceChange: `${oracleMaxPriceChange.toString()} bps`,
+    activeVersionId: versionInfo ? `v${versionInfo[0].toString()}` : null,
+    latestVersionId: versionInfo ? `v${versionInfo[1].toString()}` : null,
     observer,
     recentActivity: recentActivity.items,
     recentActivitySource: recentActivity.source,

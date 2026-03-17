@@ -221,3 +221,21 @@ export const manualOracleAbi = [
     type: "function",
   },
 ] as const;
+
+/* ── MarketVersionRegistry read functions ─────────────────────────── */
+export const marketRegistryAbi = [
+  {
+    inputs: [],
+    name: "activeVersionId",
+    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [],
+    name: "latestVersionId",
+    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
+    stateMutability: "view",
+    type: "function",
+  },
+] as const;

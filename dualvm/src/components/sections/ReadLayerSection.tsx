@@ -30,6 +30,12 @@ export function ReadLayerSection({ readStatus, snapshot }: ReadLayerSectionProps
           <MetricCard label="Oracle min price" value={snapshot.oracleMinPrice} />
           <MetricCard label="Oracle max price" value={snapshot.oracleMaxPrice} />
           <MetricCard label="Oracle max move" value={snapshot.oracleMaxPriceChange} />
+          {snapshot.activeVersionId ? (
+            <MetricCard label="Active market version" value={snapshot.activeVersionId} />
+          ) : null}
+          {snapshot.latestVersionId ? (
+            <MetricCard label="Latest market version" value={snapshot.latestVersionId} />
+          ) : null}
         </div>
       ) : (
         <div className="empty-state">
