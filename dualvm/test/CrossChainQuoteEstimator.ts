@@ -7,10 +7,11 @@ import { ethers } from "hardhat";
  * available on Polkadot Hub. On a local Hardhat network these tests verify:
  *   1. The contract compiles successfully.
  *   2. The IXcm interface selector matches the Polkadot XCM precompile spec.
- *   3. The contract exposes the expected public surface.
+ *   3. The contract exposes the expected public surface (all 3 functions).
  *   4. Input validation (empty message rejection) works.
+ *   5. Live precompile calls will revert on Hardhat (expected, deferred to testnet).
  *
- * Live `weighMessage` invocation is deferred to the deployment-worker.
+ * Live execute/send/weighMessage invocations are deferred to the deployment-worker.
  */
 
 const XCM_PRECOMPILE_ADDRESS = "0x00000000000000000000000000000000000A0000";
@@ -18,6 +19,9 @@ const XCM_PRECOMPILE_ADDRESS = "0x00000000000000000000000000000000000A0000";
 /** SCALE-encoded XCM message example from the Polkadot docs */
 const SAMPLE_XCM_MESSAGE =
   "0x050c000401000003008c86471301000003008c8647000d010101000000010100368e8759910dab756d344995f1d3c79374ca8f70066d3a709e48029f6bf0ee7e";
+
+/** Minimal SCALE-encoded destination MultiLocation (relay chain parent: 0x010100) */
+const SAMPLE_DESTINATION = "0x010100";
 
 describe("CrossChainQuoteEstimator", function () {
   async function deployFixture() {
@@ -59,6 +63,29 @@ describe("CrossChainQuoteEstimator", function () {
     expect(fragment!.outputs![1].name).to.equal("proofSize");
   });
 
+  it("has executeLocalXcm function with correct signature", async function () {
+    const factory = await ethers.getContractFactory("CrossChainQuoteEstimator");
+    const iface = factory.interface;
+
+    const fragment = iface.getFunction("executeLocalXcm");
+    expect(fragment).to.not.be.null;
+    expect(fragment!.inputs.length).to.equal(3);
+    expect(fragment!.inputs[0].type).to.equal("bytes"); // message
+    expect(fragment!.inputs[1].type).to.equal("uint64"); // refTime
+    expect(fragment!.inputs[2].type).to.equal("uint64"); // proofSize
+  });
+
+  it("has sendCrossChainNotification function with correct signature", async function () {
+    const factory = await ethers.getContractFactory("CrossChainQuoteEstimator");
+    const iface = factory.interface;
+
+    const fragment = iface.getFunction("sendCrossChainNotification");
+    expect(fragment).to.not.be.null;
+    expect(fragment!.inputs.length).to.equal(2);
+    expect(fragment!.inputs[0].type).to.equal("bytes"); // destination
+    expect(fragment!.inputs[1].type).to.equal("bytes"); // message
+  });
+
   it("IXcm interface matches the Polkadot XCM precompile spec", async function () {
     // Verify the IXcm interface has the three expected functions
     const iface = new ethers.Interface([
@@ -80,7 +107,7 @@ describe("CrossChainQuoteEstimator", function () {
     expect(new Set([executeSelector, sendSelector, weighMessageSelector]).size).to.equal(3);
   });
 
-  it("reverts with EmptyXcmMessage for empty input", async function () {
+  it("reverts with EmptyXcmMessage for empty input on estimateCrossChainQuoteCost", async function () {
     const { estimator } = await loadFixture(deployFixture);
     await expect(estimator.estimateCrossChainQuoteCost("0x")).to.be.revertedWithCustomError(
       estimator,
@@ -88,10 +115,44 @@ describe("CrossChainQuoteEstimator", function () {
     );
   });
 
+  it("reverts with EmptyXcmMessage for empty message on executeLocalXcm", async function () {
+    const { estimator } = await loadFixture(deployFixture);
+    await expect(estimator.executeLocalXcm("0x", 1_000_000n, 65_536n)).to.be.revertedWithCustomError(
+      estimator,
+      "EmptyXcmMessage",
+    );
+  });
+
+  it("reverts with EmptyDestination for empty destination on sendCrossChainNotification", async function () {
+    const { estimator } = await loadFixture(deployFixture);
+    await expect(
+      estimator.sendCrossChainNotification("0x", SAMPLE_XCM_MESSAGE),
+    ).to.be.revertedWithCustomError(estimator, "EmptyDestination");
+  });
+
+  it("reverts with EmptyXcmMessage for empty message on sendCrossChainNotification", async function () {
+    const { estimator } = await loadFixture(deployFixture);
+    await expect(
+      estimator.sendCrossChainNotification(SAMPLE_DESTINATION, "0x"),
+    ).to.be.revertedWithCustomError(estimator, "EmptyXcmMessage");
+  });
+
   it("reverts when calling weighMessage on local Hardhat (no precompile)", async function () {
     const { estimator } = await loadFixture(deployFixture);
     // On local Hardhat, the XCM precompile address has no code,
     // so the static call to weighMessage will revert.
     await expect(estimator.estimateCrossChainQuoteCost(SAMPLE_XCM_MESSAGE)).to.be.reverted;
+  });
+
+  it("reverts executeLocalXcm on local Hardhat (no precompile)", async function () {
+    const { estimator } = await loadFixture(deployFixture);
+    // On local Hardhat, the XCM precompile address has no code.
+    await expect(estimator.executeLocalXcm(SAMPLE_XCM_MESSAGE, 1_000_000n, 65_536n)).to.be.reverted;
+  });
+
+  it("reverts sendCrossChainNotification on local Hardhat (no precompile)", async function () {
+    const { estimator } = await loadFixture(deployFixture);
+    // On local Hardhat, the XCM precompile address has no code.
+    await expect(estimator.sendCrossChainNotification(SAMPLE_DESTINATION, SAMPLE_XCM_MESSAGE)).to.be.reverted;
   });
 });

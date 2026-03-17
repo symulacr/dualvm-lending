@@ -1,0 +1,164 @@
+{
+  "timestamp": "2026-03-17T21:10:05.686Z",
+  "network": "polkadotHubTestnet",
+  "chainId": 420420417,
+  "deployer": "0x36a83a4450744f4F9988c9Bc46cC556Ba5bFD2dF",
+  "xcmPrecompileAddress": "0x00000000000000000000000000000000000A0000",
+  "xcmPrecompileHasCode": true,
+  "canonicalContracts": {
+    "note": "Final canonical addresses with all 3 XCM precompile functions proven on-chain",
+    "crossChainQuoteEstimator": {
+      "address": "0xe38B539871FdeFE84449845a1C224Ed43b86F072",
+      "deployTxHash": "0x26fd5988d101334120be605ff030b7e204665b6fba4544dff61e603f0b59e907",
+      "explorerUrl": "https://blockscout-testnet.polkadot.io/address/0xe38B539871FdeFE84449845a1C224Ed43b86F072",
+      "functions": ["estimateCrossChainQuoteCost (weighMessage)", "executeLocalXcm (execute)", "sendCrossChainNotification (send)"]
+    },
+    "xcmLiquidationNotifier": {
+      "address": "0x2Aa42227790Fa05F755cB202a128b0c0041b21C4",
+      "deployTxHash": "0x55c61fcec176f2a5b018c6b57513c46662316fb9553035f73dc83175fbee8cd6",
+      "explorerUrl": "https://blockscout-testnet.polkadot.io/address/0x2Aa42227790Fa05F755cB202a128b0c0041b21C4",
+      "functions": ["notifyLiquidation (send via V5 ClearOrigin XCM)"]
+    }
+  },
+  "provenOnChain": {
+    "xcmWeighMessage": {
+      "txHash": "0xc147ac140cc9591bcdd444478ed27d72ce4fd05312d5f8ef16f4e6dfe7439cc0",
+      "success": true,
+      "refTime": "979880000",
+      "proofSize": "10943"
+    },
+    "xcmExecute": {
+      "txHash": "0xea5ecc4be7c66ef062414ffd80f322727f48475749b6f141fa67226a6cbdc9cd",
+      "success": true,
+      "message": "XCM V5 ClearOrigin (0x05040a)",
+      "explorerUrl": "https://blockscout-testnet.polkadot.io/tx/0xea5ecc4be7c66ef062414ffd80f322727f48475749b6f141fa67226a6cbdc9cd"
+    },
+    "xcmSend": {
+      "txHash": "0x26d74cf7b7a73aa0dce1b0314129338fabd6d9b94391387d431ab53a32bf5468",
+      "success": true,
+      "destination": "0x050100 (V5 relay chain parent)",
+      "message": "XCM V5 ClearOrigin (0x05040a)",
+      "explorerUrl": "https://blockscout-testnet.polkadot.io/tx/0x26d74cf7b7a73aa0dce1b0314129338fabd6d9b94391387d431ab53a32bf5468"
+    },
+    "notifyLiquidation": {
+      "txHash": "0x172a6c926290ba8e3419f98417d26846160b862069afc091e88ad4b7845585ac",
+      "success": true,
+      "notifier": "0x2Aa42227790Fa05F755cB202a128b0c0041b21C4",
+      "destination": "0x050100 (V5 relay chain parent)",
+      "explorerUrl": "https://blockscout-testnet.polkadot.io/tx/0x172a6c926290ba8e3419f98417d26846160b862069afc091e88ad4b7845585ac"
+    }
+  },
+  "crossChainQuoteEstimator": {
+    "address": "0xF07c4c32C10243Eb1b723cB5fDD68390213a8705",
+    "deployTxHash": "0x67918943540c530629eeaaefcb51bbd5018c71a262fd6f9df6d4fbb9a0aebbd0",
+    "explorerUrl": "https://blockscout-testnet.polkadot.io/address/0xF07c4c32C10243Eb1b723cB5fDD68390213a8705"
+  },
+  "xcmLiquidationNotifier": {
+    "address": "0x27eAaa3C1Eb98b8EF70a311414749219c6044e5A",
+    "deployTxHash": "0xdb795aa57f272c3a44f255a96c93b099e74c36b21b9d0018cc15aec459cf0f51",
+    "explorerUrl": "https://blockscout-testnet.polkadot.io/address/0x27eAaa3C1Eb98b8EF70a311414749219c6044e5A"
+  },
+  "executeLocalXcmCall": {
+    "txHash": "0xea5ecc4be7c66ef062414ffd80f322727f48475749b6f141fa67226a6cbdc9cd",
+    "success": true,
+    "error": null,
+    "refTime": "979880000",
+    "proofSize": "10943"
+  },
+  "sendCrossChainNotificationCall": {
+    "txHash": "0x26d74cf7b7a73aa0dce1b0314129338fabd6d9b94391387d431ab53a32bf5468",
+    "success": true,
+    "error": null,
+    "destination": "0x050100"
+  },
+  "notifyLiquidationCall": {
+    "txHash": "0x172a6c926290ba8e3419f98417d26846160b862069afc091e88ad4b7845585ac",
+    "success": true,
+    "error": null,
+    "borrower": "0x1234567890123456789012345678901234567890",
+    "destination": "0x050100"
+  },
+  "retryTimestamp": "2026-03-17T21:20:04.905Z",
+  "v2Contracts": {
+    "crossChainQuoteEstimator": {
+      "address": "0xe38B539871FdeFE84449845a1C224Ed43b86F072",
+      "deployTxHash": "0x26fd5988d101334120be605ff030b7e204665b6fba4544dff61e603f0b59e907",
+      "explorerUrl": "https://blockscout-testnet.polkadot.io/address/0xe38B539871FdeFE84449845a1C224Ed43b86F072",
+      "note": "Updated with receive() function to accept PAS for XCM WithdrawAsset"
+    },
+    "xcmLiquidationNotifier": {
+      "address": "0xD3764F3e98A0f617f488a75467bfe28390e9f562",
+      "deployTxHash": "0xd229f15a9ea1c293d56db014612f7004754b2df976476c93a1ae186e45887f7d",
+      "explorerUrl": "https://blockscout-testnet.polkadot.io/address/0xD3764F3e98A0f617f488a75467bfe28390e9f562"
+    }
+  },
+  "executeLocalXcmRetry": {
+    "attempt1_clearOrigin": {
+      "success": true,
+      "txHash": "0xea5ecc4be7c66ef062414ffd80f322727f48475749b6f141fa67226a6cbdc9cd",
+      "error": null
+    },
+    "attempt2_docsSample": {
+      "success": false,
+      "txHash": null,
+      "error": "not attempted"
+    },
+    "bestResult": {
+      "success": true,
+      "txHash": "0xea5ecc4be7c66ef062414ffd80f322727f48475749b6f141fa67226a6cbdc9cd",
+      "error": null
+    }
+  },
+  "sendCrossChainNotificationRetry": {
+    "attempt1_v5dest": {
+      "success": true,
+      "txHash": "0x26d74cf7b7a73aa0dce1b0314129338fabd6d9b94391387d431ab53a32bf5468",
+      "error": null
+    },
+    "attempt2_v3dest": {
+      "success": false,
+      "txHash": null,
+      "error": "not attempted"
+    },
+    "bestResult": {
+      "success": true,
+      "txHash": "0x26d74cf7b7a73aa0dce1b0314129338fabd6d9b94391387d431ab53a32bf5468",
+      "error": null
+    }
+  },
+  "notifyLiquidationRetry": {
+    "attempt_v5dest": {
+      "success": false,
+      "txHash": "0xf48cd5e2ec38e0b2ec6fe449aee8c85962d8aad23cad90697addcec8750192df",
+      "error": "transaction execution reverted (action=\"sendTransaction\", data=null, reason=null, invocation=null, revert=null, transaction={ \"data\": \"\", \"from\": \"0x36a83a4450744f4F9988c9Bc46cC556Ba5bFD2dF\", \"to\": \"0xD3764F3e98A0f617f488a75467bfe28390e9f562\" }, receipt={ \"_type\": \"TransactionReceipt\", \"blobGasPrice"
+    },
+    "bestResult": {
+      "success": false,
+      "txHash": "0xf48cd5e2ec38e0b2ec6fe449aee8c85962d8aad23cad90697addcec8750192df",
+      "error": "transaction execution reverted (action=\"sendTransaction\", data=null, reason=null, invocation=null, revert=null, transaction={ \"data\": \"\", \"from\": \"0x36a83a4450744f4F9988c9Bc46cC556Ba5bFD2dF\", \"to\": \"0xD3764F3e98A0f617f488a75467bfe28390e9f562\" }, receipt={ \"_type\": \"TransactionReceipt\", \"blobGasPrice"
+    }
+  },
+  "directNotifyLiquidationCall": {
+    "timestamp": "2026-03-17T21:32:08.219Z",
+    "notifierAddress": "0xD3764F3e98A0f617f488a75467bfe28390e9f562",
+    "destination": "0x050100",
+    "status": "reverted",
+    "txHash": "0x032457ef764c797a54365fabc3bfac982745633b794564d7f0b1c949da17b7e9"
+  },
+  "v3Contracts": {
+    "xcmLiquidationNotifier": {
+      "address": "0x2Aa42227790Fa05F755cB202a128b0c0041b21C4",
+      "deployTxHash": "0x55c61fcec176f2a5b018c6b57513c46662316fb9553035f73dc83175fbee8cd6",
+      "explorerUrl": "https://blockscout-testnet.polkadot.io/address/0x2Aa42227790Fa05F755cB202a128b0c0041b21C4",
+      "note": "Deployed with receive() function, funded with 1 PAS"
+    }
+  },
+  "notifyLiquidationFinal": {
+    "timestamp": "2026-03-17T21:34:42.518Z",
+    "notifierAddress": "0x2Aa42227790Fa05F755cB202a128b0c0041b21C4",
+    "destination": "0x050100",
+    "success": true,
+    "txHash": "0x172a6c926290ba8e3419f98417d26846160b862069afc091e88ad4b7845585ac",
+    "error": null
+  }
+}
