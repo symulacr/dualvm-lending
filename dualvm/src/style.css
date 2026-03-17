@@ -325,9 +325,117 @@ h2 {
   font-size: 0.9rem;
 }
 
+/* ── Write-path forms ──────────────────────────────────────────── */
+
+.write-path-section {
+  display: grid;
+  gap: 20px;
+}
+
+.write-forms-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.write-form-card h3 {
+  margin: 0 0 6px;
+  font-size: 1.05rem;
+  color: #edf5ff;
+}
+
+.write-form-hint {
+  margin-bottom: 14px;
+  font-size: 0.88rem;
+  color: #9eb0c7;
+  line-height: 1.55;
+}
+
+.write-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.write-form-liquidate {
+  flex-direction: column;
+}
+
+.write-input {
+  flex: 1 1 180px;
+  min-height: 44px;
+  padding: 10px 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(154, 185, 223, 0.18);
+  background: rgba(255, 255, 255, 0.04);
+  color: #edf5ff;
+  font-size: 0.95rem;
+}
+
+.write-input:disabled {
+  opacity: 0.5;
+}
+
+.write-input::placeholder {
+  color: #6d8099;
+}
+
+.tx-status-banner {
+  margin-top: 12px;
+  padding: 10px 14px;
+  border-radius: 14px;
+  font-size: 0.88rem;
+  line-height: 1.55;
+}
+
+.tx-status-banner p {
+  margin: 0;
+}
+
+.tx-status-pending {
+  background: rgba(255, 200, 50, 0.1);
+  border: 1px solid rgba(255, 200, 50, 0.22);
+  color: #ffe082;
+}
+
+.tx-status-confirming {
+  background: rgba(135, 198, 255, 0.1);
+  border: 1px solid rgba(135, 198, 255, 0.22);
+  color: #8dd0ff;
+}
+
+.tx-status-confirmed {
+  background: rgba(76, 175, 80, 0.1);
+  border: 1px solid rgba(76, 175, 80, 0.22);
+  color: #81c784;
+}
+
+.tx-status-error {
+  background: rgba(244, 67, 54, 0.1);
+  border: 1px solid rgba(244, 67, 54, 0.22);
+  color: #ef9a9a;
+}
+
+.tx-reset-button {
+  margin-left: 12px;
+  padding: 4px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(154, 185, 223, 0.18);
+  background: rgba(255, 255, 255, 0.06);
+  color: inherit;
+  cursor: pointer;
+  font-size: 0.82rem;
+}
+
+.tx-reset-button:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
 @media (max-width: 860px) {
   .panel-grid-two,
-  .detail-grid {
+  .detail-grid,
+  .write-forms-grid {
     grid-template-columns: 1fr;
   }
 

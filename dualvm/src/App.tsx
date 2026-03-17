@@ -17,6 +17,7 @@ import { OverviewSections } from "./components/sections/OverviewSections";
 import { ReadLayerSection } from "./components/sections/ReadLayerSection";
 import { RecentActivitySection } from "./components/sections/RecentActivitySection";
 import { SecuritySection } from "./components/sections/SecuritySection";
+import { WritePathSection } from "./components/sections/WritePathSection";
 import { assetRegistry } from "./lib/assetRegistry";
 import { deploymentManifest, hasLivePolkadotHubTestnetDeployment } from "./lib/manifest";
 import { loadMarketSnapshot, type MarketSnapshot } from "./lib/readModel";
@@ -114,6 +115,8 @@ export default function App() {
       <AssetPathSection assets={assetRegistry} />
 
       <ReadLayerSection readStatus={readStatus} snapshot={snapshot} />
+
+      <WritePathSection />
 
       <section className="panel-grid panel-grid-two">
         <ObserverSection

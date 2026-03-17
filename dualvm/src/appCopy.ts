@@ -25,9 +25,9 @@ export const demoModeNotes = [
 ] as const;
 
 export const writePathTruth = [
-  "The browser build does not yet submit borrow or repay transactions directly.",
-  "Write-path proof comes from live operator-run transactions plus Blockscout links, not from fake-complete buttons.",
-  "The canonical demo sequence lives in docs/dualvm/dualvm_submission_demo_guide.md and the repo README.",
+  "The browser build submits all lending transactions directly via wallet connection.",
+  "Deposit, borrow, repay, liquidate, and supply flows are fully available through the write-path forms below.",
+  "Transaction status, errors, and Blockscout links are shown inline after each submission.",
 ] as const;
 
 export function humanizeReadError(message: string): string {
