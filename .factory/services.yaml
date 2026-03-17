@@ -1,6 +1,6 @@
 commands:
   install: cd dualvm && npm ci
-  test: cd dualvm && npm test
+  test: cd dualvm && TMPDIR=/var/tmp npm test
   typecheck: cd dualvm && npx tsc --noEmit
   build: cd dualvm && npm run build
   compile: cd dualvm && npx hardhat compile
