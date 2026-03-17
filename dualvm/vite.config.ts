@@ -8,6 +8,14 @@ export default {
     port: 4173,
   },
   build: {
-    sourcemap: true,
+    sourcemap: false,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          "wallet-core": ["wagmi", "@rainbow-me/rainbowkit", "@tanstack/react-query"],
+          "viem": ["viem"],
+        },
+      },
+    },
   },
 };

@@ -51,6 +51,20 @@ form {
   gap: 20px;
 }
 
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 0;
+}
+
+.app-header-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #87c6ff;
+  letter-spacing: 0.04em;
+}
+
 .hero-card,
 .panel-card {
   border: 1px solid rgba(154, 185, 223, 0.18);

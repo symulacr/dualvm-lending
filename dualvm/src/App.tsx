@@ -1,4 +1,5 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import { ConnectButton } from "@rainbow-me/rainbowkit";
 import {
   DEFAULT_OBSERVER_ADDRESS,
   demoModeNotes,
@@ -87,6 +88,11 @@ export default function App() {
 
   return (
     <main className="page-shell">
+      <header className="app-header">
+        <span className="app-header-title">DualVM Lending</span>
+        <ConnectButton />
+      </header>
+
       <HeroSection
         generatedAt={deploymentManifest.generatedAt}
         hasLiveDeployment={hasLivePolkadotHubTestnetDeployment}
