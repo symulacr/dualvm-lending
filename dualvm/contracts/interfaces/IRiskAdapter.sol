@@ -42,10 +42,6 @@ interface IRiskAdapter is IRiskEngine {
 
     function quoteTicketId(QuoteContext calldata context, QuoteInput calldata input) external pure returns (bytes32);
 
-    function publishQuoteTicket(QuoteContext calldata context, QuoteInput calldata input)
-        external
-        returns (bytes32 ticketId, QuoteOutput memory output);
-
     function quoteViaTicket(QuoteContext calldata context, QuoteInput calldata input) external returns (QuoteOutput memory output);
 
     function getQuoteTicket(bytes32 ticketId) external view returns (QuoteTicket memory);

@@ -84,11 +84,12 @@ export async function main() {
 
   const riskAdapter = (await hre.ethers.getContractFactory("RiskAdapter")).attach(manifest.contracts.riskEngine) as any;
   const quoteEngineAddress = manifest.contracts.quoteEngine ?? (await riskAdapter.quoteEngine());
-  // PvmRiskEngine is compiled via resolc (PolkaVM compiler) — Blockscout standard Solidity verification
-  // cannot verify PVM bytecode. This is an expected limitation, not a deployment problem.
+  // DeterministicRiskModel (formerly PvmRiskEngine) is compiled via resolc (PolkaVM compiler) —
+  // Blockscout standard Solidity verification cannot verify PVM bytecode.
+  // This is an expected limitation, not a deployment problem.
   // The PVM code hash can be confirmed via `revive.accountInfoOf` on the substrate API.
   results.push(
-    await verify("PvmRiskEngine", quoteEngineAddress, [
+    await verify("DeterministicRiskModel", quoteEngineAddress, [
       BigInt(manifest.config.riskEngine.baseRateBps),
       BigInt(manifest.config.riskEngine.slope1Bps),
       BigInt(manifest.config.riskEngine.slope2Bps),
@@ -208,7 +209,7 @@ export async function main() {
 
   // ── Write verification artifact ──
   const failedCount = results.filter((r) => r.status === "failed").length;
-  const pvmOnlyFailures = results.filter((r) => r.status === "failed" && r.name === "PvmRiskEngine").length;
+  const pvmOnlyFailures = results.filter((r) => r.status === "failed" && r.name === "DeterministicRiskModel").length;
   const artifact = {
     generatedAt: new Date().toISOString(),
     network: POLKADOT_HUB_TESTNET,
@@ -223,9 +224,10 @@ export async function main() {
     notes:
       failedCount === pvmOnlyFailures && pvmOnlyFailures > 0
         ? [
-            "PvmRiskEngine is compiled via resolc (PolkaVM compiler). Blockscout standard Solidity verification " +
-              "cannot verify PVM bytecode — this is an expected limitation. The PVM code hash can be confirmed " +
-              "via `revive.accountInfoOf` on the substrate API. All EVM-compiled contracts are fully verified.",
+            "DeterministicRiskModel (formerly PvmRiskEngine) is compiled via resolc (PolkaVM compiler). " +
+              "Blockscout standard Solidity verification cannot verify PVM bytecode — this is an expected limitation. " +
+              "The PVM code hash can be confirmed via `revive.accountInfoOf` on the substrate API. " +
+              "All EVM-compiled contracts are fully verified.",
           ]
         : [],
   };

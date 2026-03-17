@@ -67,10 +67,11 @@ describe("Quote ticket and epoch flow", function () {
     expect(ticket.liquidationThresholdBps).to.equal(8_500n);
 
     const quote = await riskEngine.quote(input);
-    const cachedQuote = await riskEngine.quoteViaTicket.staticCall(context, input);
-    expect(cachedQuote.borrowRateBps).to.equal(quote.borrowRateBps);
-    expect(cachedQuote.maxLtvBps).to.equal(quote.maxLtvBps);
-    expect(cachedQuote.liquidationThresholdBps).to.equal(quote.liquidationThresholdBps);
+    // quoteViaTicket is now restricted to LendingCore — verify via getQuoteTicket instead
+    const cachedTicket = await riskEngine.getQuoteTicket(ticketId);
+    expect(cachedTicket.borrowRateBps).to.equal(quote.borrowRateBps);
+    expect(cachedTicket.maxLtvBps).to.equal(quote.maxLtvBps);
+    expect(cachedTicket.liquidationThresholdBps).to.equal(quote.liquidationThresholdBps);
   });
 
   it("auto-publishes a borrow ticket on the hot path when none exists yet", async function () {

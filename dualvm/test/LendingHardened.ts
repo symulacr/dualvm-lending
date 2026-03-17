@@ -316,8 +316,8 @@ describe("Lending hardened coverage", function () {
     await testAm.setTargetFunctionRole(await testOracle.getAddress(), oracleSelectors, 2); // ROLE_IDS.RISK_ADMIN = 2
     await testAm.grantRole(2, deployer.address, 0);
 
-    // Deploy risk engine (PvmRiskEngine as quote engine)
-    const quoteEngineFactory = await ethers.getContractFactory("PvmRiskEngine", deployer);
+    // Deploy risk engine (DeterministicRiskModel as quote engine)
+    const quoteEngineFactory = await ethers.getContractFactory("DeterministicRiskModel", deployer);
     const quoteEngine = await quoteEngineFactory.deploy(
       RISK_ENGINE_DEFAULTS.baseRateBps,
       RISK_ENGINE_DEFAULTS.slope1Bps,
@@ -332,7 +332,22 @@ describe("Lending hardened coverage", function () {
     );
     await quoteEngine.waitForDeployment();
     const riskAdapterFactory = await ethers.getContractFactory("RiskAdapter", deployer);
-    const testRiskEngine = await riskAdapterFactory.deploy(await quoteEngine.getAddress());
+    const testRiskEngine = await riskAdapterFactory.deploy(
+      await testAm.getAddress(),
+      await quoteEngine.getAddress(),
+      {
+        baseRateBps: RISK_ENGINE_DEFAULTS.baseRateBps,
+        slope1Bps: RISK_ENGINE_DEFAULTS.slope1Bps,
+        slope2Bps: RISK_ENGINE_DEFAULTS.slope2Bps,
+        kinkBps: RISK_ENGINE_DEFAULTS.kinkBps,
+        healthyMaxLtvBps: RISK_ENGINE_DEFAULTS.healthyMaxLtvBps,
+        stressedMaxLtvBps: RISK_ENGINE_DEFAULTS.stressedMaxLtvBps,
+        healthyLiquidationThresholdBps: RISK_ENGINE_DEFAULTS.healthyLiquidationThresholdBps,
+        stressedLiquidationThresholdBps: RISK_ENGINE_DEFAULTS.stressedLiquidationThresholdBps,
+        staleBorrowRatePenaltyBps: RISK_ENGINE_DEFAULTS.staleBorrowRatePenaltyBps,
+        stressedCollateralRatioBps: RISK_ENGINE_DEFAULTS.stressedCollateralRatioBps,
+      },
+    );
     await testRiskEngine.waitForDeployment();
 
     // Deploy DebtPool backed by USDC
@@ -359,6 +374,11 @@ describe("Lending hardened coverage", function () {
 
     // Wire lending core to debt pool
     await testPool.setLendingCore(await testCore.getAddress());
+
+    // Grant LendingCore the LENDING_CORE role to call quoteViaTicket on RiskAdapter
+    const quoteViaTicketSelector = testRiskEngine.interface.getFunction("quoteViaTicket")!.selector;
+    await testAm.grantRole(7, await testCore.getAddress(), 0); // ROLE_IDS.LENDING_CORE = 7
+    await testAm.setTargetFunctionRole(await testRiskEngine.getAddress(), [quoteViaTicketSelector], 7);
 
     // Seed pool with liquidity so borrow is possible
     const poolLiquidity = 50_000n * WAD;

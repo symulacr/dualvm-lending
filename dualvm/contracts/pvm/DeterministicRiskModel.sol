@@ -3,8 +3,9 @@ pragma solidity ^0.8.28;
 
 import {IRiskEngine} from "../interfaces/IRiskEngine.sol";
 
-/// @notice Stateless risk model designed to compile for both EVM tests and PVM artifact generation.
-contract PvmRiskEngine is IRiskEngine {
+/// @notice Stateless deterministic risk model. Compiles for both EVM tests and PVM artifact generation.
+/// Previously named PvmRiskEngine — renamed for honest naming.
+contract DeterministicRiskModel is IRiskEngine {
     uint256 private constant BPS = 10_000;
 
     uint256 public immutable baseRateBps;

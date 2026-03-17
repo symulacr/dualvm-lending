@@ -12,8 +12,8 @@ rmSync(outDir, { recursive: true, force: true });
 mkdirSync(outDir, { recursive: true });
 
 const sources = {
-  "contracts/pvm/PvmRiskEngine.sol": {
-    content: readFileSync(path.join(process.cwd(), "contracts", "pvm", "PvmRiskEngine.sol"), "utf8"),
+  "contracts/pvm/DeterministicRiskModel.sol": {
+    content: readFileSync(path.join(process.cwd(), "contracts", "pvm", "DeterministicRiskModel.sol"), "utf8"),
   },
   "contracts/interfaces/IRiskEngine.sol": {
     content: readFileSync(path.join(process.cwd(), "contracts", "interfaces", "IRiskEngine.sol"), "utf8"),

@@ -5,6 +5,7 @@ import {
   ORACLE_DEFAULTS,
   POOL_DEFAULTS,
   RISK_ENGINE_DEFAULTS,
+  ROLE_IDS,
 } from "../config/marketConfig";
 
 const { ethers } = hre;
@@ -66,13 +67,14 @@ export async function deployMarketVersion(params: DeployMarketVersionParams) {
   );
   await oracle.waitForDeployment();
 
+  // Deploy the DeterministicRiskModel (PVM quote engine) if no address provided
   let quoteEngine: any;
   if (params.riskQuoteEngineAddress) {
     quoteEngine = {
       getAddress: async () => params.riskQuoteEngineAddress,
     };
   } else {
-    const quoteEngineFactory = await ethers.getContractFactory("PvmRiskEngine", params.deployer);
+    const quoteEngineFactory = await ethers.getContractFactory("DeterministicRiskModel", params.deployer);
     quoteEngine = await quoteEngineFactory.deploy(
       riskEngineConfig.baseRateBps,
       riskEngineConfig.slope1Bps,
@@ -88,8 +90,24 @@ export async function deployMarketVersion(params: DeployMarketVersionParams) {
     await quoteEngine.waitForDeployment();
   }
 
+  // Deploy RiskAdapter as AccessManaged with inline risk model config and optional PVM verification
   const riskAdapterFactory = await ethers.getContractFactory("RiskAdapter", params.deployer);
-  const riskEngine = await riskAdapterFactory.deploy(await quoteEngine.getAddress());
+  const riskEngine = await riskAdapterFactory.deploy(
+    params.authority,
+    await quoteEngine.getAddress(),
+    {
+      baseRateBps: riskEngineConfig.baseRateBps,
+      slope1Bps: riskEngineConfig.slope1Bps,
+      slope2Bps: riskEngineConfig.slope2Bps,
+      kinkBps: riskEngineConfig.kinkBps,
+      healthyMaxLtvBps: riskEngineConfig.healthyMaxLtvBps,
+      stressedMaxLtvBps: riskEngineConfig.stressedMaxLtvBps,
+      healthyLiquidationThresholdBps: riskEngineConfig.healthyLiquidationThresholdBps,
+      stressedLiquidationThresholdBps: riskEngineConfig.stressedLiquidationThresholdBps,
+      staleBorrowRatePenaltyBps: riskEngineConfig.staleBorrowRatePenaltyBps,
+      stressedCollateralRatioBps: riskEngineConfig.stressedCollateralRatioBps,
+    },
+  );
   await riskEngine.waitForDeployment();
 
   const debtPoolFactory = await ethers.getContractFactory("DebtPool", params.deployer);

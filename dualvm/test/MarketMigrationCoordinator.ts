@@ -44,6 +44,13 @@ describe("MarketMigrationCoordinator", function () {
       [await selector(nextVersion.lendingCore, "exportPositionForMigration"), await selector(nextVersion.lendingCore, "importMigratedPosition")],
       ROLE_IDS.MIGRATION,
     );
+    // Grant v2 LendingCore the LENDING_CORE role to call quoteViaTicket on v2 RiskAdapter
+    await accessManager.grantRole(ROLE_IDS.LENDING_CORE, await nextVersion.lendingCore.getAddress(), 0);
+    await accessManager.setTargetFunctionRole(
+      await nextVersion.riskEngine.getAddress(),
+      [await selector(nextVersion.riskEngine, "quoteViaTicket")],
+      ROLE_IDS.LENDING_CORE,
+    );
     await marketRegistry.registerVersion(
       await nextVersion.lendingCore.getAddress(),
       await nextVersion.debtPool.getAddress(),
