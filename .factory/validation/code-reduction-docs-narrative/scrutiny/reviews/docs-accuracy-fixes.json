@@ -1,0 +1,40 @@
+{
+  "featureId": "docs-accuracy-fixes",
+  "reviewedAt": "2026-03-17T12:17:53Z",
+  "commitId": "a6642acab7ecd8347c4635607ff38c1ada475092",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "pass",
+  "codeReview": {
+    "summary": "The fix adequately addresses the three prior blocking issues. README.md and dualvm/SPEC.md now describe stage 2 and stage 3 honestly against the canonical probe-results artifact, docs/dualvm/dualvm_vm_interop_proof.md now marks the canonical stage outcomes as failed with accumulated-state context, and the superseded governed/versioned/quote-ticket/wording-audit docs were removed. I found only minor remaining accuracy mismatches in retained judge-facing/supporting docs.",
+    "issues": [
+      {
+        "file": "README.md",
+        "line": 249,
+        "severity": "non_blocking",
+        "description": "The repository-structure block still lists `docs/dualvm/dualvm_migration_format_proof.md` as if it is part of the committed docs tree, but `git ls-tree -r HEAD -- docs/dualvm` does not contain that file and `git status --porcelain -- docs/dualvm` shows it as untracked. This is a minor current-state mismatch in a primary judge-facing doc."
+      },
+      {
+        "file": "docs/dualvm/dualvm_submission_final.md",
+        "line": 16,
+        "severity": "non_blocking",
+        "description": "The intro still says there is a `4-stage interop proof package`, even though the same doc later discusses Stage 2 and Stage 3 explicitly and the canonical repo narrative now frames the probe package as Stage 0, Stage 1A, Stage 1B, Stage 2, Stage 3, plus the XCM precompile proof. This is a wording inconsistency rather than a blocking truth problem."
+      },
+      {
+        "file": "docs/dualvm/submission_evidence/external_submission_blockers.md",
+        "line": 11,
+        "severity": "non_blocking",
+        "description": "This retained submission-evidence doc says several screenshots were saved (`polkassembly-identity-screen.png`, `dorahacks-event-screen.png`, `dorahacks-login-blocker.png`, `discord-login-blocker.png` at lines 11, 39-40, and 60), but those files are not present in `docs/dualvm/submission_evidence/`. The evidence note is therefore not fully accurate in the current repository state."
+      }
+    ]
+  },
+  "sharedStateObservations": [
+    {
+      "area": "skills",
+      "observation": "The docs-worker procedure still does not require validating retained doc paths against the committed git tree and retained evidence assets, only against the local working directory/code references. That gap likely allowed a README tree entry for an untracked file and a retained evidence doc with missing screenshot paths to survive this rerun.",
+      "evidence": "`.factory/skills/docs-worker/SKILL.md` step 6 only says to verify stale docs are not imported/referenced by code before deleting them. In the fix transcript skeleton, the worker explicitly read the local untracked `docs/dualvm/dualvm_migration_format_proof.md`, and the resulting README still lists it at `README.md:249`, while `git ls-tree -r HEAD -- docs/dualvm` omits it. Likewise `docs/dualvm/submission_evidence/external_submission_blockers.md:11,39-40,60` references screenshot files that are absent from the directory."
+    }
+  ],
+  "addressesFailureFrom": "/home/kpa/polkadot/.factory/validation/code-reduction-docs-narrative/scrutiny/reviews/nuclear-doc-rewrite.json",
+  "summary": "Pass. The rerun fixes the prior blocking inaccuracies around probe-stage truth and removes the superseded proof docs that contradicted the canonical deployment narrative. Remaining issues are minor documentation/evidence mismatches outside the original blockers."
+}
