@@ -317,6 +317,89 @@ h2 {
   font-size: 0.9rem;
 }
 
+/* ── Tab navigation ────────────────────────────────────────────── */
+
+.tab-nav {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid rgba(154, 185, 223, 0.18);
+  padding-bottom: 0;
+  margin-bottom: 20px;
+}
+
+.tab-nav-btn {
+  padding: 10px 20px;
+  border: 1px solid transparent;
+  border-bottom: none;
+  border-radius: 12px 12px 0 0;
+  background: transparent;
+  color: #9eb0c7;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s;
+  position: relative;
+  bottom: -1px;
+}
+
+.tab-nav-btn:hover {
+  color: #d8ebff;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.tab-nav-btn-active {
+  background: rgba(8, 18, 31, 0.82);
+  color: #87c6ff;
+  border-color: rgba(154, 185, 223, 0.18);
+  border-bottom-color: rgba(8, 18, 31, 0.82);
+}
+
+/* ── Compact market snapshot ────────────────────────────────────── */
+
+.compact-snapshot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: center;
+  padding: 14px 20px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(154, 185, 223, 0.10);
+  margin-bottom: 4px;
+}
+
+.compact-snapshot-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.compact-snapshot-label {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: #8da6c2;
+}
+
+.compact-snapshot-value {
+  font-size: 0.95rem;
+  color: #f3f8ff;
+  font-weight: 500;
+}
+
+.compact-snapshot-divider {
+  width: 1px;
+  height: 32px;
+  background: rgba(154, 185, 223, 0.14);
+  flex-shrink: 0;
+}
+
+/* ── Tab content container ──────────────────────────────────────── */
+
+.tab-content {
+  display: grid;
+  gap: 20px;
+}
+
 /* ── Write-path forms ──────────────────────────────────────────── */
 
 .write-path-section {

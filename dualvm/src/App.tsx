@@ -18,6 +18,8 @@ import { ReadLayerSection } from "./components/sections/ReadLayerSection";
 import { RecentActivitySection } from "./components/sections/RecentActivitySection";
 import { SecuritySection } from "./components/sections/SecuritySection";
 import { WritePathSection } from "./components/sections/WritePathSection";
+import { CompactMarketSnapshot } from "./components/CompactMarketSnapshot";
+import { TabNav, type TabId } from "./components/TabNav";
 import { assetRegistry } from "./lib/assetRegistry";
 import { deploymentManifest, hasLivePolkadotHubTestnetDeployment } from "./lib/manifest";
 import { loadMarketSnapshot, type MarketSnapshot } from "./lib/readModel";
@@ -29,6 +31,7 @@ export default function App() {
   const [observerInput, setObserverInput] = useState(DEFAULT_OBSERVER_ADDRESS);
   const [trackedAddress, setTrackedAddress] = useState(DEFAULT_OBSERVER_ADDRESS);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [activeTab, setActiveTab] = useState<TabId>("lend-borrow");
 
   useEffect(() => {
     let cancelled = false;
@@ -100,47 +103,54 @@ export default function App() {
         <ConnectButton />
       </header>
 
-      <HeroSection
-        generatedAt={deploymentManifest.generatedAt}
-        hasLiveDeployment={hasLivePolkadotHubTestnetDeployment}
-      />
+      <TabNav activeTab={activeTab} onTabChange={setActiveTab} />
 
-      <OverviewSections
-        demoModeNotes={demoModeNotes}
-        writePathTruth={writePathTruth}
-        scopeGuardrails={scopeGuardrails}
-        network={deploymentManifest.polkadotHubTestnet}
-        networkName={deploymentManifest.networkName}
-      />
+      {activeTab === "lend-borrow" && (
+        <div className="tab-content">
+          <CompactMarketSnapshot snapshot={snapshot} isLoading={isLoading} />
+          <WritePathSection onWriteSuccess={handleWriteSuccess} />
+          <ObserverSection
+            snapshot={snapshot}
+            observerInput={observerInput}
+            setObserverInput={setObserverInput}
+            onTrackAddress={handleTrackAddress}
+            onRefresh={refreshObserver}
+          />
+        </div>
+      )}
 
-      <ManifestSection
-        explorerUrl={deploymentManifest.polkadotHubTestnet.explorerUrl}
-        contractRows={contractRows}
-      />
+      {activeTab === "market-data" && (
+        <div className="tab-content">
+          <ReadLayerSection readStatus={readStatus} snapshot={snapshot} />
+          <RecentActivitySection
+            snapshot={snapshot}
+            explorerUrl={deploymentManifest.polkadotHubTestnet.explorerUrl}
+          />
+          <AssetPathSection assets={assetRegistry} />
+        </div>
+      )}
 
-      <AssetPathSection assets={assetRegistry} />
-
-      <ReadLayerSection readStatus={readStatus} snapshot={snapshot} />
-
-      <WritePathSection onWriteSuccess={handleWriteSuccess} />
-
-      <section className="panel-grid panel-grid-two">
-        <ObserverSection
-          snapshot={snapshot}
-          observerInput={observerInput}
-          setObserverInput={setObserverInput}
-          onTrackAddress={handleTrackAddress}
-          onRefresh={refreshObserver}
-        />
-        <DemoFlowSection judgeFlow={judgeFlow} />
-      </section>
-
-      <RecentActivitySection
-        snapshot={snapshot}
-        explorerUrl={deploymentManifest.polkadotHubTestnet.explorerUrl}
-      />
-
-      <SecuritySection />
+      {activeTab === "protocol-info" && (
+        <div className="tab-content">
+          <HeroSection
+            generatedAt={deploymentManifest.generatedAt}
+            hasLiveDeployment={hasLivePolkadotHubTestnetDeployment}
+          />
+          <OverviewSections
+            demoModeNotes={demoModeNotes}
+            writePathTruth={writePathTruth}
+            scopeGuardrails={scopeGuardrails}
+            network={deploymentManifest.polkadotHubTestnet}
+            networkName={deploymentManifest.networkName}
+          />
+          <ManifestSection
+            explorerUrl={deploymentManifest.polkadotHubTestnet.explorerUrl}
+            contractRows={contractRows}
+          />
+          <SecuritySection />
+          <DemoFlowSection judgeFlow={judgeFlow} />
+        </div>
+      )}
     </main>
   );
 }
