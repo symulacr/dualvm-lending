@@ -1,0 +1,35 @@
+{
+  "surface": "terminal-doc-audit",
+  "assertions": [
+    {
+      "id": "VAL-DOC-010",
+      "status": "pass",
+      "reason": "docs/dualvm/dualvm_submission_final.md has explicit sections for Track 1 DeFi, Track 2 PVM, and the OpenZeppelin Sponsor Track.",
+      "evidence": [
+        "/home/kpa/.factory/missions/dc664f26-9086-4d9b-896d-ba8f3bde8d71/evidence/code-reduction-docs-narrative/docs-narrative-reduction/VAL-DOC-010-track-targets.txt: Line 27 shows \"## Track 1: EVM Smart Contract \u2014 DeFi / Stablecoin-Enabled DApp\".",
+        "/home/kpa/.factory/missions/dc664f26-9086-4d9b-896d-ba8f3bde8d71/evidence/code-reduction-docs-narrative/docs-narrative-reduction/VAL-DOC-010-track-targets.txt: Line 52 shows \"## Track 2: PVM Smart Contract \u2014 PVM Experiments & Precompiles\".",
+        "/home/kpa/.factory/missions/dc664f26-9086-4d9b-896d-ba8f3bde8d71/evidence/code-reduction-docs-narrative/docs-narrative-reduction/VAL-DOC-010-track-targets.txt: Line 79 shows \"## OpenZeppelin Sponsor Track \u2014 Non-Trivial OZ Composition\"."
+      ]
+    },
+    {
+      "id": "VAL-DOC-011",
+      "status": "pass",
+      "reason": "Using the mission-accepted git-diff changed scope from pre-mission baseline commit 654c759 to HEAD, the audited code/docs/manifests shrank by 4,276 lines (7,690 \u2192 3,414), a 55.60% reduction.",
+      "evidence": [
+        "/home/kpa/.factory/missions/dc664f26-9086-4d9b-896d-ba8f3bde8d71/evidence/code-reduction-docs-narrative/docs-narrative-reduction/VAL-DOC-011-reduction-audit.txt: mission.md lines 54-70 and 160 define the milestone target as a 20%+ total reduction across code + manifests + docs.",
+        "/home/kpa/.factory/missions/dc664f26-9086-4d9b-896d-ba8f3bde8d71/evidence/code-reduction-docs-narrative/docs-narrative-reduction/VAL-DOC-011-reduction-audit.txt: git diff --shortstat 654c75948323ca1c9ff21ed424430d90278e29db..HEAD -- README.md STATUS.md PLAN.md docs/dualvm dualvm => 91 files changed, 1549 insertions(+), 5825 deletions(-).",
+        "/home/kpa/.factory/missions/dc664f26-9086-4d9b-896d-ba8f3bde8d71/evidence/code-reduction-docs-narrative/docs-narrative-reduction/VAL-DOC-011-reduction-audit.txt: changed-scope baseline calculation shows 7,690 baseline lines, 3,414 HEAD lines, and a 55.60% net reduction; commit 0e13af7 contributes -817 net lines and commit ac56af3 contributes -3,798 net lines."
+      ]
+    }
+  ],
+  "toolsUsed": [
+    "Read",
+    "Grep",
+    "Glob",
+    "Execute"
+  ],
+  "frictions": [
+    "Baseline interpretation is ambiguous: counting every tracked text line under README.md/STATUS.md/docs/dualvm/dualvm from 654c759 to HEAD yields only a 10.34% reduction (41,363 \u2192 37,087), but the mission artifacts and prior scrutiny treat git-diff stats over the mission-changed scope as the authoritative line-reduction metric; this report follows that accepted changed-scope method."
+  ],
+  "blockers": []
+}
