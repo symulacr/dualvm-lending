@@ -52,4 +52,5 @@ MarketMigrationCoordinator
 - wagmi v2 + RainbowKit for wallet connection
 - viem for chain reads (via readModel)
 - Static manifest import from `src/lib/manifest.ts`
-- 10-second read cache, recent-events snapshot fallback
+- `loadMarketSnapshot()` keeps a 10-second in-memory cache keyed only by observer address, so UI refresh triggers must invalidate/bust that cache when immediate post-write reads are required; otherwise both the market snapshot and embedded recent-activity payload can stay stale until the TTL expires.
+- recent-events snapshot fallback

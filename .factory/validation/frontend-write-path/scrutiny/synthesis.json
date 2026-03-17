@@ -1,6 +1,6 @@
 {
   "milestone": "frontend-write-path",
-  "round": 1,
+  "round": 2,
   "status": "fail",
   "validatorsRun": {
     "test": {
@@ -20,62 +20,40 @@
     }
   },
   "reviewsSummary": {
-    "total": 3,
-    "passed": 2,
+    "total": 1,
+    "passed": 0,
     "failed": 1,
     "failedFeatures": [
-      "frontend-write-forms"
+      "frontend-write-ux-fixes"
     ]
   },
   "blockingIssues": [
     {
-      "featureId": "frontend-write-forms",
+      "featureId": "frontend-write-ux-fixes",
       "severity": "blocking",
-      "description": "Confirmed write transactions do not refresh the App read layer because `WritePathSection` has no success callback into App's `refreshKey`, so the market snapshot/recent activity do not update after browser actions and `VAL-CROSS-001` is not satisfied."
-    },
-    {
-      "featureId": "frontend-write-forms",
-      "severity": "blocking",
-      "description": "Multi-step forms switch the status banner to the next step immediately after approval or wrap confirmation, which hides the confirmed state and Blockscout link for those submitted sub-transactions and leaves `VAL-UI-009` incomplete."
+      "description": "The new `onWriteSuccess` callback bumps `refreshKey` in `dualvm/src/App.tsx`, but `dualvm/src/lib/readModel/marketSnapshot.ts` still returns a 10-second cached snapshot keyed only by observer address. Successful writes can therefore leave the market snapshot and embedded recent-activity payload stale until the cache expires, so the original post-write refresh blocker remains unresolved."
     }
   ],
   "appliedUpdates": [
     {
       "target": "library",
-      "description": "Updated `.factory/library/environment.md` to document that the committed RainbowKit setup uses the placeholder WalletConnect/Reown project ID `DUALVM_LENDING_HACKATHON`, so injected wallets work but WalletConnect-style options can fail and emit expected 400/403 console noise until a real project ID is supplied.",
-      "sourceFeature": "frontend-wallet-connection"
-    },
-    {
-      "target": "library",
-      "description": "Updated `.factory/library/environment.md` to record the memory-constrained frontend build workaround `NODE_OPTIONS='--max-old-space-size=1024' npx vite build` discovered during frontend validation.",
-      "sourceFeature": "frontend-read-updates"
+      "description": "Updated `.factory/library/architecture.md` to document that `loadMarketSnapshot()` uses a 10-second in-memory cache keyed only by observer address and that immediate post-write refresh flows must explicitly invalidate or bypass that cache.",
+      "sourceFeature": "frontend-write-ux-fixes"
     }
   ],
   "suggestedGuidanceUpdates": [
     {
       "target": "frontend-worker skill",
-      "suggestion": "Clarify that this repo's existing `npm test` Hardhat suite is part of frontend validation because it covers shared frontend/read-model modules (manifest, read-model loaders, and frontend barrel exports), so frontend-affecting changes should run it unless explicitly out of scope.",
-      "evidence": "The `frontend-wallet-connection` review noted the worker had to explain this nuance manually because the current skill only says `npm test` if frontend tests exist, even though the shared Hardhat suite already covers frontend modules.",
-      "isSystemic": true
-    },
-    {
-      "target": "frontend-worker skill",
-      "suggestion": "Strengthen browser write-path validation requirements so workers must verify connected-wallet transaction flows (or a clearly justified limitation), not just disconnected rendering or input acceptance, before marking browser write features complete.",
-      "evidence": "The `frontend-write-forms` review found the worker followed the current skill while only checking the disconnected empty state, which allowed two blocking UX gaps to slip through until scrutiny.",
-      "isSystemic": true
-    },
-    {
-      "target": "frontend-worker skill",
-      "suggestion": "Document the low-memory Vite build fallback `NODE_OPTIONS='--max-old-space-size=1024' npx vite build` for this machine/environment so frontend workers do not repeatedly rediscover the same OOM failure mode.",
-      "evidence": "The `frontend-read-updates` review reported repeated plain `npx vite build` failures and success only after adding the Node memory flag.",
+      "suggestion": "For refresh-related UX fixes, require workers to inspect the concrete read-model modules that own caching (`src/lib/readModel/*`) and verify that any proposed refresh trigger either invalidates or bypasses those caches before they mark the feature complete.",
+      "evidence": "The `frontend-write-ux-fixes` review found that the worker updated `App.tsx`, `WritePathSection.tsx`, and write-flow status handling but never inspected `src/lib/readModel/marketSnapshot.ts`, so a 10-second cache still masked confirmed writes and reintroduced the original stale-read blocker.",
       "isSystemic": true
     }
   ],
   "rejectedObservations": [
     {
-      "observation": "Shared state lacks a note about the placeholder WalletConnect project ID causing expected 400/403 console noise.",
-      "reason": "duplicate of the knowledge observation already applied to `.factory/library/environment.md` from `frontend-wallet-connection`."
+      "observation": "Shared state does not currently document the frontend read cache at all.",
+      "reason": "The cache existence was already documented in `.factory/library/architecture.md`; this round only added the missing invalidation guidance for immediate post-write refreshes."
     }
   ],
-  "previousRound": null
+  "previousRound": ".factory/validation/frontend-write-path/scrutiny/synthesis.round-1.json"
 }
