@@ -270,6 +270,43 @@ The governance root follows the **Governor→TimelockController→AccessManager*
 
 Demo-friendly parameters: voting delay ~1s, voting period ~300s, timelock ~60s, quorum 4%.
 
+## Market Configuration
+
+### Risk Parameters
+
+| Parameter | Value |
+|-----------|-------|
+| Max LTV | 70% (7000 bps) |
+| Liquidation Threshold | 80% (8000 bps) |
+| Liquidation Bonus | 5% (500 bps) |
+| Reserve Factor | 10% (1000 bps) |
+| Supply Cap | 5,000,000 USDC |
+| Borrow Cap | 4,000,000 USDC |
+| Min Borrow Amount | 100 USDC |
+| Oracle Max Age | 6 hours (21600s) |
+
+### Interest Rate Model (Kinked)
+
+| Parameter | Value |
+|-----------|-------|
+| Base Rate | 2% (200 bps) |
+| Slope 1 (below kink) | 8% (800 bps) |
+| Slope 2 (above kink) | 30% (3000 bps) |
+| Kink Utilization | 80% (8000 bps) |
+
+### OpenZeppelin Integration
+
+Non-trivial composition of OZ 5.x contracts:
+
+- **AccessManager** — System-wide role-function mapping with execution delays (riskAdmin: 60s, treasury: 60s, minter: 60s, emergency: 0s)
+- **Governor** — Full propose/vote/queue/execute lifecycle (5 extensions composed)
+- **TimelockController** — Governance timelock; holds AccessManager admin
+- **ERC20Votes + ERC20Permit** — Governance token with on-chain delegation
+- **ERC4626** — DebtPool LP vault with virtual-offset inflation-attack protection
+- **SafeERC20** — All token transfers in LendingCore
+- **Pausable** — Emergency pause on core, pool, and oracle
+- **ReentrancyGuard** — All state-changing fund flows
+
 ## Canonical Deployment (Governor-Governed)
 
 All contracts deployed under a single canonical Governor→TimelockController→AccessManager governance root.
@@ -424,7 +461,6 @@ docs/dualvm/                    # Proof artifacts and evidence
 ├── dualvm_submission_final.md  # DoraHacks submission document
 ├── screenshots/                # Visual evidence
 └── submission_evidence/        # Submission artifacts
-STATUS.md                       # Quick-reference deployment status
 ```
 
 ## Proof Artifacts
