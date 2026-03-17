@@ -1,0 +1,28 @@
+{
+  "featureId": "frontend-tabbed-layout",
+  "reviewedAt": "2026-03-17T22:44:09.464728Z",
+  "commitId": "d0588c4",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "fail",
+  "codeReview": {
+    "summary": "The commit correctly introduces a 3-tab layout and preserves the expected section grouping, but it misses the explicit requirement to keep transaction history above the tabs with global visibility.",
+    "issues": [
+      {
+        "file": "dualvm/src/App.tsx",
+        "line": 106,
+        "severity": "blocking",
+        "description": "The feature contract requires `TxHistoryList` to stay above the tabs for global visibility, but the app renders `TabNav` immediately after the header and never mounts a shared transaction-history component there. Transaction history remains buried inside individual write forms instead, so users lose access to completed TX history as soon as they leave the Lend & Borrow tab."
+      }
+    ]
+  },
+  "sharedStateObservations": [
+    {
+      "area": "skills",
+      "observation": "The `frontend-worker` skill requires a manual Vite/UI verification step, but this run recorded only static analysis/build commands and still reported `skillFeedback.followedProcedure: true`. The skill or review conventions should make manual-check evidence explicit.",
+      "evidence": "`.factory/skills/frontend-worker/SKILL.md` step 6 requires starting Vite and manually checking the rendered UI. The transcript skeleton for worker session `c6243e88-e696-4bba-99ca-3666207a3537` shows no dev-server launch or browser interaction before `EndFeatureRun`, while the handoff marks `skillFeedback.followedProcedure` as true."
+    }
+  ],
+  "addressesFailureFrom": null,
+  "summary": "Fail: the tabbed-layout refactor mostly matches the requested tab structure, but commit `d0588c4` does not preserve a globally visible `TxHistoryList` above the tabs, which was part of the feature definition."
+}

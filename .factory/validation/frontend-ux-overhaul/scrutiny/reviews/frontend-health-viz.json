@@ -1,0 +1,45 @@
+{
+  "featureId": "frontend-health-viz",
+  "reviewedAt": "2026-03-17T22:44:12+00:00",
+  "commitId": "22fc468",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "fail",
+  "codeReview": {
+    "summary": "The feature adds the requested health-factor styling, Max buttons, and liquidation-price UI, but the Max-button implementation has two blocking correctness flaws and the liquidation-price calculation can drift from the protocol's real liquidation threshold.",
+    "issues": [
+      {
+        "file": "dualvm/src/components/sections/WritePathSection.tsx",
+        "line": 21,
+        "severity": "blocking",
+        "description": "`extractAmount()` strips only the token suffix from display strings. Because observer amounts are formatted via `formatTokenAmount()` with `Intl.NumberFormat` (`dualvm/src/lib/format.ts:7-11`), values like `1,234.56 USDC-test` become `1,234.56`, and the later `parseUnits()` calls in the borrow/repay handlers throw on the comma. Max therefore breaks for 4-digit+ balances/debts."
+      },
+      {
+        "file": "dualvm/src/App.tsx",
+        "line": 111,
+        "severity": "blocking",
+        "description": "The borrow/repay Max buttons are fed from `snapshot.observer`, which is keyed off the observer panel's tracked address (`App.tsx:31-32, 47-48, 87, 111`) rather than the connected wallet that submits the transaction. On first load it uses the hard-coded `DEFAULT_OBSERVER_ADDRESS`, and after that it follows whatever address the user is observing. This means the forms can autofill amounts for an unrelated borrower, so the buttons do not provide the active signer's true maximum actionable borrow/repay amount required by VAL-UX-003."
+      },
+      {
+        "file": "dualvm/src/lib/readModel/observer.ts",
+        "line": 81,
+        "severity": "non_blocking",
+        "description": "The liquidation-price display is computed from `maxConfiguredLiquidationThresholdBps`, but `LendingCore.healthFactor()` uses the effective threshold returned by the risk quote (`contracts/RiskAdapter.sol:139-145`, `contracts/LendingCore.sol:571-593`). In stressed mode or with stale-enough oracle data, the displayed liquidation price can diverge from the protocol's real liquidation point."
+      }
+    ]
+  },
+  "sharedStateObservations": [
+    {
+      "area": "skills",
+      "observation": "The frontend-worker skill requires a manual dev-server/UI verification step, but this worker session recorded only non-interactive validators while still reporting `followedProcedure: true`.",
+      "evidence": "`/home/kpa/polkadot/.factory/skills/frontend-worker/SKILL.md` step 6 says to start Vite and manually verify the page/forms, while `/home/kpa/.factory/missions/dc664f26-9086-4d9b-896d-ba8f3bde8d71/handoffs/2026-03-17T22-26-20-727Z__frontend-health-viz__d82900c5-c863-40df-bd45-7b29572e0e73.json` lists only `npm test`, `npx tsc --noEmit`, and `npx vite build` under `verification.commandsRun` and no interactive checks."
+    },
+    {
+      "area": "conventions",
+      "observation": "There is no shared frontend guidance distinguishing display-formatted token strings from parseable numeric input strings, which likely contributed to wiring locale-formatted observer values directly into Max-button form inputs.",
+      "evidence": "`dualvm/src/lib/format.ts:7-11` formats numbers with `Intl.NumberFormat`, while `dualvm/src/components/sections/WritePathSection.tsx:21-22` reuses those display strings for form input values via `extractAmount()`."
+    }
+  ],
+  "addressesFailureFrom": null,
+  "summary": "Review failed. The health-factor presentation itself is fine, but the Max buttons are not safe to ship: they can throw on locale-formatted values and they currently derive their limits from the observer address instead of the signing wallet. The liquidation-price display is also based on the static configured threshold rather than the protocol's dynamic effective threshold."
+}

@@ -1,0 +1,34 @@
+{
+  "featureId": "lending-router",
+  "reviewedAt": "2026-03-17T22:44:26.029428+00:00",
+  "commitId": "6dab2a9466fdfe9a2d15fc06dcf06f3d7e1aecc7",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "fail",
+  "codeReview": {
+    "summary": "The feature adds a LendingRouter contract, tests, manifest typing, and frontend wiring for a 1-click PAS deposit path. However, the router deposits collateral into LendingCore under the router's own address instead of the caller, and the canonical frontend manifest still has no lendingRouter address, so the shipped UI does not actually expose the new 1-click action.",
+    "issues": [
+      {
+        "file": "dualvm/contracts/LendingRouter.sol",
+        "line": 60,
+        "severity": "blocking",
+        "description": "depositCollateralFromPAS() calls LendingCore.depositCollateral(amount) from the router itself, so LendingCore records collateral under positions[msg.sender] for the router rather than for the user. LendingCore's depositCollateral() and borrow() both key positions by msg.sender (dualvm/contracts/LendingCore.sol:318-319 and :381-382), and the new tests explicitly assert core.positions(routerAddress) (dualvm/test/LendingRouter.ts:30-38,50-60). In the frontend this means a user can send PAS through the 1-click flow yet still have no personal collateral position for borrow/withdraw actions, while all router users share a single pooled position. That does not satisfy the intended one-click replacement for the manual collateral deposit flow."
+      },
+      {
+        "file": "dualvm/src/components/sections/WritePathSection.tsx",
+        "line": 274,
+        "severity": "blocking",
+        "description": "The 1-click UI is rendered only when contracts.lendingRouter is present, but the canonical frontend manifest imported by src/lib/manifest.ts:2-4 still has no contracts.lendingRouter entry (dualvm/deployments/polkadot-hub-testnet-canonical.json). As shipped, the frontend therefore never shows the 'Deposit PAS (1-click)' button on the canonical deployment, so the feature's expected frontend behavior is not actually available to users."
+      }
+    ]
+  },
+  "sharedStateObservations": [
+    {
+      "area": "knowledge",
+      "observation": "The shared state does not yet document the new optional contracts.lendingRouter manifest field or that the PAS 1-click deposit UI is hard-gated on that key. Future deployment/frontend workers could deploy the router or update scripts without realizing the canonical manifest must also carry contracts.lendingRouter for the button to appear.",
+      "evidence": "dualvm/lib/shared/deploymentManifest.ts:73 and :186 add optional lendingRouter parsing; dualvm/src/components/sections/WritePathSection.tsx:158-163 and :274-312 gate the 1-click flow on contracts.lendingRouter; .factory/library/environment.md:26-27 already notes the frontend statically imports the canonical manifest but does not mention the new key."
+    }
+  ],
+  "addressesFailureFrom": null,
+  "summary": "Fail: the reviewed commit adds the router and wiring, but the 1-click path credits collateral to the router instead of the user, and the canonical frontend manifest still lacks a router address so the new button is not exposed in the shipped app."
+}
