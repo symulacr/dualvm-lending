@@ -28,7 +28,8 @@
     "index-events:testnet": "node scripts/snapshot-recent-events.mjs",
     "liquidate:testnet": "hardhat run scripts/executeLiquidation.ts --network polkadotHubTestnet",
     "governance:apply": "hardhat run scripts/applyRoleSeparation.ts --network polkadotHubTestnet",
-    "wallet:generate": "node scripts/generate-wallet.mjs"
+    "wallet:generate": "node scripts/generate-wallet.mjs",
+    "lint": "eslint ."
   },
   "dependencies": {
     "@rainbow-me/rainbowkit": "^2.2.10",
@@ -39,6 +40,7 @@
     "wagmi": "^2.19.5"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@nomicfoundation/hardhat-toolbox": "^6.1.0",
     "@nomicfoundation/solidity-language-server": "^0.8.25",
     "@openzeppelin/contracts": "^5.5.0",
@@ -53,11 +55,13 @@
     "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^4.3.4",
     "dotenv": "^16.4.7",
+    "eslint": "^10.0.3",
     "ethers": "^6.16.0",
     "hardhat": "^2.22.19",
     "solc": "^0.8.28",
     "ts-node": "^10.9.2",
     "typescript": "^5.7.2",
+    "typescript-eslint": "^8.57.1",
     "vite": "^5.4.11"
   }
 }

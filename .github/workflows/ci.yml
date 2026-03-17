@@ -24,8 +24,18 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: TypeScript typecheck
+        run: npx tsc --noEmit
+
+      - name: Lint
+        run: npm run lint
+
       - name: Run tests
         run: npm test
 
       - name: Build app and contracts
         run: npm run build
+
+      - name: Testnet smoke (read-only contract existence)
+        run: node scripts/ci-smoke.mjs
+        continue-on-error: true

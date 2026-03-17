@@ -6,7 +6,7 @@ commands:
   compile: cd dualvm && npx hardhat compile
   compile_pvm: cd dualvm && npm run build:pvm:probes
   balance_check: cd dualvm && node scripts/check-testnet-balance.mjs
-  lint: echo "ESLint not configured yet — lint is a no-op until ci-enhancement feature adds it"
+  lint: cd dualvm && npm run lint
 
 services:
   vite-dev:
