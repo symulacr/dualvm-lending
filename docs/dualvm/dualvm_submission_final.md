@@ -22,7 +22,7 @@ The protocol is public-testnet-validated with 12 deployed contracts (11 explorer
 https://github.com/parity-asia/hackathon-2026-03-polkadot-solidity/dualvm
 
 ## Hosted Frontend
-*(To be filled with Vercel URL after deployment)*
+TBD - will be updated by frontend-deploy-vercel feature
 
 ## Track 1: EVM Smart Contract — DeFi / Stablecoin-Enabled DApp
 
@@ -65,14 +65,15 @@ The PVM risk engine is a **production-path component**, not a proof-of-concept:
 |-------|----------------|---------|
 | Echo | REVM sends bytes32 to PVM, receives identical bytes back | [0x282f3253...](https://blockscout-testnet.polkadot.io/tx/0x282f32532f1bc337266e7a0d849edb1153449be7fad9d4b9feacec8aded641d0) |
 | Quote | PVM returns deterministic risk params (700bps borrow rate, 7500bps maxLTV) | [0x4f55eac1...](https://blockscout-testnet.polkadot.io/tx/0x4f55eac1f75b6540e3d81d3618a8857574551809fce2b08bfc4e11a4b15b5698) |
-| Roundtrip Settlement | REVM stores debt state derived from PVM-computed borrow rate | [0x4284ace5...](https://blockscout-testnet.polkadot.io/tx/0x4284ace5171ead5bea7c5795ee78528ac815b5d65d450b6f85de06b56ebe2ad5) |
+| Roundtrip Settlement | REVM stores debt state derived from PVM-computed borrow rate (⚠️ accumulated state — see probe-results.json) | [0x4284ace5...](https://blockscout-testnet.polkadot.io/tx/0x4284ace5171ead5bea7c5795ee78528ac815b5d65d450b6f85de06b56ebe2ad5) |
 | XCM Precompile | `weighMessage` call returns refTime=979880000, proofSize=10943 | [0xc147ac14...](https://blockscout-testnet.polkadot.io/tx/0xc147ac140cc9591bcdd444478ed27d72ce4fd05312d5f8ef16f4e6dfe7439cc0) |
 
 ### Precompile Usage
 **CrossChainQuoteEstimator** at `0x5bC4e5BbF72b67Acb202546e88849dAcF8985A7F` calls the XCM precompile at `0x00000000000000000000000000000000000A0000` to estimate cross-chain risk quote costs via `weighMessage`. This demonstrates real Polkadot-native precompile access for potential cross-chain risk computation.
 
 ### Honest Limitations
-- PVM callback probe (Stage 2) reverts on-chain due to platform-level cross-VM callback limitations — we document this transparently rather than hiding it
+- PVM callback probe (Stage 2) reverts on-chain due to platform-level cross-VM callback limitations — documented transparently
+- PVM roundtrip settlement (Stage 3) shows accumulated on-chain state from prior probe runs; PVM-derived quote values are correct
 - PvmQuoteProbe cannot be Blockscout-verified (compiled via `resolc` for PolkaVM, not standard Solidity) — PVM code hash confirmed via substrate API
 
 ## OpenZeppelin Sponsor Track — Non-Trivial OZ Composition

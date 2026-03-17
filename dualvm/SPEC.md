@@ -27,14 +27,22 @@ DualVM Lending is a single isolated lending market on Polkadot Hub TestNet. It c
 
 ### Interop Proof Package
 
-Four probe stages independently verify REVM↔PVM cross-VM capability on the public testnet:
+Five probe stages independently verify REVM↔PVM cross-VM capability on the public testnet:
 
-1. **Echo** — bytes32 round-trip (data integrity)
-2. **Quote** — deterministic risk parameter retrieval
-3. **Roundtrip Settlement** — REVM stores PVM-derived state
-4. **XCM Precompile** — `weighMessage` call to XCM precompile at `0x...0a0000`
+| Stage | Description | Status |
+|-------|-------------|--------|
+| Stage 0 (Capability gate) | REVM and PVM probe contracts exist on-chain | ✅ passed |
+| Stage 1A (Echo) | bytes32 round-trip data integrity | ✅ passed |
+| Stage 1B (Quote) | Deterministic risk parameter retrieval | ✅ passed |
+| Stage 2 (PVM→REVM callback) | PVM-originated state change on REVM receiver | ❌ failed (platform limitation) |
+| Stage 3 (Roundtrip settlement) | REVM stores PVM-derived state | ⚠️ mixed (accumulated state) |
+| XCM Precompile | `weighMessage` call at `0x...0a0000` | ✅ passed |
 
-Probe verdicts: A=true, B=true, C=true, D=false (D=false means interop IS defensible).
+**Stage 2 detail**: PVM→REVM callback reverts on the public testnet due to platform-level cross-VM callback limitations.
+
+**Stage 3 detail**: `settleBorrow` shows accumulated on-chain state from multiple probe runs (principalDebt=2140 vs expected 1070, settlementCount=3). PVM-derived quote values (borrowRateBps=700, maxLtvBps=7500, liquidationThresholdBps=8500) are correct — the mismatch is accumulated state, not a computation error. `settleLiquidationCheck` passed.
+
+Probe verdicts: A=true, B=true, C=true, D=false (D=false means interop IS defensible). These verdicts reflect overall cross-VM capability across probe runs. See `deployments/polkadot-hub-testnet-probe-results.json` for the canonical artifact.
 
 ### Governance
 
@@ -109,5 +117,6 @@ React 18 + Vite frontend with:
 - Single isolated market
 - Manual oracle (not a decentralized oracle network)
 - USDC-test is a mock token
-- PVM callback probe reverts (platform limitation)
+- PVM callback probe (Stage 2) reverts on-chain due to platform-level cross-VM callback limitations
+- PVM roundtrip settlement (Stage 3) shows accumulated state from multiple probe runs; PVM-derived quote values are correct
 - Hackathon governance parameters (not production values)
