@@ -1,0 +1,69 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.28;
+
+import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+
+interface IWPASV2 {
+    function deposit() external payable;
+}
+
+interface ILendingCoreV2Deposit {
+    function depositCollateralFor(address beneficiary, uint256 amount) external;
+}
+
+/**
+ * @title LendingRouterV2
+ * @notice Convenience router that wraps native PAS into WPAS and deposits it as
+ *         collateral in LendingCoreV2 in a single transaction, crediting the
+ *         original caller's position (not the router's).
+ *
+ * @dev Uses LendingCoreV2.depositCollateralFor(msg.sender, amount) so the position
+ *      is tracked for the original caller, not for this router contract. This fixes
+ *      the accounting issue present in LendingRouter v1 where the router address
+ *      accumulated collateral instead of the user.
+ *
+ *      Requires the router address to hold a role authorised for depositCollateralFor
+ *      in the AccessManager before deployment is wired.
+ */
+contract LendingRouterV2 is ReentrancyGuard {
+    using SafeERC20 for IERC20;
+
+    error ZeroAmount();
+
+    IWPASV2 public immutable wpas;
+    ILendingCoreV2Deposit public immutable lendingCore;
+
+    event DepositedCollateralFromPAS(address indexed depositor, uint256 amount);
+
+    constructor(address _wpas, address _lendingCore) {
+        wpas = IWPASV2(_wpas);
+        lendingCore = ILendingCoreV2Deposit(_lendingCore);
+    }
+
+    /**
+     * @notice Wraps msg.value of native PAS to WPAS and deposits it as collateral
+     *         in LendingCoreV2, crediting the original caller's position.
+     *
+     * Steps:
+     *  1. WPAS.deposit{value: msg.value}()  — router receives WPAS
+     *  2. WPAS.forceApprove(lendingCore, msg.value) — approve LendingCore to pull
+     *  3. LendingCoreV2.depositCollateralFor(msg.sender, msg.value) — position credited to caller
+     */
+    function depositCollateralFromPAS() external payable nonReentrant {
+        if (msg.value == 0) revert ZeroAmount();
+        uint256 amount = msg.value;
+
+        // 1. Wrap native PAS → WPAS (router receives the WPAS tokens)
+        wpas.deposit{value: amount}();
+
+        // 2. Approve LendingCore to pull WPAS from this router
+        IERC20(address(wpas)).forceApprove(address(lendingCore), amount);
+
+        // 3. Deposit collateral — position credited to original caller, not the router
+        lendingCore.depositCollateralFor(msg.sender, amount);
+
+        emit DepositedCollateralFromPAS(msg.sender, amount);
+    }
+}
