@@ -1,0 +1,68 @@
+{
+  "generatedAt": "2026-03-18T22:10:31.732Z",
+  "description": "Fresh probe-results-v2: RevmQuoteCallerProbe and RevmRoundTripSettlementProbe deployed fresh, stage1 (echo+quote) and stage3 (settlement) each run exactly once against the PvmQuoteProbe PVM target.",
+  "pvmTarget": "0x9a78F65b00E0AeD0830063eD0ea66a0B5d8876DE",
+  "pvmTargetId": "0xba8fe2a621062a30bba558a3846d0a18bfb2e9a09bfaed656b123e698b59af5b",
+  "pvmDeterministicRiskModel": "0xC6907B609ba4b94C9e319570BaA35DaF587252f8",
+  "deployedProbes": {
+    "revmQuoteCallerProbeV2": {
+      "address": "0x07d060DAC80FF46F6f071d210BF8b0574E742f39",
+      "deployTxHash": "0x6f6a24861c8d98263d92bada8977d76db25cf7a1359d418726c2ab05a4ec545c",
+      "explorerUrl": "https://blockscout-testnet.polkadot.io/address/0x07d060DAC80FF46F6f071d210BF8b0574E742f39",
+      "pvmTarget": "0x9a78F65b00E0AeD0830063eD0ea66a0B5d8876DE",
+      "pvmTargetId": "0xba8fe2a621062a30bba558a3846d0a18bfb2e9a09bfaed656b123e698b59af5b",
+      "transportMode": "DirectSync"
+    },
+    "revmRoundTripSettlementProbeV2": {
+      "address": "0xF2Ef9A21F906895494adf7794743645859fD57DB",
+      "deployTxHash": "0x9dae93ea0a0b21e4cfc606ef259432e5a43e14523643e6ec4f9efad5a07e2b45",
+      "explorerUrl": "https://blockscout-testnet.polkadot.io/address/0xF2Ef9A21F906895494adf7794743645859fD57DB",
+      "quoteAdapter": "0x07d060DAC80FF46F6f071d210BF8b0574E742f39"
+    }
+  },
+  "stages": {
+    "stage1": {
+      "status": "passed",
+      "echo": {
+        "status": "passed",
+        "txHash": "0x93fc2cbf408bf79b4552d794ffece98cef3fdf2c20a5c45eef6ea1063caeb78c",
+        "readbacks": {
+          "lastEchoInput": "0x111122223333444455556666777788889999aaaabbbbccccddddeeeeffff0000",
+          "lastEchoOutput": "0x111122223333444455556666777788889999aaaabbbbccccddddeeeeffff0000",
+          "pvmTargetId": "0xba8fe2a621062a30bba558a3846d0a18bfb2e9a09bfaed656b123e698b59af5b"
+        }
+      },
+      "quote": {
+        "status": "passed",
+        "txHash": "0xf69b7e2826531546ea94f76b4a2abcf8453a83804a5737f5f7aee39ea226069b",
+        "readbacks": {
+          "callCount": "1",
+          "lastInputHash": "0x7431463ff24a5f7497bdfc86b516ce3323be8e12d761f0ac39eab8171fd6170c",
+          "lastResultHash": "0x29ff247cb200e3f80b21f04440957ce31334b5d3bab145708fb91a8dc8652352",
+          "lastBorrowRateBps": "700",
+          "lastMaxLtvBps": "7500",
+          "lastLiquidationThresholdBps": "8500"
+        }
+      }
+    },
+    "stage3": {
+      "status": "passed",
+      "txHash": "0x34d69106f6d48d0f317736674737820124ba589cf03d6d96771fa76ec38b1c4b",
+      "explorerUrl": "https://blockscout-testnet.polkadot.io/tx/0x34d69106f6d48d0f317736674737820124ba589cf03d6d96771fa76ec38b1c4b",
+      "expected": {
+        "principalDebt": "1070",
+        "borrowRateBps": "700",
+        "maxLtvBps": "7500",
+        "liquidationThresholdBps": "8500"
+      },
+      "readbacks": {
+        "principalDebt": "1070",
+        "lastBorrowRateBps": "700",
+        "lastMaxLtvBps": "7500",
+        "lastLiquidationThresholdBps": "8500",
+        "lastQuoteHash": "0x29ff247cb200e3f80b21f04440957ce31334b5d3bab145708fb91a8dc8652352",
+        "settlementCount": "1"
+      }
+    }
+  }
+}

@@ -20,6 +20,7 @@
     "probe:pvm-to-revm:testnet": "hardhat run --config hardhat.pvm.config.ts scripts/probes/run-pvm-to-revm.ts --network polkadotHubPvmTestnet",
     "probe:roundtrip:testnet": "hardhat run scripts/probes/run-roundtrip-settlement.ts --network polkadotHubTestnet",
     "probe:collect:testnet": "hardhat run scripts/probes/collect-proof.ts --network polkadotHubTestnet",
+    "probe:fresh-v2:testnet": "hardhat run scripts/probes/run-fresh-probe-collection-v2.ts --network polkadotHubTestnet",
     "verify:testnet": "hardhat run scripts/verifyAll.ts --network polkadotHubTestnet",
     "repay-smoke:testnet": "hardhat run scripts/liveRepaySmoke.ts --network polkadotHubTestnet",
     "risk-smoke:testnet": "hardhat run scripts/liveRiskAdminSmoke.ts --network polkadotHubTestnet",
