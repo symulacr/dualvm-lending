@@ -90,15 +90,14 @@ sequenceDiagram
     participant LC as LendingCore
     participant MO as ManualOracle
     participant RA as RiskAdapter
-    participant PVM as PvmQuoteProbe
     participant DP as DebtPool
     U->>LC: 1. borrow(amount)
     LC->>MO: 2. getPrice()
     MO-->>LC: price, timestamp
-    LC->>RA: 3. getQuote(collateral, debt)
-    RA->>PVM: 4. quote(params)
-    PVM-->>RA: borrowRateBps, maxLtvBps
-    RA-->>LC: QuoteTicket
+    LC->>RA: 3. quoteViaTicket(context, input)
+    Note over RA: 4. inline kinked-curve math (canonical path)
+    Note over RA: optional: cross-VM verify via DeterministicRiskModel on PVM
+    RA-->>LC: QuoteTicket (inline result)
     LC->>LC: 5. healthFactor >= threshold?
     LC->>DP: 6. drawPrincipal(amount)
     DP-->>U: 7. USDC-test tokens
@@ -117,7 +116,7 @@ graph TD
     LC --> MO
     LC --> RA[RiskAdapter]
     LC <--> DP
-    RA --> QE[PvmQuoteProbe]
+    RA -.->|optional cross-VM verify| QE[DeterministicRiskModel]
     LC --- WPAS[WPAS Collateral]
     DP --- USDC[USDCMock Debt]
     MVR --> MMC[MarketMigrationCoordinator]
@@ -145,15 +144,15 @@ graph LR
         LC[LendingCore]
         DP[DebtPool]
         MO[ManualOracle]
-        RA[RiskAdapter]
+        RA["RiskAdapter (inline math: canonical path)"]
         GV[Governor stack]
     end
-    subgraph PVM["PVM (PolkaVM)"]
-        QE["PvmQuoteProbe (resolc-compiled)"]
+    subgraph PVM["PVM (PolkaVM) — optional verification"]
+        QE["DeterministicRiskModel (resolc-compiled)"]
     end
-    RA -->|cross-VM call| QE
-    QE -->|risk params| RA
-    RA -->|inline math primary| LC
+    RA -->|canonical inline result| LC
+    RA -.->|optional cross-VM verify| QE
+    QE -.->|risk params for comparison| RA
 ```
 
 ### Migration State Machine
@@ -275,7 +274,7 @@ Demo-friendly parameters: voting delay ~1s, voting period ~300s, timelock ~60s, 
 | Failure Mode | Impact | Recovery |
 |---|---|---|
 | **Oracle Stale (>maxAge)** | Borrows revert with `OraclePriceStale`. Liquidations still work (last known price used for health factor). Repayments work. | Operator calls `setPrice()`. |
-| **PVM Unavailable** | RiskAdapter unified gateway falls back to inline deterministic math. Zero impact on lending operations. `CrossVMDivergence` event may be emitted if PVM recovers with a different result. | No action needed — inline math is the canonical path. |
+| **PVM Unavailable** | RiskAdapter continues on the inline deterministic path (PVM is an optional verification layer, not the canonical computation path). Zero impact on lending operations. `CrossVMDivergence` event may be emitted if PVM recovers with a different result. | No action needed — inline math is the canonical path. |
 | **Liquidity Exhausted** | Borrows fail with `InsufficientLiquidity`. LP withdrawals may fail if pool is dry. Repayments always work. Liquidations work (reduce debt without drawing new liquidity). | More LP deposits or borrowers repay. |
 | **Circuit Breaker** | `setPrice()` reverts if price is outside `[minPriceWad, maxPriceWad]` or delta exceeds `maxChangeBps`. Protocol continues on last accepted price. | Operator adjusts circuit breaker params via governance proposal, then updates price. |
 | **Emergency Procedures** | `EMERGENCY` role (delay=0) can call `pause()` on `LendingCore`, `DebtPool`, and `ManualOracle`. `freezeNewDebt()` blocks new borrows while preserving repay/liquidate. | Resume via `unpause()` after root cause is resolved. |
