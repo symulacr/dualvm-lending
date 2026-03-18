@@ -270,6 +270,16 @@ The governance root follows the **Governor→TimelockController→AccessManager*
 
 Demo-friendly parameters: voting delay ~1s, voting period ~300s, timelock ~60s, quorum 4%.
 
+## Failure Modes
+
+| Failure Mode | Impact | Recovery |
+|---|---|---|
+| **Oracle Stale (>maxAge)** | Borrows revert with `OraclePriceStale`. Liquidations still work (last known price used for health factor). Repayments work. | Operator calls `setPrice()`. |
+| **PVM Unavailable** | RiskAdapter unified gateway falls back to inline deterministic math. Zero impact on lending operations. `CrossVMDivergence` event may be emitted if PVM recovers with a different result. | No action needed — inline math is the canonical path. |
+| **Liquidity Exhausted** | Borrows fail with `InsufficientLiquidity`. LP withdrawals may fail if pool is dry. Repayments always work. Liquidations work (reduce debt without drawing new liquidity). | More LP deposits or borrowers repay. |
+| **Circuit Breaker** | `setPrice()` reverts if price is outside `[minPriceWad, maxPriceWad]` or delta exceeds `maxChangeBps`. Protocol continues on last accepted price. | Operator adjusts circuit breaker params via governance proposal, then updates price. |
+| **Emergency Procedures** | `EMERGENCY` role (delay=0) can call `pause()` on `LendingCore`, `DebtPool`, and `ManualOracle`. `freezeNewDebt()` blocks new borrows while preserving repay/liquidate. | Resume via `unpause()` after root cause is resolved. |
+
 ## Market Configuration
 
 ### Risk Parameters
@@ -417,6 +427,50 @@ From `dualvm/`:
 | `npm run verify:testnet` | Explorer-verify contracts |
 | `npm run build:pvm:probes` | Build PVM probe artifacts |
 | `npm run deploy:pvm:probes:testnet` | Deploy PVM probes |
+
+## Deployment Guide
+
+### Required Environment Variables
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `PRIVATE_KEY` | ✅ | — | Deployer wallet private key (never commit) |
+| `RPC_URL` | ✅ | — | Target network RPC endpoint |
+| `ADMIN_DELAY_SECONDS` | Optional | `3600` | AccessManager execution delay for admin operations |
+| `RISK_QUOTE_ENGINE_ADDRESS` | Optional | — | Address of deployed PVM quote engine (omit for inline-only mode) |
+
+### Deployment Order
+
+The governed system deploys in order (~25 TXs ungoverned, ~40 TXs governed):
+
+1. **AccessManager** — governance root, role manager
+2. **Assets** — WPAS collateral token, USDCMock debt token
+3. **Market Version** — ManualOracle, RiskAdapter, DebtPool, LendingCore
+4. **Registry** — MarketVersionRegistry, MarketMigrationCoordinator
+5. **Governance** — GovernanceToken, TimelockController, DualVMGovernor
+6. **Role Setup** — bind roles, transfer AccessManager admin to TimelockController, renounce deployer admin
+
+```bash
+cp .env.example .env  # fill PRIVATE_KEY and RPC_URL
+npm run deploy:governed:testnet
+```
+
+### PVM Compilation
+
+The PVM risk engine (`PvmQuoteProbe`) is compiled via `resolc` (Polkadot's Solidity-to-PolkaVM compiler):
+
+```bash
+npx hardhat compile --config hardhat.pvm.config.ts
+```
+
+Artifacts are produced in `artifacts-pvm/`. PVM contracts cannot be Blockscout-verified via standard Solidity verification — confirm the PVM code hash via `revive.accountInfoOf(address)` on the Substrate API.
+
+### Post-Deployment Checklist
+
+- [ ] Verify bytecode on Blockscout: `npm run verify:testnet`
+- [ ] Run probe suite to confirm cross-VM interop: `npm run deploy:revm:probes:testnet`
+- [ ] Check AccessManager roles: confirm riskAdmin, treasury, and minter delays are non-zero
+- [ ] Confirm deployer renunciation: `accessManager.hasRole(0, deployer)` returns `false`
 
 ## Known Limitations
 
