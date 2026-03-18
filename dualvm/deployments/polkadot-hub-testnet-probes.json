@@ -1,0 +1,65 @@
+{
+  "generatedAt": "2026-03-18T20:08:08.006Z",
+  "networkName": "polkadotHubTestnet",
+  "polkadotHubTestnet": {
+    "name": "Polkadot Hub TestNet",
+    "chainId": 420420417,
+    "rpcUrl": "https://eth-rpc-testnet.polkadot.io/",
+    "fallbackRpcUrl": "https://services.polkadothub-rpc.com/testnet/",
+    "explorerUrl": "https://blockscout-testnet.polkadot.io/",
+    "faucetUrl": "https://faucet.polkadot.io/",
+    "wssUrl": "wss://asset-hub-paseo-rpc.n.dwellir.com"
+  },
+  "pvm": {
+    "quoteProbe": {
+      "address": "0x9a78F65b00E0AeD0830063eD0ea66a0B5d8876DE",
+      "deployTxHash": "0xab768ad65626896fc4a21e1600f47a964e35a29908114cb1051b9f2ec0b71a21",
+      "explorerUrl": "https://blockscout-testnet.polkadot.io/address/0x9a78F65b00E0AeD0830063eD0ea66a0B5d8876DE",
+      "codeHash": "0xba8fe2a621062a30bba558a3846d0a18bfb2e9a09bfaed656b123e698b59af5b"
+    },
+    "callbackProbe": {
+      "address": "0xc60E223A91aEbf1589A5509F308b4787cF6607AE",
+      "deployTxHash": "0x181ad1d4484de1cfdb50648ab9a9f0aad7e6d64a42d105f944ed6ae59d6623b3",
+      "explorerUrl": "https://blockscout-testnet.polkadot.io/address/0xc60E223A91aEbf1589A5509F308b4787cF6607AE",
+      "codeHash": "0x22c11501583605f9e3eb6ddc6946b477aa51d36b43fff0b3de5ec47a501fdb27"
+    },
+    "deterministicRiskModel": {
+      "address": "0xC6907B609ba4b94C9e319570BaA35DaF587252f8",
+      "deployTxHash": "0x8ef89961bd7a9ece965715e482beec4e86980aba63c9ebefb853fac29552fc59",
+      "explorerUrl": "https://blockscout-testnet.polkadot.io/address/0xC6907B609ba4b94C9e319570BaA35DaF587252f8",
+      "codeHash": "0x123cda60b6c4e67281b260dfa9317ddbb45cf9aa5134b32edb3e0ec6fa1106c8"
+    }
+  },
+  "revm": {
+    "callbackReceiver": {
+      "address": "0x2b059760bb836128A287AE071167f9e3F4489c71",
+      "deployTxHash": "0x372b701eb1580435ccfa70f240738fee3c6e1550fdf863260b9c6e36b3b80b8a",
+      "explorerUrl": "https://blockscout-testnet.polkadot.io/address/0x2b059760bb836128A287AE071167f9e3F4489c71"
+    },
+    "quoteCaller": {
+      "address": "0xD08583e1AC7aCc75FF5365909Be808ea2AD5d942",
+      "deployTxHash": "0xed07b470e422c381cbc4c4d297c886a0676c4cda63e154a19913908a74f89781",
+      "explorerUrl": "https://blockscout-testnet.polkadot.io/address/0xD08583e1AC7aCc75FF5365909Be808ea2AD5d942",
+      "pvmTargetId": "0xba8fe2a621062a30bba558a3846d0a18bfb2e9a09bfaed656b123e698b59af5b",
+      "transportMode": "DirectSync"
+    },
+    "roundTripSettlement": {
+      "address": "0xB97286570473a5728669ee487BC05763E2f22fE1",
+      "deployTxHash": "0xa76c4eef378eb2cc0081cf72e7d19f71547272af93e8f04e792d321b3c475eb0",
+      "explorerUrl": "https://blockscout-testnet.polkadot.io/address/0xB97286570473a5728669ee487BC05763E2f22fE1",
+      "pvmTargetId": "0xba8fe2a621062a30bba558a3846d0a18bfb2e9a09bfaed656b123e698b59af5b",
+      "transportMode": "DirectSync"
+    }
+  },
+  "notes": [
+    "PVM probes deployed by 0x31FA19B35fdBD96f381A0be838799ca40978D080 through the Hardhat Polkadot provider and verified via revive.accountInfoOf code hashes.",
+    "DeterministicRiskModel (PVM) deployed by 0x36a83a4450744f4F9988c9Bc46cC556Ba5bFD2dF at 0xC6907B609ba4b94C9e319570BaA35DaF587252f8. quote() verified identical to EVM riskEngine 0x67D0B226b5aE56A29E206840Ecd389670718Af66. Inputs: utilization=5000bps, collateralRatio=15000bps, oracleFresh=true. Output: borrowRate=700bps, maxLtv=7500bps, liqThreshold=8500bps."
+  ],
+  "operator": {
+    "evmAddress": "0x31FA19B35fdBD96f381A0be838799ca40978D080",
+    "fallbackAccountHex": "0x31fa19b35fdbd96f381a0be838799ca40978d080eeeeeeeeeeeeeeeeeeeeeeee",
+    "paseoSs58": "128XeDddgSFnaqvmNQSjsKxeQztNQQfSKV6Xx4LkfZJbGyxB",
+    "balanceWei": "4952418447264800000000",
+    "balancePas": "4952.4184472648"
+  }
+}

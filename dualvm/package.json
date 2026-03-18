@@ -13,6 +13,8 @@
     "deploy:testnet": "hardhat run scripts/deploy.ts --network polkadotHubTestnet",
     "deploy:governed:testnet": "hardhat run scripts/deployGoverned.ts --network polkadotHubTestnet",
     "deploy:pvm:probes:testnet": "hardhat run --config hardhat.pvm.config.ts scripts/probes/deploy-pvm-probes.ts --network polkadotHubPvmTestnet",
+    "deploy:pvm:riskmodel:testnet": "hardhat run --config hardhat.pvm.config.ts scripts/deployDeterministicRiskModelPvm.ts --network polkadotHubPvmTestnet",
+    "deploy:pvm:riskmodel:standalone": "node scripts/deploy-deterministic-risk-model-pvm.mjs",
     "deploy:revm:probes:testnet": "hardhat run scripts/probes/deploy-revm-probes.ts --network polkadotHubTestnet",
     "probe:revm-to-pvm:testnet": "hardhat run scripts/probes/run-revm-to-pvm.ts --network polkadotHubTestnet",
     "probe:pvm-to-revm:testnet": "hardhat run --config hardhat.pvm.config.ts scripts/probes/run-pvm-to-revm.ts --network polkadotHubPvmTestnet",
