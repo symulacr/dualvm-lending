@@ -1,17 +1,7 @@
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { FormEvent, useCallback, useEffect, useState } from "react";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { useAccount } from "wagmi";
-import {
-  DEFAULT_OBSERVER_ADDRESS,
-  demoModeNotes,
-  humanizeReadError,
-  judgeFlow,
-  scopeGuardrails,
-  writePathTruth,
-} from "./appCopy";
-import { AssetPathSection } from "./components/sections/AssetPathSection";
-import { DemoFlowSection } from "./components/sections/DemoFlowSection";
-import { HeroSection } from "./components/sections/HeroSection";
+import { DEFAULT_OBSERVER_ADDRESS, humanizeReadError } from "./appCopy";
 import { ManifestSection } from "./components/sections/ManifestSection";
 import { ObserverSection } from "./components/sections/ObserverSection";
 import { OverviewSections } from "./components/sections/OverviewSections";
@@ -22,7 +12,6 @@ import { WritePathSection, type TxHistoryEntry } from "./components/sections/Wri
 import { CompactMarketSnapshot } from "./components/CompactMarketSnapshot";
 import { TxHistoryList } from "./components/TxHistoryList";
 import { TabNav, type TabId } from "./components/TabNav";
-import { assetRegistry } from "./lib/assetRegistry";
 import { deploymentManifest, hasLivePolkadotHubTestnetDeployment } from "./lib/manifest";
 import { loadMarketSnapshot, type MarketSnapshot } from "./lib/readModel";
 
@@ -37,7 +26,6 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<TabId>("lend-borrow");
   const [txHistory, setTxHistory] = useState<TxHistoryEntry[]>([]);
 
-  // Auto-set observer to connected wallet address on initial connection or wallet change
   useEffect(() => {
     if (address) {
       setObserverInput(address);
@@ -47,42 +35,26 @@ export default function App() {
 
   useEffect(() => {
     let cancelled = false;
-
     async function refreshMarketSnapshot() {
-      if (!hasLivePolkadotHubTestnetDeployment) {
-        return;
-      }
-
+      if (!hasLivePolkadotHubTestnetDeployment) return;
       setIsLoading(true);
       setReadError(null);
       try {
         const nextSnapshot = await loadMarketSnapshot(trackedAddress, {
           forceRefresh: refreshKey > 0,
         });
-        if (!cancelled) {
-          setSnapshot(nextSnapshot);
-        }
+        if (!cancelled) setSnapshot(nextSnapshot);
       } catch (error) {
-        if (!cancelled) {
-          setReadError(error instanceof Error ? error.message : "Unknown read-layer error");
-        }
+        if (!cancelled) setReadError(error instanceof Error ? error.message : "Unknown read-layer error");
       } finally {
-        if (!cancelled) {
-          setIsLoading(false);
-        }
+        if (!cancelled) setIsLoading(false);
       }
     }
-
     void refreshMarketSnapshot();
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [trackedAddress, refreshKey]);
 
-  const contractRows = useMemo(
-    () => Object.entries(deploymentManifest.contracts).map(([name, address]) => ({ name, address })),
-    [],
-  );
+  const contractRows = Object.entries(deploymentManifest.contracts).map(([name, address]) => ({ name, address }));
 
   const readStatus = hasLivePolkadotHubTestnetDeployment
     ? isLoading
@@ -146,29 +118,17 @@ export default function App() {
             snapshot={snapshot}
             explorerUrl={deploymentManifest.polkadotHubTestnet.explorerUrl}
           />
-          <AssetPathSection assets={assetRegistry} />
         </div>
       )}
 
       {activeTab === "protocol-info" && (
         <div className="tab-content">
-          <HeroSection
-            generatedAt={deploymentManifest.generatedAt}
-            hasLiveDeployment={hasLivePolkadotHubTestnetDeployment}
-          />
-          <OverviewSections
-            demoModeNotes={demoModeNotes}
-            writePathTruth={writePathTruth}
-            scopeGuardrails={scopeGuardrails}
-            network={deploymentManifest.polkadotHubTestnet}
-            networkName={deploymentManifest.networkName}
-          />
+          <OverviewSections network={deploymentManifest.polkadotHubTestnet} />
           <ManifestSection
             explorerUrl={deploymentManifest.polkadotHubTestnet.explorerUrl}
             contractRows={contractRows}
           />
           <SecuritySection />
-          <DemoFlowSection judgeFlow={judgeFlow} />
         </div>
       )}
     </main>

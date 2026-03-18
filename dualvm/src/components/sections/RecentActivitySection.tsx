@@ -11,11 +11,7 @@ export function RecentActivitySection({ snapshot, explorerUrl }: RecentActivityS
     <section className="panel-card">
       <div className="section-header section-header-spread">
         <h2>Recent activity</h2>
-        <p className="helper-text">
-          {snapshot?.recentActivitySource === "snapshot"
-            ? `Showing snapshot fallback. ${snapshot.recentActivityWarning ?? "Live RPC activity query is currently unavailable."}`
-            : `Latest LendingCore events from ${snapshot?.recentActivityWindow ?? "the recent block window"}.`}
-        </p>
+        <p className="helper-text">{snapshot?.recentActivityWindow ?? "Loading…"}</p>
       </div>
       {snapshot?.recentActivitySource === "snapshot" ? (
         <div className="empty-state">

@@ -8,18 +8,20 @@ import { deploymentManifest } from "../../lib/manifest";
 import type { ObserverSnapshot } from "../../lib/readModel";
 import {
   erc20ApproveAbi,
-  wpasWriteAbi,
   lendingCoreWriteAbi,
   lendingRouterWriteAbi,
   debtPoolWriteAbi,
-  usdcMintAbi,
 } from "../../lib/abi";
 
 export type { TxHistoryEntry };
 
 const { contracts } = deploymentManifest;
 
-/** Extract plain numeric string from formatted amounts like "1,234.56 USDC-test" → "1234.56" */
+// Use V2 contracts when available (V2 is the active market version)
+const activeLendingCore = contracts.lendingCoreV2 ?? contracts.lendingCore;
+const activeDebtPool = contracts.debtPoolV2 ?? contracts.debtPool;
+const activeLendingRouter = contracts.lendingRouterV2 ?? contracts.lendingRouter;
+
 function extractAmount(formatted: string): string {
   return (formatted.split(" ")[0] ?? "").replace(/,/g, "");
 }
@@ -30,353 +32,131 @@ interface FormProps {
   onTxHistoryEntry?: (entry: TxHistoryEntry) => void;
 }
 
-/* ──────────────────────────────────────────────────────────────────── */
-/* Supply Liquidity: USDC-test approve + DebtPool.deposit()           */
-/* ──────────────────────────────────────────────────────────────────── */
-
-function SupplyLiquidityForm({ onWriteSuccess, onTxHistoryEntry }: FormProps) {
-  const { address } = useAccount();
+/** Shared hook for approve-then-action two-step flows */
+function useApproveAndAction({
+  approveLabel,
+  actionLabel,
+  onWriteSuccess,
+  onTxHistoryEntry,
+}: {
+  approveLabel: string;
+  actionLabel: string;
+  onWriteSuccess?: () => void;
+  onTxHistoryEntry?: (entry: TxHistoryEntry) => void;
+}) {
   const approveFlow = useWriteFlow();
-  const depositFlow = useWriteFlow();
-  const [amount, setAmount] = useState("");
+  const actionFlow = useWriteFlow();
   const [txHistory, setTxHistory] = useState<TxHistoryEntry[]>([]);
   const notifiedRef = useRef(false);
 
-  const isApproved = approveFlow.status === "confirmed";
-
-  // Track completed approve step in history
   useEffect(() => {
     if (approveFlow.status === "confirmed" && approveFlow.txHash) {
-      const entry: TxHistoryEntry = { label: "Approve USDC", txHash: approveFlow.txHash };
-      setTxHistory((prev) => {
-        if (prev.some((e) => e.txHash === entry.txHash)) return prev;
-        return [...prev, entry];
-      });
+      const entry: TxHistoryEntry = { label: approveLabel, txHash: approveFlow.txHash };
+      setTxHistory((prev) => (prev.some((e) => e.txHash === entry.txHash) ? prev : [...prev, entry]));
       onTxHistoryEntry?.(entry);
     }
-  }, [approveFlow.status, approveFlow.txHash, onTxHistoryEntry]);
+  }, [approveFlow.status, approveFlow.txHash, approveLabel, onTxHistoryEntry]);
 
-  // Notify parent when final deposit confirms
   useEffect(() => {
-    if (depositFlow.status === "confirmed" && depositFlow.txHash && !notifiedRef.current) {
+    if (actionFlow.status === "confirmed" && actionFlow.txHash && !notifiedRef.current) {
       notifiedRef.current = true;
       onWriteSuccess?.();
-      onTxHistoryEntry?.({ label: "Supply USDC-test", txHash: depositFlow.txHash });
+      onTxHistoryEntry?.({ label: actionLabel, txHash: actionFlow.txHash });
     }
-  }, [depositFlow.status, depositFlow.txHash, onWriteSuccess, onTxHistoryEntry]);
+  }, [actionFlow.status, actionFlow.txHash, actionLabel, onWriteSuccess, onTxHistoryEntry]);
+
+  const isApproved = approveFlow.status === "confirmed";
+
+  function reset() {
+    approveFlow.reset();
+    actionFlow.reset();
+    setTxHistory([]);
+    notifiedRef.current = false;
+  }
+
+  return { approveFlow, actionFlow, isApproved, txHistory, reset };
+}
+
+function SupplyLiquidityForm({ onWriteSuccess, onTxHistoryEntry }: FormProps) {
+  const { address } = useAccount();
+  const [amount, setAmount] = useState("");
+  const { approveFlow, actionFlow, isApproved, txHistory, reset } = useApproveAndAction({
+    approveLabel: "Approve USDC",
+    actionLabel: "Supply USDC-test",
+    onWriteSuccess,
+    onTxHistoryEntry,
+  });
 
   function handleApprove(e: FormEvent) {
     e.preventDefault();
     if (!amount || !address) return;
-    const parsed = parseUnits(amount, 18);
-    approveFlow.write({
-      address: contracts.usdc,
-      abi: erc20ApproveAbi,
-      functionName: "approve",
-      args: [contracts.debtPool, parsed],
-    });
+    approveFlow.write({ address: contracts.usdc, abi: erc20ApproveAbi, functionName: "approve", args: [activeDebtPool, parseUnits(amount, 18)] });
   }
 
   function handleDeposit() {
     if (!amount || !address) return;
-    const parsed = parseUnits(amount, 18);
-    depositFlow.write({
-      address: contracts.debtPool,
-      abi: debtPoolWriteAbi,
-      functionName: "deposit",
-      args: [parsed, address],
-    });
-  }
-
-  function handleReset() {
-    approveFlow.reset();
-    depositFlow.reset();
-    setAmount("");
-    setTxHistory([]);
-    notifiedRef.current = false;
+    actionFlow.write({ address: activeDebtPool, abi: debtPoolWriteAbi, functionName: "deposit", args: [parseUnits(amount, 18), address] });
   }
 
   return (
     <article className="write-form-card panel-card">
       <h3>Supply Liquidity</h3>
-      <p className="write-form-hint">Approve and deposit USDC-test into the DebtPool (ERC-4626 LP vault).</p>
       <form className="write-form" onSubmit={handleApprove}>
-        <input
-          className="write-input"
-          type="text"
-          inputMode="decimal"
-          placeholder="USDC-test amount"
-          value={amount}
-          onChange={(e) => setAmount(e.target.value)}
-          disabled={approveFlow.status === "pending" || approveFlow.status === "confirming"}
-        />
+        <input className="write-input" type="text" inputMode="decimal" placeholder="USDC-test amount" value={amount}
+          onChange={(e) => setAmount(e.target.value)} disabled={approveFlow.status === "pending" || approveFlow.status === "confirming"} />
         {!isApproved ? (
-          <button
-            className="action-button"
-            type="submit"
-            disabled={!address || !amount || approveFlow.status === "pending" || approveFlow.status === "confirming"}
-          >
-            1. Approve USDC
-          </button>
+          <button className="action-button" type="submit" disabled={!address || !amount || approveFlow.status === "pending" || approveFlow.status === "confirming"}>1. Approve USDC</button>
         ) : (
-          <button
-            className="action-button"
-            type="button"
-            onClick={handleDeposit}
-            disabled={!address || depositFlow.status === "pending" || depositFlow.status === "confirming"}
-          >
-            2. Deposit
-          </button>
+          <button className="action-button" type="button" onClick={handleDeposit} disabled={!address || actionFlow.status === "pending" || actionFlow.status === "confirming"}>2. Deposit</button>
         )}
       </form>
       <TxHistoryList entries={txHistory} />
-      <TxStatusBanner
-        status={isApproved ? depositFlow.status : approveFlow.status}
-        txHash={isApproved ? depositFlow.txHash : approveFlow.txHash}
-        error={isApproved ? depositFlow.error : approveFlow.error}
-        onReset={handleReset}
-      />
+      <TxStatusBanner status={isApproved ? actionFlow.status : approveFlow.status} txHash={isApproved ? actionFlow.txHash : approveFlow.txHash} error={isApproved ? actionFlow.error : approveFlow.error} onReset={reset} />
     </article>
   );
 }
 
-/* ──────────────────────────────────────────────────────────────────── */
-/* Deposit Collateral: PAS → WPAS wrap + approve + depositCollateral  */
-/* ──────────────────────────────────────────────────────────────────── */
-
 function DepositCollateralForm({ onWriteSuccess, onTxHistoryEntry }: FormProps) {
   const { address } = useAccount();
-
-  // ── 1-click flow (LendingRouter) ────────────────────────────────── //
-  const oneClickFlow = useWriteFlow();
-  const [oneClickAmount, setOneClickAmount] = useState("");
-  const oneClickNotifiedRef = useRef(false);
-
-  useEffect(() => {
-    if (oneClickFlow.status === "confirmed" && oneClickFlow.txHash && !oneClickNotifiedRef.current) {
-      oneClickNotifiedRef.current = true;
-      onWriteSuccess?.();
-      onTxHistoryEntry?.({ label: "Deposit PAS (1-click)", txHash: oneClickFlow.txHash });
-    }
-  }, [oneClickFlow.status, oneClickFlow.txHash, onWriteSuccess, onTxHistoryEntry]);
-
-  function handleOneClick(e: FormEvent) {
-    e.preventDefault();
-    if (!oneClickAmount || !contracts.lendingRouter) return;
-    const parsed = parseEther(oneClickAmount);
-    oneClickFlow.write({
-      address: contracts.lendingRouter,
-      abi: lendingRouterWriteAbi,
-      functionName: "depositCollateralFromPAS",
-      value: parsed,
-    });
-  }
-
-  function handleOneClickReset() {
-    oneClickFlow.reset();
-    setOneClickAmount("");
-    oneClickNotifiedRef.current = false;
-  }
-
-  // ── 3-step fallback flow ─────────────────────────────────────────── //
-  const wrapFlow = useWriteFlow();
-  const approveFlow = useWriteFlow();
-  const depositFlow = useWriteFlow();
+  const flow = useWriteFlow();
   const [amount, setAmount] = useState("");
-  const [txHistory, setTxHistory] = useState<TxHistoryEntry[]>([]);
   const notifiedRef = useRef(false);
 
-  type Step = "wrap" | "approve" | "deposit";
-  const step: Step =
-    depositFlow.status === "confirmed" || approveFlow.status === "confirmed"
-      ? approveFlow.status === "confirmed"
-        ? "deposit"
-        : "approve"
-      : wrapFlow.status === "confirmed"
-        ? "approve"
-        : "wrap";
-
-  // Track completed wrap step in history
   useEffect(() => {
-    if (wrapFlow.status === "confirmed" && wrapFlow.txHash) {
-      const entry: TxHistoryEntry = { label: "Wrap PAS → WPAS", txHash: wrapFlow.txHash };
-      setTxHistory((prev) => {
-        if (prev.some((e) => e.txHash === entry.txHash)) return prev;
-        return [...prev, entry];
-      });
-      onTxHistoryEntry?.(entry);
-    }
-  }, [wrapFlow.status, wrapFlow.txHash, onTxHistoryEntry]);
-
-  // Track completed approve step in history
-  useEffect(() => {
-    if (approveFlow.status === "confirmed" && approveFlow.txHash) {
-      const entry: TxHistoryEntry = { label: "Approve WPAS", txHash: approveFlow.txHash };
-      setTxHistory((prev) => {
-        if (prev.some((e) => e.txHash === entry.txHash)) return prev;
-        return [...prev, entry];
-      });
-      onTxHistoryEntry?.(entry);
-    }
-  }, [approveFlow.status, approveFlow.txHash, onTxHistoryEntry]);
-
-  // Notify parent when final deposit confirms
-  useEffect(() => {
-    if (depositFlow.status === "confirmed" && depositFlow.txHash && !notifiedRef.current) {
+    if (flow.status === "confirmed" && flow.txHash && !notifiedRef.current) {
       notifiedRef.current = true;
       onWriteSuccess?.();
-      onTxHistoryEntry?.({ label: "Deposit Collateral", txHash: depositFlow.txHash });
+      onTxHistoryEntry?.({ label: "Deposit PAS (1-click)", txHash: flow.txHash });
     }
-  }, [depositFlow.status, depositFlow.txHash, onWriteSuccess, onTxHistoryEntry]);
+  }, [flow.status, flow.txHash, onWriteSuccess, onTxHistoryEntry]);
 
-  function handleWrap(e: FormEvent) {
+  function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    if (!amount) return;
-    const parsed = parseEther(amount);
-    wrapFlow.write({
-      address: contracts.wpas,
-      abi: wpasWriteAbi,
-      functionName: "deposit",
-      value: parsed,
-    });
-  }
-
-  function handleApprove() {
-    if (!amount) return;
-    const parsed = parseEther(amount);
-    approveFlow.write({
-      address: contracts.wpas,
-      abi: erc20ApproveAbi,
-      functionName: "approve",
-      args: [contracts.lendingCore, parsed],
-    });
-  }
-
-  function handleDeposit() {
-    if (!amount) return;
-    const parsed = parseEther(amount);
-    depositFlow.write({
-      address: contracts.lendingCore,
-      abi: lendingCoreWriteAbi,
-      functionName: "depositCollateral",
-      args: [parsed],
-    });
+    if (!amount || !activeLendingRouter) return;
+    flow.write({ address: activeLendingRouter, abi: lendingRouterWriteAbi, functionName: "depositCollateralFromPAS", value: parseEther(amount) });
   }
 
   function handleReset() {
-    wrapFlow.reset();
-    approveFlow.reset();
-    depositFlow.reset();
+    flow.reset();
     setAmount("");
-    setTxHistory([]);
     notifiedRef.current = false;
   }
-
-  const activeFlow =
-    step === "deposit" ? depositFlow : step === "approve" ? approveFlow : wrapFlow;
 
   return (
     <article className="write-form-card panel-card">
       <h3>Deposit Collateral</h3>
-      <p className="write-form-hint">
-        Wrap native PAS into WPAS, approve, and deposit collateral into LendingCore.
-      </p>
-
-      {/* ── 1-click option (only shown when LendingRouter is deployed) ── */}
-      {contracts.lendingRouter && (
-        <div className="write-form-oneclick">
-          <p className="write-form-hint write-form-hint--accent">⚡ Deposit PAS (1-click) — wraps &amp; deposits in one TX</p>
-          <form className="write-form" onSubmit={handleOneClick}>
-            <input
-              className="write-input"
-              type="text"
-              inputMode="decimal"
-              placeholder="PAS amount"
-              value={oneClickAmount}
-              onChange={(e) => setOneClickAmount(e.target.value)}
-              disabled={oneClickFlow.status === "pending" || oneClickFlow.status === "confirming"}
-            />
-            <button
-              className="action-button action-button--accent"
-              type="submit"
-              disabled={
-                !address ||
-                !oneClickAmount ||
-                oneClickFlow.status === "pending" ||
-                oneClickFlow.status === "confirming"
-              }
-            >
-              Deposit PAS (1-click)
-            </button>
-          </form>
-          <TxStatusBanner
-            status={oneClickFlow.status}
-            txHash={oneClickFlow.txHash}
-            error={oneClickFlow.error}
-            onReset={handleOneClickReset}
-          />
-          <hr className="write-form-divider" />
-        </div>
-      )}
-
-      {/* ── 3-step fallback ──────────────────────────────────────────── */}
-      {contracts.lendingRouter && (
-        <p className="write-form-hint write-form-hint--muted">Or use the manual 3-step flow:</p>
-      )}
-      <form className="write-form" onSubmit={handleWrap}>
-        <input
-          className="write-input"
-          type="text"
-          inputMode="decimal"
-          placeholder="PAS amount"
-          value={amount}
-          onChange={(e) => setAmount(e.target.value)}
-          disabled={activeFlow.status === "pending" || activeFlow.status === "confirming"}
-        />
-        {step === "wrap" && (
-          <button
-            className="action-button"
-            type="submit"
-            disabled={!address || !amount || wrapFlow.status === "pending" || wrapFlow.status === "confirming"}
-          >
-            1. Wrap PAS → WPAS
-          </button>
-        )}
-        {step === "approve" && (
-          <button
-            className="action-button"
-            type="button"
-            onClick={handleApprove}
-            disabled={!address || approveFlow.status === "pending" || approveFlow.status === "confirming"}
-          >
-            2. Approve WPAS
-          </button>
-        )}
-        {step === "deposit" && (
-          <button
-            className="action-button"
-            type="button"
-            onClick={handleDeposit}
-            disabled={!address || depositFlow.status === "pending" || depositFlow.status === "confirming"}
-          >
-            3. Deposit Collateral
-          </button>
-        )}
+      <p className="write-form-hint">Wraps native PAS to WPAS and deposits collateral in one transaction.</p>
+      <form className="write-form" onSubmit={handleSubmit}>
+        <input className="write-input" type="text" inputMode="decimal" placeholder="PAS amount" value={amount}
+          onChange={(e) => setAmount(e.target.value)} disabled={flow.status === "pending" || flow.status === "confirming"} />
+        <button className="action-button" type="submit" disabled={!address || !amount || !activeLendingRouter || flow.status === "pending" || flow.status === "confirming"}>
+          Deposit PAS (1-click)
+        </button>
       </form>
-      <TxHistoryList entries={txHistory} />
-      <TxStatusBanner
-        status={activeFlow.status}
-        txHash={activeFlow.txHash}
-        error={activeFlow.error}
-        onReset={handleReset}
-      />
+      <TxStatusBanner status={flow.status} txHash={flow.txHash} error={flow.error} onReset={handleReset} />
     </article>
   );
 }
-
-/* ──────────────────────────────────────────────────────────────────── */
-/* Borrow: LendingCore.borrow(amount)                                 */
-/* ──────────────────────────────────────────────────────────────────── */
 
 function BorrowForm({ onWriteSuccess, observer, onTxHistoryEntry }: FormProps) {
   const { address } = useAccount();
@@ -384,7 +164,6 @@ function BorrowForm({ onWriteSuccess, observer, onTxHistoryEntry }: FormProps) {
   const [amount, setAmount] = useState("");
   const notifiedRef = useRef(false);
 
-  // Notify parent when borrow confirms
   useEffect(() => {
     if (flow.status === "confirmed" && flow.txHash && !notifiedRef.current) {
       notifiedRef.current = true;
@@ -396,126 +175,50 @@ function BorrowForm({ onWriteSuccess, observer, onTxHistoryEntry }: FormProps) {
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
     if (!amount) return;
-    const parsed = parseUnits(amount, 18);
-    flow.write({
-      address: contracts.lendingCore,
-      abi: lendingCoreWriteAbi,
-      functionName: "borrow",
-      args: [parsed],
-    });
+    flow.write({ address: activeLendingCore, abi: lendingCoreWriteAbi, functionName: "borrow", args: [parseUnits(amount, 18)] });
   }
 
-  function handleReset() {
-    flow.reset();
-    setAmount("");
-    notifiedRef.current = false;
-  }
+  function handleReset() { flow.reset(); setAmount(""); notifiedRef.current = false; }
 
   const maxAmount = observer ? extractAmount(observer.availableToBorrow) : null;
 
   return (
     <article className="write-form-card panel-card">
       <h3>Borrow</h3>
-      <p className="write-form-hint">Draw USDC-test debt against your deposited WPAS collateral.</p>
       <form className="write-form" onSubmit={handleSubmit}>
         <div className="write-input-row">
-          <input
-            className="write-input"
-            type="text"
-            inputMode="decimal"
-            placeholder="USDC-test borrow amount"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            disabled={flow.status === "pending" || flow.status === "confirming"}
-          />
+          <input className="write-input" type="text" inputMode="decimal" placeholder="USDC-test borrow amount" value={amount}
+            onChange={(e) => setAmount(e.target.value)} disabled={flow.status === "pending" || flow.status === "confirming"} />
           {maxAmount && maxAmount !== "0" && (
-            <button
-              type="button"
-              className="max-button"
-              onClick={() => setAmount(maxAmount)}
-              disabled={flow.status === "pending" || flow.status === "confirming"}
-            >
-              Max
-            </button>
+            <button type="button" className="max-button" onClick={() => setAmount(maxAmount)} disabled={flow.status === "pending" || flow.status === "confirming"}>Max</button>
           )}
         </div>
-        <button
-          className="action-button"
-          type="submit"
-          disabled={!address || !amount || flow.status === "pending" || flow.status === "confirming"}
-        >
-          Borrow
-        </button>
+        <button className="action-button" type="submit" disabled={!address || !amount || flow.status === "pending" || flow.status === "confirming"}>Borrow</button>
       </form>
       <TxStatusBanner status={flow.status} txHash={flow.txHash} error={flow.error} onReset={handleReset} />
     </article>
   );
 }
 
-/* ──────────────────────────────────────────────────────────────────── */
-/* Repay: USDC-test approve + LendingCore.repay(amount)               */
-/* ──────────────────────────────────────────────────────────────────── */
-
 function RepayForm({ onWriteSuccess, observer, onTxHistoryEntry }: FormProps) {
   const { address } = useAccount();
-  const approveFlow = useWriteFlow();
-  const repayFlow = useWriteFlow();
   const [amount, setAmount] = useState("");
-  const [txHistory, setTxHistory] = useState<TxHistoryEntry[]>([]);
-  const notifiedRef = useRef(false);
-
-  const isApproved = approveFlow.status === "confirmed";
-
-  // Track completed approve step in history
-  useEffect(() => {
-    if (approveFlow.status === "confirmed" && approveFlow.txHash) {
-      const entry: TxHistoryEntry = { label: "Approve USDC", txHash: approveFlow.txHash };
-      setTxHistory((prev) => {
-        if (prev.some((e) => e.txHash === entry.txHash)) return prev;
-        return [...prev, entry];
-      });
-      onTxHistoryEntry?.(entry);
-    }
-  }, [approveFlow.status, approveFlow.txHash, onTxHistoryEntry]);
-
-  // Notify parent when final repay confirms
-  useEffect(() => {
-    if (repayFlow.status === "confirmed" && repayFlow.txHash && !notifiedRef.current) {
-      notifiedRef.current = true;
-      onWriteSuccess?.();
-      onTxHistoryEntry?.({ label: "Repay", txHash: repayFlow.txHash });
-    }
-  }, [repayFlow.status, repayFlow.txHash, onWriteSuccess, onTxHistoryEntry]);
+  const { approveFlow, actionFlow, isApproved, txHistory, reset } = useApproveAndAction({
+    approveLabel: "Approve USDC",
+    actionLabel: "Repay",
+    onWriteSuccess,
+    onTxHistoryEntry,
+  });
 
   function handleApprove(e: FormEvent) {
     e.preventDefault();
     if (!amount) return;
-    const parsed = parseUnits(amount, 18);
-    approveFlow.write({
-      address: contracts.usdc,
-      abi: erc20ApproveAbi,
-      functionName: "approve",
-      args: [contracts.lendingCore, parsed],
-    });
+    approveFlow.write({ address: contracts.usdc, abi: erc20ApproveAbi, functionName: "approve", args: [activeLendingCore, parseUnits(amount, 18)] });
   }
 
   function handleRepay() {
     if (!amount) return;
-    const parsed = parseUnits(amount, 18);
-    repayFlow.write({
-      address: contracts.lendingCore,
-      abi: lendingCoreWriteAbi,
-      functionName: "repay",
-      args: [parsed],
-    });
-  }
-
-  function handleReset() {
-    approveFlow.reset();
-    repayFlow.reset();
-    setAmount("");
-    setTxHistory([]);
-    notifiedRef.current = false;
+    actionFlow.write({ address: activeLendingCore, abi: lendingCoreWriteAbi, functionName: "repay", args: [parseUnits(amount, 18)] });
   }
 
   const maxAmount = observer ? extractAmount(observer.currentDebt) : null;
@@ -524,62 +227,25 @@ function RepayForm({ onWriteSuccess, observer, onTxHistoryEntry }: FormProps) {
   return (
     <article className="write-form-card panel-card">
       <h3>Repay</h3>
-      <p className="write-form-hint">Approve and repay USDC-test debt. Interest is repaid first, then principal.</p>
       <form className="write-form" onSubmit={handleApprove}>
         <div className="write-input-row">
-          <input
-            className="write-input"
-            type="text"
-            inputMode="decimal"
-            placeholder="USDC-test repay amount"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            disabled={isDisabled}
-          />
+          <input className="write-input" type="text" inputMode="decimal" placeholder="USDC-test repay amount" value={amount}
+            onChange={(e) => setAmount(e.target.value)} disabled={isDisabled} />
           {maxAmount && maxAmount !== "0" && maxAmount !== "0.00" && (
-            <button
-              type="button"
-              className="max-button"
-              onClick={() => setAmount(maxAmount)}
-              disabled={isDisabled}
-            >
-              Max
-            </button>
+            <button type="button" className="max-button" onClick={() => setAmount(maxAmount)} disabled={isDisabled}>Max</button>
           )}
         </div>
         {!isApproved ? (
-          <button
-            className="action-button"
-            type="submit"
-            disabled={!address || !amount || approveFlow.status === "pending" || approveFlow.status === "confirming"}
-          >
-            1. Approve USDC
-          </button>
+          <button className="action-button" type="submit" disabled={!address || !amount || isDisabled}>1. Approve USDC</button>
         ) : (
-          <button
-            className="action-button"
-            type="button"
-            onClick={handleRepay}
-            disabled={!address || repayFlow.status === "pending" || repayFlow.status === "confirming"}
-          >
-            2. Repay
-          </button>
+          <button className="action-button" type="button" onClick={handleRepay} disabled={!address || actionFlow.status === "pending" || actionFlow.status === "confirming"}>2. Repay</button>
         )}
       </form>
       <TxHistoryList entries={txHistory} />
-      <TxStatusBanner
-        status={isApproved ? repayFlow.status : approveFlow.status}
-        txHash={isApproved ? repayFlow.txHash : approveFlow.txHash}
-        error={isApproved ? repayFlow.error : approveFlow.error}
-        onReset={handleReset}
-      />
+      <TxStatusBanner status={isApproved ? actionFlow.status : approveFlow.status} txHash={isApproved ? actionFlow.txHash : approveFlow.txHash} error={isApproved ? actionFlow.error : approveFlow.error} onReset={reset} />
     </article>
   );
 }
-
-/* ──────────────────────────────────────────────────────────────────── */
-/* Withdraw Collateral: LendingCore.withdrawCollateral(amount)        */
-/* ──────────────────────────────────────────────────────────────────── */
 
 function WithdrawCollateralForm({ onWriteSuccess, onTxHistoryEntry }: FormProps) {
   const { address } = useAccount();
@@ -587,7 +253,6 @@ function WithdrawCollateralForm({ onWriteSuccess, onTxHistoryEntry }: FormProps)
   const [amount, setAmount] = useState("");
   const notifiedRef = useRef(false);
 
-  // Notify parent when withdraw confirms
   useEffect(() => {
     if (flow.status === "confirmed" && flow.txHash && !notifiedRef.current) {
       notifiedRef.current = true;
@@ -599,184 +264,67 @@ function WithdrawCollateralForm({ onWriteSuccess, onTxHistoryEntry }: FormProps)
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
     if (!amount) return;
-    const parsed = parseEther(amount);
-    flow.write({
-      address: contracts.lendingCore,
-      abi: lendingCoreWriteAbi,
-      functionName: "withdrawCollateral",
-      args: [parsed],
-    });
+    flow.write({ address: activeLendingCore, abi: lendingCoreWriteAbi, functionName: "withdrawCollateral", args: [parseEther(amount)] });
   }
 
-  function handleReset() {
-    flow.reset();
-    setAmount("");
-    notifiedRef.current = false;
-  }
+  function handleReset() { flow.reset(); setAmount(""); notifiedRef.current = false; }
 
   return (
     <article className="write-form-card panel-card">
       <h3>Withdraw Collateral</h3>
-      <p className="write-form-hint">Withdraw WPAS collateral. Blocked if it would make the position unsafe.</p>
       <form className="write-form" onSubmit={handleSubmit}>
-        <input
-          className="write-input"
-          type="text"
-          inputMode="decimal"
-          placeholder="WPAS amount to withdraw"
-          value={amount}
-          onChange={(e) => setAmount(e.target.value)}
-          disabled={flow.status === "pending" || flow.status === "confirming"}
-        />
-        <button
-          className="action-button"
-          type="submit"
-          disabled={!address || !amount || flow.status === "pending" || flow.status === "confirming"}
-        >
-          Withdraw
-        </button>
+        <input className="write-input" type="text" inputMode="decimal" placeholder="WPAS amount to withdraw" value={amount}
+          onChange={(e) => setAmount(e.target.value)} disabled={flow.status === "pending" || flow.status === "confirming"} />
+        <button className="action-button" type="submit" disabled={!address || !amount || flow.status === "pending" || flow.status === "confirming"}>Withdraw</button>
       </form>
       <TxStatusBanner status={flow.status} txHash={flow.txHash} error={flow.error} onReset={handleReset} />
     </article>
   );
 }
 
-/* ──────────────────────────────────────────────────────────────────── */
-/* Liquidate: USDC-test approve + LendingCore.liquidate(borrower, amt)*/
-/* ──────────────────────────────────────────────────────────────────── */
-
 function LiquidateForm({ onWriteSuccess, onTxHistoryEntry }: FormProps) {
   const { address } = useAccount();
-  const approveFlow = useWriteFlow();
-  const liquidateFlow = useWriteFlow();
   const [borrower, setBorrower] = useState("");
   const [amount, setAmount] = useState("");
-  const [txHistory, setTxHistory] = useState<TxHistoryEntry[]>([]);
-  const notifiedRef = useRef(false);
-
-  const isApproved = approveFlow.status === "confirmed";
-
-  // Track completed approve step in history
-  useEffect(() => {
-    if (approveFlow.status === "confirmed" && approveFlow.txHash) {
-      const entry: TxHistoryEntry = { label: "Approve USDC", txHash: approveFlow.txHash };
-      setTxHistory((prev) => {
-        if (prev.some((e) => e.txHash === entry.txHash)) return prev;
-        return [...prev, entry];
-      });
-      onTxHistoryEntry?.(entry);
-    }
-  }, [approveFlow.status, approveFlow.txHash, onTxHistoryEntry]);
-
-  // Notify parent when final liquidate confirms
-  useEffect(() => {
-    if (liquidateFlow.status === "confirmed" && liquidateFlow.txHash && !notifiedRef.current) {
-      notifiedRef.current = true;
-      onWriteSuccess?.();
-      onTxHistoryEntry?.({ label: "Liquidate", txHash: liquidateFlow.txHash });
-    }
-  }, [liquidateFlow.status, liquidateFlow.txHash, onWriteSuccess, onTxHistoryEntry]);
+  const { approveFlow, actionFlow, isApproved, txHistory, reset } = useApproveAndAction({
+    approveLabel: "Approve USDC",
+    actionLabel: "Liquidate",
+    onWriteSuccess,
+    onTxHistoryEntry,
+  });
 
   function handleApprove(e: FormEvent) {
     e.preventDefault();
     if (!amount) return;
-    const parsed = parseUnits(amount, 18);
-    approveFlow.write({
-      address: contracts.usdc,
-      abi: erc20ApproveAbi,
-      functionName: "approve",
-      args: [contracts.lendingCore, parsed],
-    });
+    approveFlow.write({ address: contracts.usdc, abi: erc20ApproveAbi, functionName: "approve", args: [activeLendingCore, parseUnits(amount, 18)] });
   }
 
   function handleLiquidate() {
     if (!amount || !isAddress(borrower)) return;
-    const parsed = parseUnits(amount, 18);
-    liquidateFlow.write({
-      address: contracts.lendingCore,
-      abi: lendingCoreWriteAbi,
-      functionName: "liquidate",
-      args: [borrower as `0x${string}`, parsed],
-    });
+    actionFlow.write({ address: activeLendingCore, abi: lendingCoreWriteAbi, functionName: "liquidate", args: [borrower as `0x${string}`, parseUnits(amount, 18)] });
   }
 
-  function handleReset() {
-    approveFlow.reset();
-    liquidateFlow.reset();
-    setAmount("");
-    setBorrower("");
-    setTxHistory([]);
-    notifiedRef.current = false;
-  }
+  function handleReset() { reset(); setAmount(""); setBorrower(""); }
 
   return (
     <article className="write-form-card panel-card">
       <h3>Liquidate</h3>
-      <p className="write-form-hint">
-        Liquidate an underwater borrower. Approve USDC-test then call liquidate with the borrower address.
-      </p>
       <form className="write-form write-form-liquidate" onSubmit={handleApprove}>
-        <input
-          className="write-input"
-          type="text"
-          placeholder="Borrower 0x address"
-          value={borrower}
-          onChange={(e) => setBorrower(e.target.value)}
-          disabled={approveFlow.status === "pending" || approveFlow.status === "confirming"}
-        />
-        <input
-          className="write-input"
-          type="text"
-          inputMode="decimal"
-          placeholder="USDC-test repay amount"
-          value={amount}
-          onChange={(e) => setAmount(e.target.value)}
-          disabled={approveFlow.status === "pending" || approveFlow.status === "confirming"}
-        />
+        <input className="write-input" type="text" placeholder="Borrower 0x address" value={borrower}
+          onChange={(e) => setBorrower(e.target.value)} disabled={approveFlow.status === "pending" || approveFlow.status === "confirming"} />
+        <input className="write-input" type="text" inputMode="decimal" placeholder="USDC-test repay amount" value={amount}
+          onChange={(e) => setAmount(e.target.value)} disabled={approveFlow.status === "pending" || approveFlow.status === "confirming"} />
         {!isApproved ? (
-          <button
-            className="action-button"
-            type="submit"
-            disabled={
-              !address ||
-              !amount ||
-              !isAddress(borrower) ||
-              approveFlow.status === "pending" ||
-              approveFlow.status === "confirming"
-            }
-          >
-            1. Approve USDC
-          </button>
+          <button className="action-button" type="submit" disabled={!address || !amount || !isAddress(borrower) || approveFlow.status === "pending" || approveFlow.status === "confirming"}>1. Approve USDC</button>
         ) : (
-          <button
-            className="action-button"
-            type="button"
-            onClick={handleLiquidate}
-            disabled={
-              !address ||
-              !isAddress(borrower) ||
-              liquidateFlow.status === "pending" ||
-              liquidateFlow.status === "confirming"
-            }
-          >
-            2. Liquidate
-          </button>
+          <button className="action-button" type="button" onClick={handleLiquidate} disabled={!address || !isAddress(borrower) || actionFlow.status === "pending" || actionFlow.status === "confirming"}>2. Liquidate</button>
         )}
       </form>
       <TxHistoryList entries={txHistory} />
-      <TxStatusBanner
-        status={isApproved ? liquidateFlow.status : approveFlow.status}
-        txHash={isApproved ? liquidateFlow.txHash : approveFlow.txHash}
-        error={isApproved ? liquidateFlow.error : approveFlow.error}
-        onReset={handleReset}
-      />
+      <TxStatusBanner status={isApproved ? actionFlow.status : approveFlow.status} txHash={isApproved ? actionFlow.txHash : approveFlow.txHash} error={isApproved ? actionFlow.error : approveFlow.error} onReset={handleReset} />
     </article>
   );
 }
-
-/* ──────────────────────────────────────────────────────────────────── */
-/* Composite section: all 6 write forms                               */
-/* ──────────────────────────────────────────────────────────────────── */
 
 interface WritePathSectionProps {
   onWriteSuccess?: () => void;
@@ -792,11 +340,8 @@ export function WritePathSection({ onWriteSuccess, observer, onTxHistoryEntry }:
       <div className="section-header">
         <h2>Write Path — Lending Operations</h2>
       </div>
-
       {!isConnected ? (
-        <div className="empty-state">
-          <p>Connect your wallet to access lending operations.</p>
-        </div>
+        <div className="empty-state"><p>Connect your wallet to access lending operations.</p></div>
       ) : (
         <div className="write-forms-grid">
           <SupplyLiquidityForm onWriteSuccess={onWriteSuccess} onTxHistoryEntry={onTxHistoryEntry} />

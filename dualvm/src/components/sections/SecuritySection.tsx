@@ -1,18 +1,8 @@
 export function SecuritySection() {
   return (
     <section className="panel-card">
-      <div className="section-header">
-        <h2>Security posture</h2>
-      </div>
-      <ul className="bullet-list">
-        <li>AccessManager is the authority boundary for admin actions.</li>
-        <li>DebtPool reserve accounting separates LP assets from treasury reserves.</li>
-        <li>Borrow and withdraw paths require a fresh oracle.</li>
-        <li>Repay remains available even when the oracle is stale.</li>
-        <li>Oracle updates are now bounded by min/max price limits and a configurable max-change circuit breaker.</li>
-        <li>Bad-debt liquidation accounting is fixed so only remaining principal is written against pool loss accounting.</li>
-        <li>The current live UI is intentionally observer-only and does not pretend hidden automation or off-chain trust.</li>
-      </ul>
+      <div className="section-header"><h2>Security</h2></div>
+      <p>AccessManager is the authority boundary with non-zero execution delays for risk, treasury, and minter roles. All token transfers use SafeERC20. Borrow and withdraw paths require a fresh oracle; repay is always available. The oracle circuit breaker bounds price updates by min/max limits and a configurable max-change threshold. ReentrancyGuard protects all fund flows. Emergency pause is available via the EMERGENCY role (delay=0).</p>
     </section>
   );
 }

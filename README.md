@@ -1,3 +1,16 @@
+<!-- summary: dualvm lending is a production-minded isolated lending market built on polkadot hub testnet (chain id 420420417).
+it combines solidity-based custody and accounting on the evm (revm) with a pvm-compiled deterministic risk engine, openzeppelin governor-based governance, and a full browser-based lending ui using wagmi and rainbowkit.
+
+the protocol supports one collateral asset (wpas, wrapped native pas) and one debt asset (usdc-test, a team-controlled mock erc-20). lenders deposit usdc-test into an erc-4626 vault (debtpool). borrowers wrap pas into wpas, deposit as collateral into lendingcore, and draw usdc-test debt. repayment, liquidation, and collateral withdrawal are all available from the browser.
+
+risk parameters (borrow rate, max ltv, liquidation threshold) are computed by riskadapterv2, which runs inline deterministic kinked-curve math as the canonical path and optionally cross-checks against deterministicriskmodel, a resolc-compiled pvm contract deployed on the polkadot hub testnet. the pvm contract is not decorative: it is the registered quote engine in riskadapterv2 and its results are verified on every borrow.
+
+governance follows the openzeppelin governor→timelockcontroller→accessmanager chain. the timelock holds accessmanager admin. the deployer has no residual roles. role execution delays are non-zero for risk, treasury, and minter operations. market versions are registered and activated via governance proposals.
+
+v2 contracts (lendingcorev2, riskadapterv2, debtpoolv2, lendingrouterv2) are the active market version. the one-click lendingrouterv2.depositcollateralfrompas() wraps native pas and credits the caller's collateral position in a single transaction.
+
+all contracts are deployed on polkadot hub testnet and most are verified on blockscout. this is a hackathon mvp, not a production system. -->
+
 # DualVM Lending
 
 A production-minded, public-testnet-validated isolated lending market on **Polkadot Hub TestNet**. DualVM Lending combines Solidity-based custody and accounting on REVM with a live PVM-compiled risk engine, OpenZeppelin Governor-based governance, and a full browser-based lending UX.
@@ -42,14 +55,14 @@ flowchart TB
     LC["LendingCore\n(collateral, debt, liquidation)"]
     DP["DebtPool\n(ERC-4626 LP vault)"]
     MO["ManualOracle\n(price feed + circuit breaker)"]
-    RA["RiskAdapter\n(quote ticket publication)"]
+    RA["RiskAdapter\n(inline deterministic math + optional PVM verification)"]
     LC <--> DP
     MO --> LC
     RA --> LC
   end
 
   subgraph PVM["PVM Risk Engine (Live Cross-VM)"]
-    QE["PvmQuoteProbe\n(resolc-compiled, PolkaVM)"]
+    QE["DeterministicRiskModel\n(resolc-compiled, PolkaVM)"]
   end
 
   subgraph Probes["Interop Proof Package"]
@@ -246,8 +259,8 @@ sequenceDiagram
 
 The PVM risk engine is **live, not decorative**. Here is the proof chain:
 
-1. **PvmQuoteProbe** is compiled via `resolc` (Polkadot's Solidity-to-PolkaVM compiler) and deployed on-chain with PVM code hash `0xba8fe2a621062a30bba558a3846d0a18bfb2e9a09bfaed656b123e698b59af5b`.
-2. **RiskAdapter** in the product-path LendingCore calls this PVM contract as its quote engine for risk parameters (borrow rate, max LTV, liquidation threshold).
+1. **DeterministicRiskModel** is compiled via `resolc` (Polkadot's Solidity-to-PolkaVM compiler) and deployed on-chain with PVM code hash `0xba8fe2a621062a30bba558a3846d0a18bfb2e9a09bfaed656b123e698b59af5b`.
+2. **RiskAdapterV2** in the product-path LendingCoreV2 calls this PVM contract as its quote engine for risk parameters (borrow rate, max LTV, liquidation threshold).
 3. **Probe stages** independently verify the cross-VM capability on the public testnet:
    - **Stage 0 (Capability gate)**: ✅ All REVM and PVM probe contracts exist on-chain with recorded deploy TXs
    - **Stage 1A (Echo)**: ✅ REVM sends bytes32 to PVM, receives identical bytes back (data integrity proven)
@@ -329,7 +342,7 @@ All contracts deployed under a single canonical Governor→TimelockController→
 | USDCMock (Debt) | `0x75d47bd99ECd7188FB63e00cD07035CDBBf7Ef06` | [Blockscout](https://blockscout-testnet.polkadot.io/address/0x75d47bd99ECd7188FB63e00cD07035CDBBf7Ef06) |
 | ManualOracle | `0x1CCE5059dc39A7cf8f064f6DA6Be9da09279Ee04` | [Blockscout](https://blockscout-testnet.polkadot.io/address/0x1CCE5059dc39A7cf8f064f6DA6Be9da09279Ee04) |
 | RiskAdapter | `0x67D0B226b5aE56A29E206840Ecd389670718Af66` | [Blockscout](https://blockscout-testnet.polkadot.io/address/0x67D0B226b5aE56A29E206840Ecd389670718Af66) |
-| PvmQuoteProbe (PVM Risk Engine) | `0x9a78F65b00E0AeD0830063eD0ea66a0B5d8876DE` | [Blockscout](https://blockscout-testnet.polkadot.io/address/0x9a78F65b00E0AeD0830063eD0ea66a0B5d8876DE) |
+| DeterministicRiskModel (PVM Risk Engine) | `0xC6907B609ba4b94C9e319570BaA35DaF587252f8` | [Blockscout](https://blockscout-testnet.polkadot.io/address/0xC6907B609ba4b94C9e319570BaA35DaF587252f8) |
 | MarketVersionRegistry | `0x47AE8aE7423bD8643Be8a86d4C0Df7fdcC57987d` | [Blockscout](https://blockscout-testnet.polkadot.io/address/0x47AE8aE7423bD8643Be8a86d4C0Df7fdcC57987d) |
 | DebtPool (ERC-4626) | `0xeEdA5d44810E09D8F881Fca537456E2a5eD437bB` | [Blockscout](https://blockscout-testnet.polkadot.io/address/0xeEdA5d44810E09D8F881Fca537456E2a5eD437bB) |
 | LendingCore | `0x9faC289188229f40aBfaa4F8d720C14b8B448CF9` | [Blockscout](https://blockscout-testnet.polkadot.io/address/0x9faC289188229f40aBfaa4F8d720C14b8B448CF9) |
@@ -346,14 +359,14 @@ All contracts deployed under a single canonical Governor→TimelockController→
 
 | Contract | Address | Explorer |
 |----------|---------|----------|
-| PvmQuoteProbe (PVM) | `0x9a78F65b00E0AeD0830063eD0ea66a0B5d8876DE` | [Blockscout](https://blockscout-testnet.polkadot.io/address/0x9a78F65b00E0AeD0830063eD0ea66a0B5d8876DE) |
+| DeterministicRiskModel (PVM) | `0xC6907B609ba4b94C9e319570BaA35DaF587252f8` | [Blockscout](https://blockscout-testnet.polkadot.io/address/0xC6907B609ba4b94C9e319570BaA35DaF587252f8) |
 | PvmCallbackProbe (PVM) | `0xc60E223A91aEbf1589A5509F308b4787cF6607AE` | [Blockscout](https://blockscout-testnet.polkadot.io/address/0xc60E223A91aEbf1589A5509F308b4787cF6607AE) |
 | RevmQuoteCallerProbe | `0xD08583e1AC7aCc75FF5365909Be808ea2AD5d942` | [Blockscout](https://blockscout-testnet.polkadot.io/address/0xD08583e1AC7aCc75FF5365909Be808ea2AD5d942) |
 | RevmCallbackReceiver | `0x2b059760bb836128A287AE071167f9e3F4489c71` | [Blockscout](https://blockscout-testnet.polkadot.io/address/0x2b059760bb836128A287AE071167f9e3F4489c71) |
 | RevmRoundTripSettlement | `0xB97286570473a5728669ee487BC05763E2f22fE1` | [Blockscout](https://blockscout-testnet.polkadot.io/address/0xB97286570473a5728669ee487BC05763E2f22fE1) |
 | CrossChainQuoteEstimator (XCM) | `0x5bC4e5BbF72b67Acb202546e88849dAcF8985A7F` | [Blockscout](https://blockscout-testnet.polkadot.io/address/0x5bC4e5BbF72b67Acb202546e88849dAcF8985A7F) |
 
-> 11 of 12 EVM-compiled contracts are explorer-verified on Blockscout. The PVM-compiled PvmQuoteProbe cannot be verified through standard Solidity verification (compiled via `resolc` for PolkaVM) — its PVM code hash `0xba8fe2...` is confirmed via `revive.accountInfoOf`.
+> 11 of 12 EVM-compiled contracts are explorer-verified on Blockscout. The PVM-compiled DeterministicRiskModel cannot be verified through standard Solidity verification (compiled via `resolc` for PolkaVM) — its PVM code hash is confirmed via `revive.accountInfoOf`.
 
 ## Live Proof TX Links
 
@@ -456,7 +469,7 @@ npm run deploy:governed:testnet
 
 ### PVM Compilation
 
-The PVM risk engine (`PvmQuoteProbe`) is compiled via `resolc` (Polkadot's Solidity-to-PolkaVM compiler):
+The PVM risk engine (`DeterministicRiskModel`) is compiled via `resolc` (Polkadot's Solidity-to-PolkaVM compiler):
 
 ```bash
 npx hardhat compile --config hardhat.pvm.config.ts
@@ -478,7 +491,7 @@ Artifacts are produced in `artifacts-pvm/`. PVM contracts cannot be Blockscout-v
 - **Hackathon governance parameters** — short voting/timelock periods for demo (not production values)
 - **PVM callback probe (Stage 2)** — reverts on-chain due to platform-level cross-VM callback limitations
 - **PVM roundtrip settlement (Stage 3)** — `settleBorrow` shows accumulated on-chain state from prior runs (principalDebt=2140 vs expected 1070); PVM-derived quote values are correct. See `probe-results.json` for full details
-- **PvmQuoteProbe not Blockscout-verifiable** — compiled via `resolc` for PolkaVM; PVM code hash confirmed via substrate API
+- **DeterministicRiskModel not Blockscout-verifiable** — compiled via `resolc` for PolkaVM; PVM code hash confirmed via substrate API
 - **USDC-test is a mock token** — not a real stablecoin; uses 18 decimals
 - **Public RPC rate limiting** — frontend reads are conservative with caching
 

@@ -38,13 +38,7 @@ export function ReadLayerSection({ readStatus, snapshot }: ReadLayerSectionProps
           ) : null}
         </div>
       ) : (
-        <div className="empty-state">
-          <p>
-            Live data has not populated yet. On public RPC this usually means the read request is still pending or
-            failed transiently. Use Refresh, contract explorer links, and the Recent activity section below while the
-            shared testnet catches up.
-          </p>
-        </div>
+        <div className="empty-state"><p>Live data not loaded. Refresh to retry.</p></div>
       )}
     </section>
   );

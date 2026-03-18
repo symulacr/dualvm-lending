@@ -56,9 +56,7 @@ export function ObserverSection({
     <article className="panel-card observer-panel">
       <div className="section-header section-header-spread">
         <h2>Observer mode</h2>
-        <p className="helper-text observer-note">
-          Observer-only UI. Paste any address to inspect debt, borrow headroom, and health factor.
-        </p>
+        <p className="helper-text observer-note">Paste any address to inspect health factor and borrow capacity.</p>
       </div>
       <form className="observer-form" onSubmit={onTrackAddress}>
         <input

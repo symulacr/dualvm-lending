@@ -3,9 +3,8 @@
  * Replaces individual stub files in test/src/.
  */
 import { expect } from "chai";
-import { demoModeNotes, humanizeReadError, judgeFlow, scopeGuardrails, writePathTruth } from "../src/appCopy";
+import { humanizeReadError } from "../src/appCopy";
 import { debtPoolAbi, lendingCoreAbi, manualOracleAbi } from "../src/lib/abi";
-import { assetRegistry } from "../src/lib/assetRegistry";
 import { formatAddress, formatTimestamp, formatTokenAmount } from "../src/lib/format";
 import { deploymentManifest, hasLivePolkadotHubTestnetDeployment } from "../src/lib/manifest";
 import { loadMarketSnapshot } from "../src/lib/readModel";
@@ -16,11 +15,7 @@ import * as readModelTypes from "../src/lib/readModel/types";
 import { formatRecentActivityWindow, isRecentActivity, parseFallbackRecentActivity } from "../src/lib/recentActivity";
 
 describe("src barrel", () => {
-  it("appCopy: exports copy arrays and humanizes rate-limit errors", () => {
-    expect(judgeFlow).to.be.an("array").and.to.not.be.empty;
-    expect(scopeGuardrails).to.be.an("array").and.to.not.be.empty;
-    expect(demoModeNotes).to.be.an("array").and.to.not.be.empty;
-    expect(writePathTruth).to.be.an("array").and.to.not.be.empty;
+  it("appCopy: humanizes rate-limit errors", () => {
     expect(humanizeReadError("HTTP 429 from public RPC")).to.include("rate-limited");
   });
 
@@ -28,10 +23,6 @@ describe("src barrel", () => {
     expect(debtPoolAbi).to.not.be.empty;
     expect(lendingCoreAbi).to.not.be.empty;
     expect(manualOracleAbi).to.not.be.empty;
-  });
-
-  it("assetRegistry: includes expected asset symbols", () => {
-    expect(assetRegistry.map((a) => a.symbol)).to.include("WPAS").and.include("USDC-test");
   });
 
   it("format: formats addresses, token amounts, timestamps", () => {

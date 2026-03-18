@@ -19,11 +19,6 @@ function healthFactorNumeric(value: bigint): number | null {
   return Number.parseFloat(formatUnits(value, 18));
 }
 
-/**
- * Compute the PAS price at which the position becomes liquidatable.
- * Formula: liquidationPrice = (debt * WAD * BPS) / (collateral * liquidationThresholdBps)
- * Returns a formatted string like "1.23" or null if position is empty.
- */
 function computeLiquidationPrice(
   debtRaw: bigint,
   collateralRaw: bigint,
@@ -32,7 +27,6 @@ function computeLiquidationPrice(
   if (debtRaw === 0n || collateralRaw === 0n || liquidationThresholdBps === 0n) {
     return null;
   }
-  // liquidationPrice (WAD) = (debt * WAD * BPS) / (collateral * liquidationThresholdBps)
   const numerator = debtRaw * WAD * BPS;
   const denominator = collateralRaw * liquidationThresholdBps;
   const priceWad = numerator / denominator;
@@ -48,7 +42,7 @@ export async function loadObserverSnapshot(
   }
 
   const trackedAddress = observerAddress as `0x${string}`;
-  const lendingCore = deploymentManifest.contracts.lendingCore;
+  const lendingCore = deploymentManifest.contracts.lendingCoreV2 ?? deploymentManifest.contracts.lendingCore;
 
   const [currentDebt, availableToBorrow, healthFactor, position, liquidationThresholdBps] = await Promise.all([
     client.readContract({

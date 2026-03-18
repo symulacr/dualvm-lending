@@ -12,31 +12,6 @@ export const erc20ApproveAbi = [
   },
 ] as const;
 
-/* ── WPAS: wrap PAS → WPAS ───────────────────────────────────────── */
-export const wpasWriteAbi = [
-  {
-    inputs: [],
-    name: "deposit",
-    outputs: [],
-    stateMutability: "payable",
-    type: "function",
-  },
-] as const;
-
-/* ── USDCMock: mint (restricted) ──────────────────────────────────── */
-export const usdcMintAbi = [
-  {
-    inputs: [
-      { internalType: "address", name: "to", type: "address" },
-      { internalType: "uint256", name: "amount", type: "uint256" },
-    ],
-    name: "mint",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
-  },
-] as const;
-
 /* ── LendingCore write functions ──────────────────────────────────── */
 export const lendingCoreWriteAbi = [
   {

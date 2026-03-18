@@ -5,10 +5,6 @@ interface CompactMarketSnapshotProps {
   isLoading: boolean;
 }
 
-/**
- * Inline strip showing 3 key market metrics for the Lend & Borrow tab.
- * Renders nothing when data hasn't loaded yet.
- */
 export function CompactMarketSnapshot({ snapshot, isLoading }: CompactMarketSnapshotProps) {
   if (!snapshot && !isLoading) return null;
 

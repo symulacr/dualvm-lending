@@ -33,7 +33,7 @@ export async function loadRecentActivityFeed(
 ): Promise<RecentActivityFeed> {
   const toBlock = await client.getBlockNumber();
   const fromBlock = toBlock > 5_000n ? toBlock - 5_000n : 0n;
-  const address = deploymentManifest.contracts.lendingCore;
+  const address = deploymentManifest.contracts.lendingCoreV2 ?? deploymentManifest.contracts.lendingCore;
 
   try {
     const [collateralLogs, borrowedLogs, repaidLogs, liquidatedLogs] = await Promise.all([

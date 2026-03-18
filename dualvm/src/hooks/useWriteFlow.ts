@@ -4,7 +4,6 @@ import type { Abi, Address } from "viem";
 
 export type WriteFlowStatus = "idle" | "pending" | "confirming" | "confirmed" | "error";
 
-/** A completed transaction step in a multi-step flow. */
 export interface TxHistoryEntry {
   label: string;
   txHash: `0x${string}`;
@@ -24,10 +23,6 @@ interface WriteFlowResult {
   reset: () => void;
 }
 
-/**
- * Composable hook that wraps wagmi's useWriteContract + useWaitForTransactionReceipt
- * into a single status flow: idle → pending → confirming → confirmed | error.
- */
 export function useWriteFlow(): WriteFlowResult {
   const [error, setError] = useState<string | null>(null);
   const [manualStatus, setManualStatus] = useState<WriteFlowStatus>("idle");
@@ -46,7 +41,6 @@ export function useWriteFlow(): WriteFlowResult {
     error: receiptError,
   } = useWaitForTransactionReceipt({ hash: txHash });
 
-  // Derive status from wagmi hook states
   let status: WriteFlowStatus = manualStatus;
   if (isWritePending) {
     status = "pending";
@@ -58,7 +52,6 @@ export function useWriteFlow(): WriteFlowResult {
     status = "error";
   }
 
-  // Sync error messages
   useEffect(() => {
     if (writeError) {
       setError(extractRevertReason(writeError));
@@ -91,31 +84,15 @@ export function useWriteFlow(): WriteFlowResult {
   return { status, txHash, error, write, reset };
 }
 
-/** Best-effort extraction of a human-readable revert reason from a wagmi/viem error. */
 function extractRevertReason(error: Error): string {
   const message = error.message ?? String(error);
 
-  // viem often puts the revert reason after "reverted with the following reason:"
   const reasonMatch = message.match(/reverted with the following reason:\s*\n?(.*)/i);
-  if (reasonMatch?.[1]) {
-    return reasonMatch[1].trim();
-  }
-
-  // Custom error names from viem decoding
+  if (reasonMatch?.[1]) return reasonMatch[1].trim();
   const customErrorMatch = message.match(/reverted with custom error '([^']+)'/i);
-  if (customErrorMatch?.[1]) {
-    return customErrorMatch[1];
-  }
-
-  // User rejected
-  if (message.includes("User rejected") || message.includes("user rejected")) {
-    return "Transaction rejected by user.";
-  }
-
-  // Shorten very long messages
-  if (message.length > 200) {
-    return message.slice(0, 200) + "…";
-  }
+  if (customErrorMatch?.[1]) return customErrorMatch[1];
+  if (message.includes("User rejected") || message.includes("user rejected")) return "Transaction rejected by user.";
+  if (message.length > 200) return message.slice(0, 200) + "…";
 
   return message;
 }

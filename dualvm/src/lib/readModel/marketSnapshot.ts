@@ -40,6 +40,9 @@ export async function loadMarketSnapshot(
   });
 
   const registryAddress = deploymentManifest.contracts.marketRegistry;
+  // Use V2 contracts when available (active market version)
+  const activeDebtPool = deploymentManifest.contracts.debtPoolV2 ?? deploymentManifest.contracts.debtPool;
+  const activeLendingCore = deploymentManifest.contracts.lendingCoreV2 ?? deploymentManifest.contracts.lendingCore;
 
   const [
     totalAssets,
@@ -61,37 +64,37 @@ export async function loadMarketSnapshot(
     versionInfo,
   ] = await Promise.all([
     client.readContract({
-      address: deploymentManifest.contracts.debtPool,
+      address: activeDebtPool,
       abi: debtPoolAbi,
       functionName: "totalAssets",
     }),
     client.readContract({
-      address: deploymentManifest.contracts.debtPool,
+      address: activeDebtPool,
       abi: debtPoolAbi,
       functionName: "availableLiquidity",
     }),
     client.readContract({
-      address: deploymentManifest.contracts.debtPool,
+      address: activeDebtPool,
       abi: debtPoolAbi,
       functionName: "outstandingPrincipal",
     }),
     client.readContract({
-      address: deploymentManifest.contracts.debtPool,
+      address: activeDebtPool,
       abi: debtPoolAbi,
       functionName: "reserveBalance",
     }),
     client.readContract({
-      address: deploymentManifest.contracts.lendingCore,
+      address: activeLendingCore,
       abi: lendingCoreAbi,
       functionName: "borrowCap",
     }),
     client.readContract({
-      address: deploymentManifest.contracts.lendingCore,
+      address: activeLendingCore,
       abi: lendingCoreAbi,
       functionName: "minBorrowAmount",
     }),
     client.readContract({
-      address: deploymentManifest.contracts.lendingCore,
+      address: activeLendingCore,
       abi: lendingCoreAbi,
       functionName: "liquidationBonusBps",
     }),

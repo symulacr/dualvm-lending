@@ -8,10 +8,6 @@ interface TxStatusBannerProps {
   onReset: () => void;
 }
 
-/**
- * Displays transaction status feedback: pending → confirming → confirmed (with
- * a Blockscout link), or an error message with a "Try again" button.
- */
 export function TxStatusBanner({ status, txHash, error, onReset }: TxStatusBannerProps) {
   if (status === "idle") return null;
 

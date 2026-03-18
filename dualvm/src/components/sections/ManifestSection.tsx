@@ -10,10 +10,6 @@ export function ManifestSection({ explorerUrl, contractRows }: ManifestSectionPr
     <section className="panel-card">
       <div className="section-header section-header-spread">
         <h2>Deployment manifest</h2>
-        <p className="helper-text">
-          These addresses drive the observer UI. The current frontend intentionally stays read-first and links to
-          Blockscout for proof rather than pretending there is a hidden backend.
-        </p>
       </div>
       <div className="address-grid">
         {contractRows.map((row) => (
