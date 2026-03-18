@@ -27,7 +27,7 @@
   },
   "config": {
     "adminDelaySeconds": 3600,
-    "oracleMaxAgeSeconds": 21600,
+    "oracleMaxAgeSeconds": 1800,
     "oraclePriceWad": "1000000000000000000000",
     "oracle": {
       "circuitBreaker": {
@@ -74,6 +74,11 @@
     "governor": "0xa6d2c210f8A11F2D87b08efA8F832B4e64e521b3",
     "governanceTimelock": "0x65712EEFD810F077c6C11Fd7c18988d3ce569C60",
     "debtPool": "0xeEdA5d44810E09D8F881Fca537456E2a5eD437bB",
-    "lendingCore": "0x9faC289188229f40aBfaa4F8d720C14b8B448CF9"
+    "lendingCore": "0x9faC289188229f40aBfaa4F8d720C14b8B448CF9",
+    "lendingCoreV2": "0xab2620577Aaf2BDB0Fdb582DaEB16dbc0f07213f",
+    "riskEngineV2": "0x0b7C5Dd3e9Bc5B23347b0850332117219a2b170E",
+    "debtPoolV2": "0xF55D74C74CFDb81194337D82181d48233C8a6426",
+    "lendingRouterV2": "0x08aace96441Cb320BC68b072D110169fbf38eb08",
+    "pvmDeterministicRiskModel": "0xC6907B609ba4b94C9e319570BaA35DaF587252f8"
   }
 }

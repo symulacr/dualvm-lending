@@ -22,6 +22,10 @@
       "explorerUrl": "https://blockscout-testnet.polkadot.io/address/0xab2620577Aaf2BDB0Fdb582DaEB16dbc0f07213f",
       "liquidationNotifier": "0x2Aa42227790Fa05F755cB202a128b0c0041b21C4",
       "note": "LendingCoreV2 with depositCollateralFor + XcmLiquidationNotifier hook"
+    },
+    "lendingRouterV2": {
+      "address": "0x08aace96441Cb320BC68b072D110169fbf38eb08",
+      "note": "LendingRouterV2: wraps PAS→WPAS and calls depositCollateralFor in 1 TX"
     }
   },
   "governance": {
@@ -33,5 +37,18 @@
   "roles": {
     "lendingCoreV2HoldsLendingCoreRole": true,
     "debtPoolV2WiredToLendingCoreV2": true
+  },
+  "marketRegistry": {
+    "activeVersionId": "4",
+    "v2VersionId": "4",
+    "lendingCoreV2": "0xab2620577Aaf2BDB0Fdb582DaEB16dbc0f07213f",
+    "debtPoolV2": "0xF55D74C74CFDb81194337D82181d48233C8a6426",
+    "oracle": "0x1CCE5059dc39A7cf8f064f6DA6Be9da09279Ee04",
+    "riskAdapterV2": "0x0b7C5Dd3e9Bc5B23347b0850332117219a2b170E",
+    "registeredAt": "2026-03-18T21:26:18.500Z"
+  },
+  "oracleMaxAge": {
+    "newValue": 1800,
+    "updatedAt": "2026-03-18T21:26:18.500Z"
   }
 }

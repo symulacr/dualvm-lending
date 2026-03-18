@@ -17,6 +17,7 @@ export const ROLE_IDS = {
   GOVERNANCE: 5,
   MIGRATION: 6,
   LENDING_CORE: 7,
+  ROUTER: 8,
 } as const;
 
 export const TARGET_ADMIN_DELAY_SECONDS = 60 * 60;

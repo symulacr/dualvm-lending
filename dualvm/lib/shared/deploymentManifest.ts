@@ -71,6 +71,12 @@ export interface DeploymentContracts {
   governanceMultisig?: HexAddress;
   governanceTimelock?: HexAddress;
   lendingRouter?: HexAddress;
+  // V2 contracts (market version V2)
+  lendingCoreV2?: HexAddress;
+  riskEngineV2?: HexAddress;
+  debtPoolV2?: HexAddress;
+  lendingRouterV2?: HexAddress;
+  pvmDeterministicRiskModel?: HexAddress;
 }
 
 export interface DeploymentManifest {
@@ -183,7 +189,7 @@ export function parseDeploymentManifest(value: unknown): DeploymentManifest {
   }
 
   readAddresses(contracts, ["accessManager", "wpas", "usdc", "oracle", "riskEngine", "debtPool", "lendingCore"], "manifest.contracts");
-  readOptionalAddresses(contracts, ["quoteEngine", "marketRegistry", "governanceToken", "governor", "governanceMultisig", "governanceTimelock", "lendingRouter"], "manifest.contracts");
+  readOptionalAddresses(contracts, ["quoteEngine", "marketRegistry", "governanceToken", "governor", "governanceMultisig", "governanceTimelock", "lendingRouter", "lendingCoreV2", "riskEngineV2", "debtPoolV2", "lendingRouterV2", "pvmDeterministicRiskModel"], "manifest.contracts");
 
   return value as unknown as DeploymentManifest;
 }
