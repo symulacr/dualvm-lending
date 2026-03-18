@@ -1,0 +1,320 @@
+{
+  "groupId": "lending-smokes-a",
+  "testedAt": "2026-03-17T01:44:05.102778Z",
+  "isolation": {
+    "surface": "terminal-live-onchain",
+    "readOnly": true,
+    "repoRoot": "/home/kpa/polkadot",
+    "projectRoot": "/home/kpa/polkadot/dualvm",
+    "missionDir": "/home/kpa/.factory/missions/dc664f26-9086-4d9b-896d-ba8f3bde8d71",
+    "canonicalManifest": "/home/kpa/polkadot/dualvm/deployments/polkadot-hub-testnet-canonical.json",
+    "canonicalResultsArtifact": "/home/kpa/polkadot/dualvm/deployments/polkadot-hub-testnet-canonical-results.json",
+    "evidenceDir": "/home/kpa/.factory/missions/dc664f26-9086-4d9b-896d-ba8f3bde8d71/evidence/consolidated-deployment/lending-deploy-live"
+  },
+  "toolsUsed": [
+    "Read",
+    "Execute",
+    "node",
+    "python3",
+    "eth_call"
+  ],
+  "commandsRun": [
+    {
+      "command": "node \"/home/kpa/.factory/missions/dc664f26-9086-4d9b-896d-ba8f3bde8d71/evidence/consolidated-deployment/lending-deploy-live/lending-smokes-a-live-read.mjs\" > \"/home/kpa/.factory/missions/dc664f26-9086-4d9b-896d-ba8f3bde8d71/evidence/consolidated-deployment/lending-deploy-live/lending-smokes-a-live-evidence.json\"",
+      "exitCode": 0,
+      "observation": "Collected all referenced tx receipts/logs plus historical and latest eth_call snapshots into lending-smokes-a-live-evidence.json."
+    },
+    {
+      "command": "cd \"/home/kpa/polkadot/dualvm\" && node <<'NODE' ... provider.send('eth_call', [{to,data}, '0x62f1cd']) vs latest ... NODE",
+      "exitCode": 0,
+      "observation": "Confirmed reliable historical reads require raw eth_call with hex block tags: currentDebt at block 0x62f1cd returned 150.000002663622526636 versus 4007.1711146382706190393 at latest."
+    }
+  ],
+  "assertions": [
+    {
+      "id": "VAL-LEND-001",
+      "title": "LP deposits and receives shares",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Inspect debt-pool deposit receipt 0x800fee1ee0ba57bb53b286f03ed4b7b0669fb48a666382eccdcfa9f713615d6e",
+          "expected": "USDC transfers into the vault and ERC-4626 Deposit emits assets/shares",
+          "observed": "Receipt shows 1000 USDC transferred to DebtPool and Deposit emitted assets=1000, shares=1000."
+        },
+        {
+          "action": "Read DebtPool balanceOf(lp), totalAssets(), and USDC balanceOf(pool) at the deposit block via historical eth_call",
+          "expected": "LP share balance and vault assets equal the deposit amount",
+          "observed": "Historical reads returned shareBalance=1000.0, totalAssets=1000.0, poolUsdc=1000.0."
+        }
+      ],
+      "evidence": {
+        "files": [
+          "consolidated-deployment/lending-deploy-live/lending-smokes-a-live-evidence.json",
+          "consolidated-deployment/lending-deploy-live/lending-smokes-a-live-read.mjs"
+        ],
+        "commands": [
+          "node \"/home/kpa/.factory/missions/dc664f26-9086-4d9b-896d-ba8f3bde8d71/evidence/consolidated-deployment/lending-deploy-live/lending-smokes-a-live-read.mjs\" > \"/home/kpa/.factory/missions/dc664f26-9086-4d9b-896d-ba8f3bde8d71/evidence/consolidated-deployment/lending-deploy-live/lending-smokes-a-live-evidence.json\""
+        ],
+        "txHashes": [
+          "0x800fee1ee0ba57bb53b286f03ed4b7b0669fb48a666382eccdcfa9f713615d6e"
+        ],
+        "artifact": {
+          "poolAssets": "1000 USDC",
+          "borrowerDebt": "100 USDC",
+          "outstandingPrincipal": "100 USDC"
+        }
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-LEND-002",
+      "title": "LP withdrawal respects liquidity",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Read availableLiquidity() and maxWithdraw(lp) at the deposit block tied to 0x800fee1ee0ba57bb53b286f03ed4b7b0669fb48a666382eccdcfa9f713615d6e",
+          "expected": "Both values match the 1000 USDC liquidity available immediately after the LP seed",
+          "observed": "Historical reads returned availableLiquidity=1000.0 and maxWithdraw=1000.0."
+        },
+        {
+          "action": "Simulate withdraw(availableLiquidity + 1) with eth_call from the LP address",
+          "expected": "Call reverts with InsufficientLiquidity",
+          "observed": "eth_call reverted with InsufficientLiquidity requested=1000000000000000000001 available=1000000000000000000000."
+        }
+      ],
+      "evidence": {
+        "files": [
+          "consolidated-deployment/lending-deploy-live/lending-smokes-a-live-evidence.json",
+          "consolidated-deployment/lending-deploy-live/lending-smokes-a-live-read.mjs"
+        ],
+        "commands": [
+          "node \"/home/kpa/.factory/missions/dc664f26-9086-4d9b-896d-ba8f3bde8d71/evidence/consolidated-deployment/lending-deploy-live/lending-smokes-a-live-read.mjs\" > \"/home/kpa/.factory/missions/dc664f26-9086-4d9b-896d-ba8f3bde8d71/evidence/consolidated-deployment/lending-deploy-live/lending-smokes-a-live-evidence.json\""
+        ],
+        "txHashes": [
+          "0x800fee1ee0ba57bb53b286f03ed4b7b0669fb48a666382eccdcfa9f713615d6e"
+        ]
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-LEND-003",
+      "title": "Borrower wraps PAS to WPAS",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Inspect WPAS wrap receipt 0x7a23614612b222574bc8799b6f3544a9b85675ae33fd0c40eeb5386855797323",
+          "expected": "Transaction value and Wrapped event amount match 1:1",
+          "observed": "Receipt value=2.0 PAS and Wrapped emitted amount=2000000000000000000."
+        },
+        {
+          "action": "Read WPAS balanceOf(borrower) at the wrap block via historical eth_call",
+          "expected": "Borrower holds newly minted WPAS equal to the wrapped PAS amount",
+          "observed": "Historical read returned borrower WPAS balance=2.0."
+        }
+      ],
+      "evidence": {
+        "files": [
+          "consolidated-deployment/lending-deploy-live/lending-smokes-a-live-evidence.json",
+          "consolidated-deployment/lending-deploy-live/lending-smokes-a-live-read.mjs"
+        ],
+        "commands": [
+          "node \"/home/kpa/.factory/missions/dc664f26-9086-4d9b-896d-ba8f3bde8d71/evidence/consolidated-deployment/lending-deploy-live/lending-smokes-a-live-read.mjs\" > \"/home/kpa/.factory/missions/dc664f26-9086-4d9b-896d-ba8f3bde8d71/evidence/consolidated-deployment/lending-deploy-live/lending-smokes-a-live-evidence.json\""
+        ],
+        "txHashes": [
+          "0x7a23614612b222574bc8799b6f3544a9b85675ae33fd0c40eeb5386855797323"
+        ]
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-LEND-004",
+      "title": "Borrower deposits collateral",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Inspect collateral deposit receipt 0x947f27e1311f50b1cca2e13c164dd9fc995037434574e3276e392375b151f81c",
+          "expected": "WPAS transfers to LendingCore and CollateralDeposited emits the deposit amount",
+          "observed": "Receipt shows 2 WPAS transferred into LendingCore and CollateralDeposited emitted amount=2e18."
+        },
+        {
+          "action": "Read LendingCore.positions(borrower) at the deposit block via historical eth_call",
+          "expected": "collateralAmount increases while debt remains zero before borrowing",
+          "observed": "Historical position shows collateralAmount=2.0, principalDebt=0.0, accruedInterest=0.0."
+        }
+      ],
+      "evidence": {
+        "files": [
+          "consolidated-deployment/lending-deploy-live/lending-smokes-a-live-evidence.json",
+          "consolidated-deployment/lending-deploy-live/lending-smokes-a-live-read.mjs"
+        ],
+        "commands": [
+          "node \"/home/kpa/.factory/missions/dc664f26-9086-4d9b-896d-ba8f3bde8d71/evidence/consolidated-deployment/lending-deploy-live/lending-smokes-a-live-read.mjs\" > \"/home/kpa/.factory/missions/dc664f26-9086-4d9b-896d-ba8f3bde8d71/evidence/consolidated-deployment/lending-deploy-live/lending-smokes-a-live-evidence.json\""
+        ],
+        "txHashes": [
+          "0x947f27e1311f50b1cca2e13c164dd9fc995037434574e3276e392375b151f81c"
+        ]
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-LEND-005",
+      "title": "Borrower borrows USDC-test",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Inspect borrow receipt 0x5a9edd08efd8aec5e1ccbe0295b97e03cebc1b75588acf19a2738a109deba532",
+          "expected": "Borrowed event emits and USDC transfers from DebtPool to the borrower",
+          "observed": "Receipt shows Borrowed(account, amount=100e18, borrowRateBps=300) and a 100 USDC transfer from DebtPool to the borrower."
+        },
+        {
+          "action": "Read currentDebt(borrower), USDC balanceOf(borrower), and DebtPool.outstandingPrincipal() at the borrow block",
+          "expected": "All three values reflect the 100 USDC borrow",
+          "observed": "Historical reads returned currentDebt=100.0, borrowerUsdc=100.0, outstandingPrincipal=100.0."
+        }
+      ],
+      "evidence": {
+        "files": [
+          "consolidated-deployment/lending-deploy-live/lending-smokes-a-live-evidence.json",
+          "consolidated-deployment/lending-deploy-live/lending-smokes-a-live-read.mjs"
+        ],
+        "commands": [
+          "node \"/home/kpa/.factory/missions/dc664f26-9086-4d9b-896d-ba8f3bde8d71/evidence/consolidated-deployment/lending-deploy-live/lending-smokes-a-live-read.mjs\" > \"/home/kpa/.factory/missions/dc664f26-9086-4d9b-896d-ba8f3bde8d71/evidence/consolidated-deployment/lending-deploy-live/lending-smokes-a-live-evidence.json\""
+        ],
+        "txHashes": [
+          "0x5a9edd08efd8aec5e1ccbe0295b97e03cebc1b75588acf19a2738a109deba532"
+        ],
+        "artifact": {
+          "poolAssets": "1000 USDC",
+          "borrowerDebt": "100 USDC",
+          "outstandingPrincipal": "100 USDC"
+        }
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-LEND-006",
+      "title": "Borrower repays debt",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Inspect repay receipt 0x02825742b3d9cdc5e8c27b1ae30948d73885188c2e43a0de5c6105606c441dde",
+          "expected": "Repaid event shows payment split between interest and principal",
+          "observed": "Receipt shows amount=50000000000000000000, principalPaid=49999997336377473364, interestPaid=2663622526636."
+        },
+        {
+          "action": "Read currentDebt(borrower) and reserveBalance() at the repay block",
+          "expected": "Debt falls and reserve balance increases after the repayment",
+          "observed": "Historical reads at the repay block returned debtAfter=150.000002663622526636 and reserveBalanceAfter=0.000000266362252663; reserveBalanceBefore was 0.0."
+        },
+        {
+          "action": "Cross-check the canonical results artifact for the pre-repay debt snapshot",
+          "expected": "Artifact pre/post debt values align with the on-chain Repaid event and historical after-state",
+          "observed": "Artifact recorded debtBefore=200.000002663622526636 USDC and debtAfter=150.000002663622526636 USDC, matching the event split and historical after-state."
+        }
+      ],
+      "evidence": {
+        "files": [
+          "consolidated-deployment/lending-deploy-live/lending-smokes-a-live-evidence.json",
+          "consolidated-deployment/lending-deploy-live/lending-smokes-a-live-read.mjs"
+        ],
+        "commands": [
+          "node \"/home/kpa/.factory/missions/dc664f26-9086-4d9b-896d-ba8f3bde8d71/evidence/consolidated-deployment/lending-deploy-live/lending-smokes-a-live-read.mjs\" > \"/home/kpa/.factory/missions/dc664f26-9086-4d9b-896d-ba8f3bde8d71/evidence/consolidated-deployment/lending-deploy-live/lending-smokes-a-live-evidence.json\""
+        ],
+        "txHashes": [
+          "0x02825742b3d9cdc5e8c27b1ae30948d73885188c2e43a0de5c6105606c441dde"
+        ],
+        "artifact": {
+          "debtBefore": "200.000002663622526636 USDC",
+          "debtAfter": "150.000002663622526636 USDC",
+          "debtReduced": true
+        }
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-LEND-007",
+      "title": "Liquidation clears underwater position",
+      "status": "fail",
+      "steps": [
+        {
+          "action": "Inspect liquidation receipt 0xeec68ce067523113520a888e9344860ea9d9421c135a6db6823da56ebe12048b",
+          "expected": "Liquidation both reduces debt and clears the underwater position claimed by the canonical artifact/title",
+          "observed": "Receipt shows repaid=1142857142857142857142, collateralSeized=11999999999999999999, badDebtWrittenOff=0."
+        },
+        {
+          "action": "Read currentDebt(borrower), positions(borrower), and liquidator WPAS balance at the liquidation block",
+          "expected": "Borrower position is cleared if the assertion/artifact claim is true",
+          "observed": "Historical reads show debtBefore=5150.000021933029261506, debtAfter=4007.143823242557092086, borrower collateral remaining=0.000000000000000001, and liquidator WPAS increased from 0.0 to 11.999999999999999999."
+        },
+        {
+          "action": "Compare on-chain post-state to the canonical results artifact text",
+          "expected": "Artifact text and on-chain state agree",
+          "observed": "Artifact says 'Liquidation executed successfully \u2014 borrower position cleared', but the historical on-chain state still shows a live debt of 4007.143823242557092086 and residual collateral of 0.000000000000000001."
+        }
+      ],
+      "evidence": {
+        "files": [
+          "consolidated-deployment/lending-deploy-live/lending-smokes-a-live-evidence.json",
+          "consolidated-deployment/lending-deploy-live/lending-smokes-a-live-read.mjs"
+        ],
+        "commands": [
+          "node \"/home/kpa/.factory/missions/dc664f26-9086-4d9b-896d-ba8f3bde8d71/evidence/consolidated-deployment/lending-deploy-live/lending-smokes-a-live-read.mjs\" > \"/home/kpa/.factory/missions/dc664f26-9086-4d9b-896d-ba8f3bde8d71/evidence/consolidated-deployment/lending-deploy-live/lending-smokes-a-live-evidence.json\""
+        ],
+        "txHashes": [
+          "0xeec68ce067523113520a888e9344860ea9d9421c135a6db6823da56ebe12048b"
+        ],
+        "artifact": "Liquidation executed successfully \u2014 borrower position cleared"
+      },
+      "issues": "Contradictory evidence: the liquidation reduced debt and transferred collateral, but it did not clear the borrower position as the assertion title/canonical artifact claim implies."
+    },
+    {
+      "id": "VAL-LEND-008",
+      "title": "Bad debt cleared on full collateral seizure",
+      "status": "fail",
+      "steps": [
+        {
+          "action": "Inspect liquidation receipt 0xeec68ce067523113520a888e9344860ea9d9421c135a6db6823da56ebe12048b for bad-debt markers",
+          "expected": "BadDebtRealized emits and Liquidated.badDebtWrittenOff is non-zero when collateral is exhausted but debt remains",
+          "observed": "Liquidated.badDebtWrittenOff=0 and no BadDebtRealized events were emitted."
+        },
+        {
+          "action": "Read currentDebt(borrower) and positions(borrower) at the liquidation block",
+          "expected": "currentDebt becomes 0 and the borrower position is cleared",
+          "observed": "Historical reads show currentDebtAfter=4007.143823242557092086, collateralRemaining=0.000000000000000001, principalDebtRemaining=4007.143823242557092086."
+        }
+      ],
+      "evidence": {
+        "files": [
+          "consolidated-deployment/lending-deploy-live/lending-smokes-a-live-evidence.json",
+          "consolidated-deployment/lending-deploy-live/lending-smokes-a-live-read.mjs"
+        ],
+        "commands": [
+          "node \"/home/kpa/.factory/missions/dc664f26-9086-4d9b-896d-ba8f3bde8d71/evidence/consolidated-deployment/lending-deploy-live/lending-smokes-a-live-read.mjs\" > \"/home/kpa/.factory/missions/dc664f26-9086-4d9b-896d-ba8f3bde8d71/evidence/consolidated-deployment/lending-deploy-live/lending-smokes-a-live-evidence.json\""
+        ],
+        "txHashes": [
+          "0xeec68ce067523113520a888e9344860ea9d9421c135a6db6823da56ebe12048b"
+        ]
+      },
+      "issues": "Assertion not met: the referenced liquidation neither emitted BadDebtRealized nor reduced currentDebt to zero, so bad debt was not cleared on full collateral seizure."
+    }
+  ],
+  "frictions": [
+    {
+      "description": "ethers provider.call with numeric block tags produced misleading historical reads on this RPC surface during initial validation.",
+      "resolved": true,
+      "resolution": "Switched to raw provider.send('eth_call', ..., hexBlockTag) inside the evidence script and verified the historical-vs-latest difference explicitly.",
+      "affectedAssertions": [
+        "VAL-LEND-001",
+        "VAL-LEND-002",
+        "VAL-LEND-003",
+        "VAL-LEND-004",
+        "VAL-LEND-005",
+        "VAL-LEND-006",
+        "VAL-LEND-007",
+        "VAL-LEND-008"
+      ]
+    }
+  ],
+  "blockers": [],
+  "summary": "Tested 8 assertions: 6 passed, 2 failed (VAL-LEND-007, VAL-LEND-008)."
+}

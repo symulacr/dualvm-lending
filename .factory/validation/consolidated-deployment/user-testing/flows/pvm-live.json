@@ -1,0 +1,278 @@
+{
+  "groupId": "pvm-live",
+  "testedAt": "2026-03-17T01:43:59.451500Z",
+  "isolation": {
+    "surface": "terminal-live-onchain",
+    "mode": "read-only",
+    "repoRoot": "/home/kpa/polkadot",
+    "activeProject": "/home/kpa/polkadot/dualvm",
+    "missionDir": "/home/kpa/.factory/missions/dc664f26-9086-4d9b-896d-ba8f3bde8d71",
+    "rpcUrl": "https://eth-rpc-testnet.polkadot.io/",
+    "fallbackRpcUrl": "https://services.polkadothub-rpc.com/testnet/",
+    "wssUrl": "wss://asset-hub-paseo-rpc.n.dwellir.com",
+    "explorerUrl": "https://blockscout-testnet.polkadot.io/"
+  },
+  "toolsUsed": [
+    "node",
+    "viem",
+    "@polkadot/api",
+    "python3"
+  ],
+  "commandsRun": [
+    {
+      "command": "cd \"/home/kpa/polkadot/dualvm\" && node --input-type=module - <<'NODE' ...writes /home/kpa/.factory/missions/dc664f26-9086-4d9b-896d-ba8f3bde8d71/evidence/consolidated-deployment/pvm-live/pvm-live-evidence.json using viem + @polkadot/api... NODE",
+      "exitCode": 0,
+      "observation": "Captured live probe readbacks, tx receipts/events, canonical risk path, revive.accountInfoOf code hash, and healthy-vs-stressed quote comparison."
+    },
+    {
+      "command": "cd \"/home/kpa/polkadot/dualvm\" && node --input-type=module - <<'NODE' ...prints raw receipt logs for borrow tx 0x5a9edd08efd8aec5e1ccbe0295b97e03cebc1b75588acf19a2738a109deba532... NODE",
+      "exitCode": 0,
+      "observation": "Showed the first borrow log came from RiskAdapter 0x67D0... and revealed my initial QuoteTicketPublished ABI assumption was wrong."
+    },
+    {
+      "command": "cd \"/home/kpa/polkadot/dualvm\" && node --input-type=module - <<'NODE' ...queries CallbackReceived and RoundTripSettled logs from public RPC... NODE",
+      "exitCode": 0,
+      "observation": "Found two successful CallbackReceived logs (txs 0x103e27... and 0x054774...) and only two roundtrip settlement logs, both starting from principalDebt 2140/settlementCount 4 state."
+    },
+    {
+      "command": "cd \"/home/kpa/polkadot/dualvm\" && node --input-type=module - <<'NODE' ...first attempt to write pvm-live-history.json... NODE",
+      "exitCode": 1,
+      "observation": "Failed locally because parseAbiItem output was incorrectly treated as having a decode() method; no report artifact was used from this attempt."
+    },
+    {
+      "command": "cd \"/home/kpa/polkadot/dualvm\" && node --input-type=module - <<'NODE' ...writes /home/kpa/.factory/missions/dc664f26-9086-4d9b-896d-ba8f3bde8d71/evidence/consolidated-deployment/pvm-live/pvm-live-history.json with corrected decodeEventLog usage... NODE",
+      "exitCode": 0,
+      "observation": "Decoded historical callback txs, read receiver state at their block heights, and decoded the canonical borrow QuoteTicketPublished/Borrowed evidence."
+    }
+  ],
+  "assertions": [
+    {
+      "id": "VAL-PVM-001",
+      "title": "Echo probe returns exact bytes32",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Read RevmQuoteCallerProbe state and decode the probe-results stage1 echo tx.",
+          "expected": "Echo tx succeeded and lastEchoInput == lastEchoOutput == input.",
+          "observed": "Tx 0x282f32532f1bc337266e7a0d849edb1153449be7fad9d4b9feacec8aded641d0 succeeded; ProbeEchoed logged identical input/output 0x111122223333444455556666777788889999aaaabbbbccccddddeeeeffff0000; current lastEchoInput and lastEchoOutput match."
+        }
+      ],
+      "evidence": {
+        "paths": [
+          "consolidated-deployment/pvm-live/pvm-live-evidence.json"
+        ],
+        "commands": [
+          "node evidence generator (viem + @polkadot/api)"
+        ],
+        "txHashes": [
+          "0x282f32532f1bc337266e7a0d849edb1153449be7fad9d4b9feacec8aded641d0"
+        ]
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-PVM-002",
+      "title": "Quote probe returns deterministic risk output",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Read RevmQuoteCallerProbe state and decode the stage1 quote tx.",
+          "expected": "Stored quote result shows inputHash 0x7431463f..., resultHash 0x29ff247c..., borrowRate/maxLtv/liquidationThreshold = 700/7500/8500.",
+          "observed": "Tx 0x4f55eac1f75b6540e3d81d3618a8857574551809fce2b08bfc4e11a4b15b5698 succeeded; ProbeQuoted logged inputHash 0x7431463ff24a5f7497bdfc86b516ce3323be8e12d761f0ac39eab8171fd6170c and resultHash 0x29ff247cb200e3f80b21f04440957ce31334b5d3bab145708fb91a8dc8652352; live state shows 700/7500/8500."
+        }
+      ],
+      "evidence": {
+        "paths": [
+          "consolidated-deployment/pvm-live/pvm-live-evidence.json"
+        ],
+        "commands": [
+          "node evidence generator (viem + @polkadot/api)"
+        ],
+        "txHashes": [
+          "0x4f55eac1f75b6540e3d81d3618a8857574551809fce2b08bfc4e11a4b15b5698"
+        ]
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-PVM-003",
+      "title": "PVM callback changes REVM receiver state",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Query historical CallbackReceived logs on RevmCallbackReceiver and read receiver state at the callbackFingerprint block height.",
+          "expected": "A PVM callback tx exists and receiver state is populated by callbackFingerprint without off-chain relay.",
+          "observed": "Historical tx 0x103e27e8fb8f28c075970d1507aa44382d6459e8e3e144d5387841481d5caeaf succeeded with txTo 0xc60E223A91aEbf1589A5509F308b4787cF6607AE; CallbackReceived logged caller 0xc60E223A91aEbf1589A5509F308b4787cF6607AE, callId 0xfe0f018034cfb577507b29d7c520caa12da31cf9c0be140fcdeeb20baeeeca09, resultHash 0x5eb43dca1f803a0b659da6925e9e8cc899b18b2618b46e30748f4f094e0c5b52, a=1, b=2; receiver state at block 6453644 matches exactly."
+        }
+      ],
+      "evidence": {
+        "paths": [
+          "consolidated-deployment/pvm-live/pvm-live-history.json"
+        ],
+        "commands": [
+          "node historical callback/borrow decoder"
+        ],
+        "txHashes": [
+          "0x103e27e8fb8f28c075970d1507aa44382d6459e8e3e144d5387841481d5caeaf"
+        ]
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-PVM-004",
+      "title": "Roundtrip settlement stores PVM-derived state",
+      "status": "fail",
+      "steps": [
+        {
+          "action": "Decode the only settleBorrow tx recorded in probe results and read current settlement state.",
+          "expected": "settleBorrow stores principalDebt == 1070 with borrowRate 700 and matching quote hash.",
+          "observed": "Tx 0x4284ace5171ead5bea7c5795ee78528ac815b5d65d450b6f85de06b56ebe2ad5 succeeded, but RoundTripSettled logged debtDeltaApplied 1070 while principalDebt was already 2140; live settlement state is principalDebt 2140, lastBorrowRateBps 700, lastQuoteHash 0x29ff247cb200e3f80b21f04440957ce31334b5d3bab145708fb91a8dc8652352, settlementCount 4."
+        }
+      ],
+      "evidence": {
+        "paths": [
+          "consolidated-deployment/pvm-live/pvm-live-evidence.json"
+        ],
+        "commands": [
+          "node evidence generator (viem + @polkadot/api)",
+          "node historical callback/settlement log query"
+        ],
+        "txHashes": [
+          "0x4284ace5171ead5bea7c5795ee78528ac815b5d65d450b6f85de06b56ebe2ad5"
+        ]
+      },
+      "issues": "The live settleBorrow proof does not satisfy the expected stored principalDebt invariant; the only on-chain settleBorrow event shows principalDebt 2140 rather than 1070."
+    },
+    {
+      "id": "VAL-PVM-005",
+      "title": "All probe verdicts correct (A=true, B=true, C=true, D=false)",
+      "status": "fail",
+      "steps": [
+        {
+          "action": "Compare stored verdicts/finalSummary against the probe-results stage statuses and recomputed verdicts.",
+          "expected": "Stored verdicts are consistent with all four successful probe stages.",
+          "observed": "deployments/polkadot-hub-testnet-probe-results.json stores verdicts A=true/B=true/C=true/D=false and finalSummary 'Outcome B proven', but the same file records stage2=failed and stage3=failed; recomputation from stage statuses yields A=true, B=false, C=false, D=false."
+        }
+      ],
+      "evidence": {
+        "paths": [
+          "consolidated-deployment/pvm-live/pvm-live-evidence.json"
+        ],
+        "commands": [
+          "node evidence generator (viem + @polkadot/api)"
+        ]
+      },
+      "issues": "The collected proof results are internally inconsistent, so the verdict claim is not trustworthy as written."
+    },
+    {
+      "id": "VAL-PVM-006",
+      "title": "Product-path quote engine is PVM-compiled",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Read LendingCore.riskEngine(), RiskAdapter.quoteEngine(), and query revive.accountInfoOf for the quote engine address.",
+          "expected": "LendingCore points to RiskAdapter, which points to the probe quote engine, and revive.accountInfoOf returns a non-null PVM code hash.",
+          "observed": "LendingCore.riskEngine() = 0x67D0B226b5aE56A29E206840Ecd389670718Af66; RiskAdapter.quoteEngine() = 0x9a78F65b00E0AeD0830063eD0ea66a0B5d8876DE; revive.accountInfoOf(0x9a78...) returned codeHash 0xba8fe2a621062a30bba558a3846d0a18bfb2e9a09bfaed656b123e698b59af5b, matching the probe deployment manifest."
+        }
+      ],
+      "evidence": {
+        "paths": [
+          "consolidated-deployment/pvm-live/pvm-live-evidence.json"
+        ],
+        "commands": [
+          "node evidence generator (viem + @polkadot/api)"
+        ]
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-CROSS-003",
+      "title": "PVM quote engine serves product-path borrows",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Decode the canonical product-path borrow tx and read the stored quote ticket from RiskAdapter.",
+          "expected": "Borrow tx emits a quote ticket from LendingCore's RiskAdapter and the borrow uses that PVM-backed quote result.",
+          "observed": "Borrow tx 0x5a9edd08efd8aec5e1ccbe0295b97e03cebc1b75588acf19a2738a109deba532 succeeded; RiskAdapter 0x67D0... emitted QuoteTicketPublished with ticketId 0xd41d1400e56d93ca1c041750afae83af31fd015c85b3c297b361577fc922a928 and publisher 0x9faC289188229f40aBfaa4F8d720C14b8B448CF9; getQuoteTicket(ticketId) returns borrowRateBps 300 / maxLtvBps 7500 / liquidationThresholdBps 8500; the same tx emitted LendingCore Borrowed(..., borrowRateBps=300). The live risk path for that LendingCore resolves to quoteEngine 0x9a78... with PVM code hash 0xba8f...."
+        }
+      ],
+      "evidence": {
+        "paths": [
+          "consolidated-deployment/pvm-live/pvm-live-evidence.json",
+          "consolidated-deployment/pvm-live/pvm-live-history.json"
+        ],
+        "commands": [
+          "node evidence generator (viem + @polkadot/api)",
+          "node historical callback/borrow decoder"
+        ],
+        "txHashes": [
+          "0x5a9edd08efd8aec5e1ccbe0295b97e03cebc1b75588acf19a2738a109deba532"
+        ]
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-CROSS-006",
+      "title": "Oracle price change cascades to risk engine",
+      "status": "fail",
+      "steps": [
+        {
+          "action": "Confirm a live oracle price-change tx exists and compare canonical RiskAdapter.quote outputs for healthy vs stressed collateral ratios.",
+          "expected": "If the assertion were true, the borrowRateBps returned by the PVM-backed risk path would differ after the collateral ratio worsens from an oracle price change.",
+          "observed": "The recorded oracle price-change tx 0x5c10a2e68c4a0f4086ca92d277afec29c328e255d22e644bd4ee8fa31fd165c7 succeeded, but live RiskAdapter.quote calls with utilization 5000 and fresh oracle return borrowRateBps 700 for both collateralRatioBps=20000 and collateralRatioBps=13000; only maxLtvBps changed 7500\u21926500 and liquidationThresholdBps changed 8500\u21927800."
+        }
+      ],
+      "evidence": {
+        "paths": [
+          "consolidated-deployment/pvm-live/pvm-live-evidence.json"
+        ],
+        "commands": [
+          "node evidence generator (viem + @polkadot/api)"
+        ],
+        "txHashes": [
+          "0x5c10a2e68c4a0f4086ca92d277afec29c328e255d22e644bd4ee8fa31fd165c7"
+        ]
+      },
+      "issues": "The live PVM-backed quote path does not change borrowRateBps when only the collateral ratio worsens; the assertion's claimed rate change is contradicted by on-chain quote results."
+    }
+  ],
+  "frictions": [
+    {
+      "description": "The probe results artifact is internally inconsistent: it stores verdicts/finalSummary claiming roundtrip success while its own stage2/stage3 statuses are failed.",
+      "resolved": true,
+      "resolution": "Recomputed verdicts from stage statuses and used live receipts/logs instead of trusting the verdict object.",
+      "affectedAssertions": [
+        "VAL-PVM-005"
+      ]
+    },
+    {
+      "description": "Current callback receiver state had been overwritten by a later callbackQuote run, so validating callbackFingerprint required historical log inspection plus historical eth_call state reads at the callback block height.",
+      "resolved": true,
+      "resolution": "Queried CallbackReceived logs from block 0 and read RevmCallbackReceiver state at block 6453644 to recover the callbackFingerprint proof.",
+      "affectedAssertions": [
+        "VAL-PVM-003"
+      ]
+    },
+    {
+      "description": "The first local borrow-log decoder used the wrong QuoteTicketPublished ABI shape and produced no decoded ticket data.",
+      "resolved": true,
+      "resolution": "Inspected raw receipt logs, corrected the ABI to match IRiskAdapter, and reran the decoder to recover the published ticket and stored ticket values.",
+      "affectedAssertions": [
+        "VAL-CROSS-003"
+      ]
+    }
+  ],
+  "blockers": [],
+  "counts": {
+    "passed": 5,
+    "failed": 3,
+    "blocked": 0,
+    "skipped": 0
+  },
+  "failedAssertionIds": [
+    "VAL-PVM-004",
+    "VAL-PVM-005",
+    "VAL-CROSS-006"
+  ],
+  "summary": "Tested 8 assertions: 5 passed and 3 failed. Failed assertions: VAL-PVM-004, VAL-PVM-005, VAL-CROSS-006."
+}

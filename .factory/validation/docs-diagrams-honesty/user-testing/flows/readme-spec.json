@@ -1,0 +1,138 @@
+{
+  "groupId": "readme-spec",
+  "milestone": "docs-diagrams-honesty",
+  "testedAt": "2026-03-18T17:18:49Z",
+  "isolation": {
+    "repoRoot": "/home/kpa/polkadot",
+    "appSourceRoot": "/home/kpa/polkadot/dualvm",
+    "missionDir": "/home/kpa/.factory/missions/dc664f26-9086-4d9b-896d-ba8f3bde8d71",
+    "assignedAssertions": [
+      "VAL-DOCS-001",
+      "VAL-DOCS-002"
+    ],
+    "guidance": [
+      ".factory/library/user-testing.md :: Flow Validator Guidance: terminal-doc-audit"
+    ]
+  },
+  "toolsUsed": [
+    "Read",
+    "Grep",
+    "Execute"
+  ],
+  "commandsRun": [
+    {
+      "command": "git -C '/home/kpa/polkadot' show --no-patch --pretty='%H %P %s' 2de131a",
+      "exitCode": 0,
+      "evidence": null,
+      "observation": "Confirmed milestone-start commit 2de131a has parent 6adc3925be4b67c2686e8effa054d9bc58b550dd, which was used as the pre-milestone baseline for VAL-DOCS-002."
+    },
+    {
+      "command": "python3 ... count current and historical words for README.md, dualvm/SPEC.md, STATUS.md",
+      "exitCode": 0,
+      "evidence": "docs-diagrams-honesty/readme-spec/wordcount-audit.txt",
+      "observation": "Current total is 2897 words; pre-milestone baseline total at 6adc392 is 2661 words; this is an 8.87% increase rather than a 50% reduction. The intermediate be2ba05 radical-cut commit had 2433 words, but later milestone changes raised the current total again."
+    },
+    {
+      "command": "python3 ... count mermaid blocks and capture key headings in README.md",
+      "exitCode": 0,
+      "evidence": "docs-diagrams-honesty/readme-spec/mermaid-audit.txt",
+      "observation": "README currently contains 10 mermaid blocks, including the required Borrow Call Flow, Contract Dependency Graph, Governance Lifecycle, and Dual-VM Execution Boundary sections under Architecture."
+    }
+  ],
+  "toolReads": [
+    {
+      "tool": "Read",
+      "file": "/home/kpa/polkadot/README.md"
+    },
+    {
+      "tool": "Read",
+      "file": "/home/kpa/polkadot/dualvm/SPEC.md"
+    },
+    {
+      "tool": "Read",
+      "file": "/home/kpa/.factory/missions/dc664f26-9086-4d9b-896d-ba8f3bde8d71/validation-contract.md"
+    },
+    {
+      "tool": "Read",
+      "file": "/home/kpa/polkadot/.factory/library/user-testing.md"
+    },
+    {
+      "tool": "Read",
+      "file": "/home/kpa/.factory/missions/dc664f26-9086-4d9b-896d-ba8f3bde8d71/evidence/docs-diagrams-honesty/readme-spec/mermaid-audit.txt"
+    },
+    {
+      "tool": "Read",
+      "file": "/home/kpa/.factory/missions/dc664f26-9086-4d9b-896d-ba8f3bde8d71/evidence/docs-diagrams-honesty/readme-spec/wordcount-audit.txt"
+    }
+  ],
+  "searches": [
+    {
+      "tool": "Grep",
+      "pattern": "```mermaid|## Architecture|### Borrow Call Flow|### Contract Dependency Graph|### Governance Lifecycle|### Dual-VM Execution Boundary",
+      "path": "/home/kpa/polkadot/README.md"
+    }
+  ],
+  "filesInspected": [
+    "/home/kpa/polkadot/README.md",
+    "/home/kpa/polkadot/dualvm/SPEC.md",
+    "/home/kpa/.factory/missions/dc664f26-9086-4d9b-896d-ba8f3bde8d71/validation-contract.md",
+    "/home/kpa/polkadot/.factory/library/user-testing.md",
+    "/home/kpa/.factory/missions/dc664f26-9086-4d9b-896d-ba8f3bde8d71/evidence/docs-diagrams-honesty/readme-spec/mermaid-audit.txt",
+    "/home/kpa/.factory/missions/dc664f26-9086-4d9b-896d-ba8f3bde8d71/evidence/docs-diagrams-honesty/readme-spec/wordcount-audit.txt"
+  ],
+  "assertionResults": [
+    {
+      "id": "VAL-DOCS-001",
+      "title": "README contains Mermaid diagrams for the critical flows",
+      "status": "pass",
+      "observations": [
+        "README has an Architecture section starting at line 27.",
+        "The README contains 10 mermaid code blocks in total.",
+        "Required critical-flow headings are present: Borrow Call Flow, Contract Dependency Graph, Governance Lifecycle, and Dual-VM Execution Boundary."
+      ],
+      "files": [
+        "/home/kpa/polkadot/README.md"
+      ],
+      "evidence": [
+        "docs-diagrams-honesty/readme-spec/mermaid-audit.txt"
+      ],
+      "issues": null
+    },
+    {
+      "id": "VAL-DOCS-002",
+      "title": "README + SPEC + STATUS word count reduced at least 50% from pre-milestone baseline",
+      "status": "fail",
+      "observations": [
+        "Using the parent of the first milestone commit (6adc392) as the pre-milestone baseline, README.md + dualvm/SPEC.md + STATUS.md totaled 2661 words.",
+        "Current repository state totals 2897 words across README.md (2775), dualvm/SPEC.md (122), and STATUS.md (deleted => 0).",
+        "Current docs are 236 words larger than the pre-milestone baseline, which is an 8.87% increase rather than a 50% reduction.",
+        "The intermediate radical-cut commit be2ba05 did reduce the total to 2433 words, but subsequent milestone additions regressed the total above the baseline by HEAD."
+      ],
+      "files": [
+        "/home/kpa/polkadot/README.md",
+        "/home/kpa/polkadot/dualvm/SPEC.md"
+      ],
+      "evidence": [
+        "docs-diagrams-honesty/readme-spec/wordcount-audit.txt"
+      ],
+      "issues": "Current HEAD does not satisfy the validation-contract requirement for a 50% reduction versus the honest pre-milestone baseline."
+    }
+  ],
+  "frictions": [
+    {
+      "description": "Task subagent invocations failed in this session with internal eval parse errors, so the parent validator performed the read-only doc audit directly.",
+      "resolved": true,
+      "resolution": "Completed the same terminal-doc-audit steps manually and wrote the required flow report JSON directly.",
+      "affectedAssertions": [
+        "VAL-DOCS-001",
+        "VAL-DOCS-002"
+      ]
+    }
+  ],
+  "blockers": [],
+  "conciseObservations": [
+    "VAL-DOCS-001 passed: README contains 10 mermaid blocks and all required critical flow diagrams.",
+    "VAL-DOCS-002 failed: current README+SPEC+STATUS total is 2897 words versus a 2661-word pre-milestone baseline, so the docs grew by 8.87%."
+  ],
+  "summary": "Validated the diagram and word-count assertions for docs-diagrams-honesty. README diagram coverage passes, but the current README+SPEC+STATUS word count fails the contract because it is larger than the honest pre-milestone baseline rather than 50% smaller."
+}

@@ -1,0 +1,39 @@
+{
+  "featureId": "frontend-deploy-vercel",
+  "reviewedAt": "2026-03-17T13:08:24+00:00",
+  "commitId": "3ba1762b1e135ba916096280c4ac70475ef66db4",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "fail",
+  "codeReview": {
+    "summary": "Fail. The committed repo changes are limited to adding the deployed URLs to README.md and STATUS.md, and the current live HTML shells on both hosts have the expected title and asset paths. But the feature contract also required verifying that the deployed frontend actually loads and shows DualVM Lending content. The recorded evidence never goes beyond curling the static SPA shell, so it does not prove that either deployment successfully boots the React app, renders the market UI, or exposes wallet connectivity in a browser.",
+    "issues": [
+      {
+        "file": "/home/kpa/.factory/missions/dc664f26-9086-4d9b-896d-ba8f3bde8d71/handoffs/2026-03-17T12-51-55-583Z__frontend-deploy-vercel__a759d4f0-8e53-4889-9b61-77bd301c37ec.json",
+        "line": 36,
+        "severity": "blocking",
+        "description": "The feature description required verifying that the Vercel deployment loads and shows DualVM Lending content, but the final evidence only records `curl -sI` plus a raw HTML fetch. Those checks prove that Vercel serves `index.html` with the expected `<title>` and bundle tags, not that the client-side app actually boots or renders the lending UI. A broken asset path or runtime JS error would still pass this verification." 
+      },
+      {
+        "file": "/home/kpa/.factory/missions/dc664f26-9086-4d9b-896d-ba8f3bde8d71/handoffs/2026-03-17T12-51-55-583Z__frontend-deploy-vercel__a759d4f0-8e53-4889-9b61-77bd301c37ec.json",
+        "line": 51,
+        "severity": "blocking",
+        "description": "The backup eyawa.me deployment is not fully verified either. The submitted handoff only shows a 200/Last-Modified header check, and the transcript's follow-up content check likewise inspects only the SPA shell HTML and asset hashes after the `PUBLIC_BASE_PATH=/dualvm-lending/` build. That does not demonstrate that the GitHub Pages deployment actually renders DualVM Lending content in-browser, so requirement (4) remains incompletely proven." 
+      }
+    ]
+  },
+  "sharedStateObservations": [
+    {
+      "area": "skills",
+      "observation": "The deployment-worker skill is still narrowly written for contract/testnet deployments and does not cover static frontend hosting workflows or browser-based hosted-frontend verification. For this feature the worker had to improvise the Vercel/GitHub Pages process and still ended with curl-only proof.",
+      "evidence": "/home/kpa/polkadot/.factory/skills/deployment-worker/SKILL.md:12-18 and :24-51 only describe contract deployment, probe deployment, Blockscout verification, and manifest writing. The frontend deploy handoff also includes explicit skill feedback requesting a new workaround note for Droid Shield at /home/kpa/.factory/missions/dc664f26-9086-4d9b-896d-ba8f3bde8d71/handoffs/2026-03-17T12-51-55-583Z__frontend-deploy-vercel__a759d4f0-8e53-4889-9b61-77bd301c37ec.json:68-79."
+    },
+    {
+      "area": "knowledge",
+      "observation": "Shared state does not currently document the backup-hosting topology or the deployment workaround that this feature had to rediscover: the eyawa backup is served from the `symulacr/dualvm-lending` GitHub Pages branch with a `/dualvm-lending/` base path, and GitHub Git Data API updates may be needed when Droid Shield flags public hex-address strings.",
+      "evidence": "/home/kpa/polkadot/.factory/library/environment.md:36-38 records the Vite build-memory note but not the eyawa hosting repo/branch or Git Data API fallback. The worker transcript skeleton shows an initial dead-end investigating `symulacr.github.io`, then discovery of `symulacr/dualvm-lending` Pages and the API-based deployment flow; the final handoff preserves only the shield workaround at lines 64-78."
+    }
+  ],
+  "addressesFailureFrom": null,
+  "summary": "Fail. The URLs were added to README/STATUS and both hosts currently return the expected SPA shell, but the feature's required deployment verification is incomplete because the recorded evidence never proves that either hosted frontend actually renders the DualVM UI in a browser. Shared-state follow-up: expand deployment-worker/front-end deployment guidance and record the eyawa Pages topology plus Droid Shield workaround."
+}

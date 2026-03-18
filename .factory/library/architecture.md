@@ -14,7 +14,7 @@ LendingCore (immutable per version)
   ├── debtAsset: USDCMock
   ├── debtPool: DebtPool (ERC4626)
   ├── oracle: ManualOracle
-  └── riskEngine: RiskAdapter → PvmQuoteProbe (PVM-compiled)
+  └── riskEngine: RiskAdapter (inline deterministic math + optional DeterministicRiskModel cross-VM verification)
 
 MarketVersionRegistry
   └── activateVersion() (governed)
@@ -38,8 +38,11 @@ MarketMigrationCoordinator
 ## Quote Ticket System
 - RiskAdapter stores QuoteTickets keyed on (oracleEpoch, configEpoch, stateHash, configHash, input)
 - Any oracle update invalidates all outstanding tickets (epoch changes)
-- LendingCore uses `quoteViaTicket()` which auto-publishes if ticket missing
-- Quote engine is PVM-compiled PvmQuoteProbe — genuine cross-VM call
+- `quoteViaTicket()` is now AccessManaged and meant to be callable only by the deployed LendingCore address via `ROLE_IDS.LENDING_CORE`
+- RiskAdapter computes the canonical quote inline, then optionally verifies the result against the PVM-compiled `DeterministicRiskModel`
+
+## Current M6 scrutiny gap
+- `deploySystem.ts` wires `ROLE_IDS.LENDING_CORE` to `RiskAdapter.quoteViaTicket()`, but `deployMarketVersion.ts` currently does not. Fixtures or scripts that create versions through `deployMarketVersion()` may need manual AccessManager wiring until the scrutiny fix lands.
 
 ## Deployment state
 - Canonical deployment: `dualvm/deployments/polkadot-hub-testnet-canonical.json`

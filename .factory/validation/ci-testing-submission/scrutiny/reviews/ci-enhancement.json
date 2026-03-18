@@ -1,0 +1,34 @@
+{
+  "featureId": "ci-enhancement",
+  "reviewedAt": "2026-03-17T13:07:33Z",
+  "commitId": "a68bd13b57133776e08be4a67694e20b118b713e",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "pass",
+  "codeReview": {
+    "summary": "The feature adds the requested CI typecheck, lint, and optional read-only smoke steps, wires them to the dualvm working directory, and sources smoke-test addresses from the canonical manifest. I found no blocking correctness problems, but there are two non-blocking robustness gaps in the new lint and smoke-script implementation.",
+    "issues": [
+      {
+        "file": "dualvm/eslint.config.mjs",
+        "line": 15,
+        "severity": "non_blocking",
+        "description": "The new lint config ignores `**/*.mjs` and `**/*.js`, so `npm run lint` does not check `scripts/ci-smoke.mjs` or any other Node helper script. That weakens the CI lint step introduced by this feature because the newly added smoke script is outside lint coverage."
+      },
+      {
+        "file": "dualvm/scripts/ci-smoke.mjs",
+        "line": 48,
+        "severity": "non_blocking",
+        "description": "The smoke script always prefers `manifest.polkadotHubTestnet.rpcUrl` and never falls back to `process.env.POLKADOT_HUB_TESTNET_RPC_URL` or `manifest.polkadotHubTestnet.fallbackRpcUrl`. When the primary public RPC is flaky, operators cannot redirect the smoke check to an override/fallback endpoint without editing the manifest, which is inconsistent with existing script/env conventions."
+      }
+    ]
+  },
+  "sharedStateObservations": [
+    {
+      "area": "skills",
+      "observation": "The docs-worker procedure says CI changes should be locally verified with `npm test && npx tsc --noEmit && npm run build`, but this feature's recorded verification omitted `npm run build` while the handoff still claimed 'All local verification passes' and `skillFeedback.followedProcedure` was set to true.",
+      "evidence": ".factory/skills/docs-worker/SKILL.md:44-47 requires a local build for CI changes; handoff 2026-03-17T12-40-58-222Z__ci-enhancement__e3d6307f-21c3-4b0c-812a-f281a4acee01.json:10-10 claims all local verification passed, but lines 14-34 list only npm test, tsc, lint, and ci-smoke."
+    }
+  ],
+  "addressesFailureFrom": null,
+  "summary": "Reviewed commit a68bd13b57133776e08be4a67694e20b118b713e for ci-enhancement. The implementation satisfies the requested CI additions and manifest-driven smoke check with no blocking defects found, so the feature passes review, but lint coverage for `.mjs` scripts and smoke-script RPC override/fallback behavior should be tightened in a follow-up."
+}

@@ -1,0 +1,28 @@
+{
+  "featureId": "batch-operations",
+  "reviewedAt": "2026-03-17T21:41:40Z",
+  "commitId": "192f9d3",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "pass",
+  "codeReview": {
+    "summary": "The feature cleanly refactors liquidation logic into reusable internal helpers and adds atomic multi-borrower liquidation with per-position Liquidated events. The implementation matches the feature description, and the only gap I found is a non-blocking coverage hole around the new indexed failure error.",
+    "issues": [
+      {
+        "file": "dualvm/test/BatchLiquidation.ts",
+        "line": 189,
+        "severity": "non_blocking",
+        "description": "The failure-path test only asserts a generic revert for a mixed healthy/unhealthy batch, so it does not verify the new contract guarantee that failures are wrapped as `BatchLiquidationFailed(index, reason)`. If the index propagation regresses later, this suite would still pass."
+      }
+    ]
+  },
+  "sharedStateObservations": [
+    {
+      "area": "knowledge",
+      "observation": "The shared library does not capture a useful liquidation-testing quirk: bad-debt scenarios require positions to be deeply underwater, otherwise a tiny residual collateral amount can prevent the `position.collateralAmount == 0` branch and leave debt uncleared in tests.",
+      "evidence": "The worker transcript skeleton shows the feature work stalled until this was derived from the math (`worker-transcripts.jsonl`, session `aecfda5a-f723-4b8b-ad78-581c2c37e0f5`), and the final test now documents the workaround in `dualvm/test/BatchLiquidation.ts:30-31,141`. No corresponding note exists in `.factory/library/architecture.md` or `.factory/library/environment.md`."
+    }
+  ],
+  "addressesFailureFrom": null,
+  "summary": "Review passed. `LendingCore` now supports batch liquidation through shared internal liquidation helpers, and the diff covers the required multi-position flow and event emission. One non-blocking test gap remains: the suite does not assert the indexed `BatchLiquidationFailed` wrapper on failure-path batches."
+}

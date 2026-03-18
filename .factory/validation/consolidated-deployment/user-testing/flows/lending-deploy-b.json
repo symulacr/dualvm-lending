@@ -1,0 +1,326 @@
+{
+  "groupId": "lending-deploy-b",
+  "testedAt": "2026-03-17T01:53:13.846Z",
+  "isolation": {
+    "surface": "terminal-live-onchain",
+    "mode": "read-only",
+    "repoRoot": "/home/kpa/polkadot",
+    "projectRoot": "/home/kpa/polkadot/dualvm",
+    "missionDir": "/home/kpa/.factory/missions/dc664f26-9086-4d9b-896d-ba8f3bde8d71",
+    "rpc": [
+      "https://eth-rpc-testnet.polkadot.io/",
+      "https://services.polkadothub-rpc.com/testnet/"
+    ],
+    "explorer": "https://blockscout-testnet.polkadot.io/"
+  },
+  "toolsUsed": [
+    "Read",
+    "LS",
+    "Execute(node+viem)",
+    "Execute(python3)"
+  ],
+  "commandsRun": [
+    {
+      "command": "cd /home/kpa/polkadot/dualvm && node --input-type=module <<'NODE'  # read-only viem evidence collector; writes mission evidence/live-evidence.json\nNODE",
+      "exitCode": 0,
+      "observation": "Collected manifest bytecode checks, governance role graph, AccessManager delays, historical borrow simulations, borrower health-factor reads, market snapshot reads, oracle freshness timing, pause log scan, and reserve-claim simulations into mission evidence."
+    },
+    {
+      "command": "python3 - <<'PY'  # write lending-deploy-b flow report JSON\nPY",
+      "exitCode": 0,
+      "observation": "Wrote the final flow report to the consolidated-deployment user-testing flows directory."
+    }
+  ],
+  "assertions": [
+    {
+      "id": "VAL-DEPLOY-002",
+      "title": "Canonical manifest matches on-chain addresses",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Read all 12 manifest contract addresses and query eth_getCode/getBytecode for each",
+          "expected": "Every manifest address returns non-zero bytecode",
+          "observed": "All 12 manifest addresses returned non-zero bytecode; byte lengths ranged from 2474 (RiskAdapter) to 16508 (Governor)."
+        }
+      ],
+      "evidence": {
+        "paths": [
+          "consolidated-deployment/lending-deploy-live/live-evidence.json"
+        ],
+        "commands": [
+          "getBytecode() for every address in manifest.contracts"
+        ],
+        "observed": {
+          "allContractsHaveCode": true,
+          "contractsChecked": 12
+        }
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-DEPLOY-003",
+      "title": "Governor\u2192Timelock\u2192AccessManager chain verified",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Query AccessManager role 0 membership and Timelock role assignments on-chain",
+          "expected": "Timelock holds AccessManager admin, Governor holds Timelock proposer role, and EOAs do not hold admin power",
+          "observed": "AccessManager role 0 is held only by timelock 0x6571\u20269C60; timelock minDelay is 60; governor 0xa6d2\u202621b3 has PROPOSER_ROLE and CANCELLER_ROLE; timelock self-admin is true; deployer/riskAdmin/treasury/minter all lack Timelock DEFAULT_ADMIN_ROLE and AccessManager role 0."
+        }
+      ],
+      "evidence": {
+        "paths": [
+          "consolidated-deployment/lending-deploy-live/live-evidence.json"
+        ],
+        "commands": [
+          "AccessManager.hasRole(0, timelock/deployer/riskAdmin/treasury/minter)",
+          "TimelockController.hasRole(PROPOSER_ROLE, governor)",
+          "TimelockController.hasRole(DEFAULT_ADMIN_ROLE, timelock/deployer/riskAdmin/treasury/minter)",
+          "TimelockController.getMinDelay()"
+        ],
+        "observed": {
+          "accessManagerAdminTimelock": true,
+          "governorHasProposer": true,
+          "timelockSelfAdmin": true,
+          "eoaAdminHolders": []
+        }
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-DEPLOY-004",
+      "title": "Non-zero role execution delays",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Query AccessManager role membership and access records for riskAdmin, treasury, and minter",
+          "expected": "Sensitive roles have non-zero execution delays",
+          "observed": "riskAdmin, treasury, and minter are all active members with executionDelay/currentDelay = 60 seconds."
+        }
+      ],
+      "evidence": {
+        "paths": [
+          "consolidated-deployment/lending-deploy-live/live-evidence.json"
+        ],
+        "commands": [
+          "AccessManager.hasRole(2, riskAdmin) + getAccess(2, riskAdmin)",
+          "AccessManager.hasRole(3, treasury) + getAccess(3, treasury)",
+          "AccessManager.hasRole(4, minter) + getAccess(4, minter)"
+        ],
+        "observed": {
+          "riskAdminDelay": 60,
+          "treasuryDelay": 60,
+          "minterDelay": 60
+        }
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-LEND-009",
+      "title": "Oracle staleness blocks borrows",
+      "status": "fail",
+      "steps": [
+        {
+          "action": "Check canonical oracle freshness window on the live deployment and determine whether a stale-read borrow simulation is possible",
+          "expected": "A live read-only borrow simulation or historical receipt demonstrates OraclePriceStale",
+          "observed": "Not provable on the canonical deployment: current oracle age is 6588s < maxAge 21600s, and even age since oracle deployment is 7308s < 21600s, so the canonical oracle has never yet entered a stale window. No stale-borrow receipt/hash exists in the canonical artifacts."
+        }
+      ],
+      "evidence": {
+        "paths": [
+          "consolidated-deployment/lending-deploy-live/live-evidence.json"
+        ],
+        "commands": [
+          "Oracle.priceWad()/lastUpdatedAt()/maxAge()/isFresh()",
+          "latest block timestamp minus lastUpdatedAt",
+          "oracle deployment block timestamp minus latest block timestamp"
+        ],
+        "observed": {
+          "oracleIsFresh": true,
+          "ageSeconds": 6588,
+          "maxAgeSeconds": 21600,
+          "staleValidationPossibleNow": false,
+          "staleValidationEverPossibleSinceOracleDeployment": false
+        }
+      },
+      "issues": "Evidence is insufficient for the assertion as written because the live canonical oracle has not yet become stale and the artifacts contain no stale-borrow proof."
+    },
+    {
+      "id": "VAL-LEND-010",
+      "title": "Borrow cap enforced",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Replay a read-only borrow simulation at the historical post-collateral block 6484379 from borrower 0x36a8\u2026D2dF with amount 4,000,000.000000000000000001 USDC",
+          "expected": "borrow() reverts with BorrowCapExceeded",
+          "observed": "Historical simulation reverted with BorrowCapExceeded(attempted=4000000000000000000000001, cap=4000000000000000000000000)."
+        }
+      ],
+      "evidence": {
+        "paths": [
+          "consolidated-deployment/lending-deploy-live/live-evidence.json"
+        ],
+        "commands": [
+          "simulate borrow(4000000000000000000000001) at block 6484379 from 0x36a83a4450744f4F9988c9Bc46cC556Ba5bFD2dF"
+        ],
+        "observed": {
+          "errorName": "BorrowCapExceeded",
+          "attempted": "4000000000000000000000001",
+          "cap": "4000000000000000000000000"
+        }
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-LEND-011",
+      "title": "Minimum borrow size enforced",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Replay a read-only borrow simulation at the historical post-collateral block 6484379 from borrower 0x36a8\u2026D2dF with amount 1 wei",
+          "expected": "borrow() reverts with DebtBelowMinimum",
+          "observed": "Historical simulation reverted with DebtBelowMinimum(debt=1, minBorrowAmount=100000000000000000000)."
+        }
+      ],
+      "evidence": {
+        "paths": [
+          "consolidated-deployment/lending-deploy-live/live-evidence.json"
+        ],
+        "commands": [
+          "simulate borrow(1) at block 6484379 from 0x36a83a4450744f4F9988c9Bc46cC556Ba5bFD2dF"
+        ],
+        "observed": {
+          "errorName": "DebtBelowMinimum",
+          "debt": "1",
+          "minBorrowAmount": "100000000000000000000"
+        }
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-LEND-012",
+      "title": "Pause blocks borrows but allows repay",
+      "status": "fail",
+      "steps": [
+        {
+          "action": "Scan live LendingCore logs from deployment to latest for Paused/Unpaused and any repay receipt that occurred during a paused window",
+          "expected": "A paused interval exists so borrow-revert and repay-success can be verified on the live surface",
+          "observed": "No Paused or Unpaused logs exist on the canonical LendingCore, and the only observed Repaid event (tx 0x02825742\u20261dde) occurred without any paused-state evidence. Current paused() is false, so pause-specific behavior cannot be validated read-only from live history."
+        }
+      ],
+      "evidence": {
+        "paths": [
+          "consolidated-deployment/lending-deploy-live/live-evidence.json"
+        ],
+        "commands": [
+          "LendingCore.paused()",
+          "getLogs(Paused)",
+          "getLogs(Unpaused)",
+          "getLogs(Repaid)"
+        ],
+        "observed": {
+          "corePausedNow": false,
+          "pausedLogCount": 0,
+          "unpausedLogCount": 0,
+          "repaidLogCount": 1
+        }
+      },
+      "issues": "No live paused window or paused-flow artifact exists on the canonical deployment, so the assertion cannot be proven from the assigned read-only surface."
+    },
+    {
+      "id": "VAL-LEND-013",
+      "title": "Health factor and available-to-borrow readable",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Read healthFactor and availableToBorrow for active borrower 0x36a8\u2026D2dF and recompute both values from current quote data",
+          "expected": "Both calls return without revert and match the contract formulas",
+          "observed": "healthFactor returned 1559989600069332871 and availableToBorrow returned 29999333333333333334; both exactly matched manual recomputation from collateralValue=200e18, currentDebt=100000666666666666666, maxLtv=6500, liquidationThreshold=7800."
+        }
+      ],
+      "evidence": {
+        "paths": [
+          "consolidated-deployment/lending-deploy-live/live-evidence.json"
+        ],
+        "commands": [
+          "LendingCore.positions(activeBorrower)",
+          "LendingCore.currentDebt(activeBorrower)",
+          "LendingCore.currentQuoteInput(activeBorrower)",
+          "RiskAdapter.quote(currentQuoteInput)",
+          "LendingCore.healthFactor(activeBorrower)",
+          "LendingCore.availableToBorrow(activeBorrower)"
+        ],
+        "observed": {
+          "borrower": "0x36a83a4450744f4F9988c9Bc46cC556Ba5bFD2dF",
+          "healthFactor": "1559989600069332871",
+          "expectedHealthFactor": "1559989600069332871",
+          "availableToBorrow": "29999333333333333334",
+          "expectedAvailableToBorrow": "29999333333333333334"
+        }
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-LEND-014",
+      "title": "Market snapshot reads succeed",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Read DebtPool.totalAssets, availableLiquidity, outstandingPrincipal, reserveBalance, and utilizationBps",
+          "expected": "All five snapshot reads succeed",
+          "observed": "All five reads returned values, and their internal accounting identities matched: totalAssets=23900000869489729954306, availableLiquidity=19692857046247172862220, outstandingPrincipal=4207143823242557092086, reserveBalance=96609969994922, utilizationBps=1760."
+        }
+      ],
+      "evidence": {
+        "paths": [
+          "consolidated-deployment/lending-deploy-live/live-evidence.json"
+        ],
+        "commands": [
+          "DebtPool.totalAssets()",
+          "DebtPool.availableLiquidity()",
+          "DebtPool.outstandingPrincipal()",
+          "DebtPool.reserveBalance()",
+          "DebtPool.utilizationBps()",
+          "USDC.balanceOf(debtPool)"
+        ],
+        "observed": {
+          "totalAssetsMatches": true,
+          "availableLiquidityMatches": true,
+          "utilizationMatches": true
+        }
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-LEND-015",
+      "title": "Reserve claims restricted to treasury role",
+      "status": "fail",
+      "steps": [
+        {
+          "action": "Simulate claimReserves() directly from an unauthorized EOA and directly from the treasury EOA using the live reserveBalance",
+          "expected": "Unauthorized call reverts and treasury-role call succeeds",
+          "observed": "Unauthorized direct call from deployer reverted with AccessManagedUnauthorized as expected, but direct treasury-role call also reverted with AccessManagerNotScheduled because the live treasury role has a 60-second execution delay. No ReservesClaimed log exists on the canonical deployment to prove a scheduled success path."
+        }
+      ],
+      "evidence": {
+        "paths": [
+          "consolidated-deployment/lending-deploy-live/live-evidence.json"
+        ],
+        "commands": [
+          "simulate DebtPool.claimReserves(deployer, reserveBalance) from deployer",
+          "simulate DebtPool.claimReserves(treasury, reserveBalance) from treasury",
+          "getLogs(ReservesClaimed)"
+        ],
+        "observed": {
+          "unauthorizedError": "AccessManagedUnauthorized",
+          "treasuryDirectError": "AccessManagerNotScheduled",
+          "reserveClaimLogCount": 0
+        }
+      },
+      "issues": "The live deployment\u2019s delayed treasury role contradicts the assertion\u2019s direct-success expectation, and there is no scheduled reserve-claim receipt to satisfy the success half of the check."
+    }
+  ],
+  "frictions": [],
+  "blockers": [],
+  "summary": "Tested 10 assertions: 7 passed, 3 failed (VAL-LEND-009, VAL-LEND-012, VAL-LEND-015)."
+}

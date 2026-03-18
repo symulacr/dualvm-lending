@@ -112,6 +112,7 @@ Testing surface, tools, and resource cost classification.
 
 - `http://eyawa.me/dualvm-lending/` is currently reachable (`HTTP 200`) but serves an older observer-only build. It is good for hosted-access checks, not for validating the latest write-path UI.
 - `http://localhost:5173/` served the current local frontend successfully and exposed the latest read-layer/version cards plus the `Connect Wallet` button during the `frontend-write-path` validation run.
+- During the `frontend-ux-overhaul` validation run, `http://localhost:5173/` returned `ERR_CONNECTION_REFUSED`; the already-running preview at `http://localhost:4175/` returned `HTTP 200` and was used as the non-disruptive fallback for tab/observer assertions.
 - In that same run, wallet-dependent browser validation was blocked because no usable wallet path completed inside the isolated browser session:
   - `MetaMask` did not establish a connected account.
   - `Base Account` redirected to Coinbase Keys onboarding.

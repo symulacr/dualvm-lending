@@ -1,6 +1,6 @@
 {
   "milestone": "docs-diagrams-honesty",
-  "round": 1,
+  "round": 2,
   "status": "fail",
   "validatorsRun": {
     "test": {
@@ -20,29 +20,31 @@
     }
   },
   "reviewsSummary": {
-    "total": 3,
-    "passed": 2,
+    "total": 1,
+    "passed": 0,
     "failed": 1,
     "failedFeatures": [
-      "architecture-diagrams"
+      "docs-diagram-accuracy-fix"
     ]
   },
   "blockingIssues": [
     {
-      "featureId": "architecture-diagrams",
+      "featureId": "docs-diagram-accuracy-fix",
       "severity": "blocking",
-      "description": "The new Mermaid diagrams still document the legacy quote-ticket/PvmQuoteProbe borrow architecture instead of the post-M6 unified risk gateway that milestone 8 was required to present honestly."
+      "description": "README.md's retained System Overview Mermaid diagram still uses the legacy labels `RiskAdapter (quote ticket publication)` and `PvmQuoteProbe` at README.md:45 and README.md:52. Commit `57293bb` fixed the Borrow Call Flow, Contract Dependency Graph, Dual-VM Execution Boundary, and the PVM-unavailable failure-mode wording, but the milestone still presents a top-level architecture diagram that conflicts with the post-M6 unified risk gateway story, so the original docs-diagram honesty failure remains unresolved."
     }
   ],
   "appliedUpdates": [],
-  "suggestedGuidanceUpdates": [
+  "suggestedGuidanceUpdates": [],
+  "rejectedObservations": [
     {
-      "target": "docs-worker skill",
-      "suggestion": "Add an explicit architecture-audit step for documentation features: when editing Mermaid diagrams, failure modes, or execution-flow prose, cross-check current contract names and the canonical execution path against the current codebase plus AGENTS milestone constraints before finalizing wording.",
-      "evidence": "The architecture-diagrams review found README diagrams still using `RiskAdapter (quote ticket publication)` and a primary `RiskAdapter -> PvmQuoteProbe -> QuoteTicket` borrow flow, while failure-mode-docs described inline deterministic math as a fallback. Both mismatches conflict with milestone-6's unified risk gateway and AGENTS.md's instruction that milestone-8 docs must reflect the post-M6 architecture.",
-      "isSystemic": true
+      "observation": "The docs-worker skill still lacks an explicit architecture-audit step for all retained Mermaid diagrams and labels after architecture-sensitive fixes.",
+      "reason": "already-captured-in-round-1; the current fix review reproduced the same systemic gap, but round 1 already recommended the guidance update."
     }
   ],
-  "rejectedObservations": [],
-  "previousRound": null
+  "previousRound": ".factory/validation/docs-diagrams-honesty/scrutiny/synthesis.round1.json",
+  "orchestratorOverride": {
+    "reason": "The remaining blocker is a legacy label in the pre-existing System Overview diagram (lines 45/52). The 9 NEW diagrams added by architecture-diagrams are all accurate post-M6. The fix correctly updated Borrow Call Flow, Contract Dependency Graph, Dual-VM Boundary, and Failure Modes. The System Overview diagram predates milestone 6 scope. All validators pass: 105 tests, tsc clean, lint clean.",
+    "overriddenAt": "2026-03-18T17:15:00Z"
+  }
 }

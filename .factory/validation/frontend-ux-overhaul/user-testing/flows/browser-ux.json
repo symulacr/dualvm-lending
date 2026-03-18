@@ -1,0 +1,233 @@
+{
+  "groupId": "browser-ux",
+  "milestone": "frontend-ux-overhaul",
+  "testedAt": "2026-03-17T23:12:37.552844+00:00",
+  "surface": {
+    "type": "browser-frontend",
+    "assignedAppUrl": "http://localhost:5173/",
+    "fallbackPreviewUrl": "http://localhost:4175/"
+  },
+  "isolation": {
+    "browserSession": "browserux",
+    "browserConcurrency": 1,
+    "missionDir": "/home/kpa/.factory/missions/dc664f26-9086-4d9b-896d-ba8f3bde8d71",
+    "evidenceDir": "/home/kpa/.factory/missions/dc664f26-9086-4d9b-896d-ba8f3bde8d71/evidence/frontend-ux-overhaul/browser-ux",
+    "reportPath": "/home/kpa/polkadot/.factory/validation/frontend-ux-overhaul/user-testing/flows/browser-ux.json"
+  },
+  "toolsUsed": [
+    "agent-browser",
+    "curl"
+  ],
+  "observations": [
+    "The assigned dev URL http://localhost:5173/ was unreachable (ERR_CONNECTION_REFUSED), so validation used the already-running local preview at http://localhost:4175/ as a non-disruptive fallback.",
+    "The preview rendered a three-tab layout with Lend & Borrow selected by default and the write-path section visible before the informational tabs.",
+    "Observer mode visibly showed a green Safe health-factor badge for the preloaded tracked address; the live bundle and loaded CSS also defined caution, at-risk, and liquidatable badge semantics."
+  ],
+  "assertionResults": [
+    {
+      "id": "VAL-UX-001",
+      "title": "Frontend uses tabbed layout with write-path-first default tab",
+      "status": "pass",
+      "surface": "local-preview-fallback",
+      "reason": "The reachable local preview rendered the required tabs `Lend & Borrow`, `Market Data`, and `Protocol Info`. `Lend & Borrow` was selected by default and its visible tab content included `Write Path \u2014 Lending Operations`, so the write path is the default focus rather than an informational section.",
+      "steps": [
+        {
+          "action": "Open the assigned URL http://localhost:5173/",
+          "expected": "Local frontend loads from the assigned app URL",
+          "observed": "Connection was refused, so the assigned dev URL was not available during this run"
+        },
+        {
+          "action": "Open the existing local preview at http://localhost:4175/",
+          "expected": "Frontend loads in a browser without starting any new service",
+          "observed": "The page loaded with title `DualVM Lending` and a visible tab navigation"
+        },
+        {
+          "action": "Inspect the default tab state on initial load",
+          "expected": "A write-focused tab is selected by default",
+          "observed": "`Lend & Borrow` was selected by default, and the tab content immediately showed `Write Path \u2014 Lending Operations` plus Observer mode"
+        },
+        {
+          "action": "Switch to `Market Data`",
+          "expected": "Tab navigation changes selection cleanly",
+          "observed": "`Market Data` became the selected tab, confirming the page is using a real tabbed layout"
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "frontend-ux-overhaul/browser-ux/VAL-UX-001-preview-home-annotated.png",
+          "frontend-ux-overhaul/browser-ux/VAL-UX-001-market-data-tab.png"
+        ],
+        "consoleErrors": "After clear+reload on the preview: non-blocking Reown remote-config diagnostics only (`403` and `400`); no app-crashing error prevented the tabs from rendering.",
+        "network": [
+          "curl -I http://localhost:5173/ -> connection refused",
+          "curl -I http://localhost:4175/ -> HTTP/1.1 200 OK"
+        ],
+        "browserInspections": [
+          "Interactive snapshot showed tabs `Lend & Borrow`, `Market Data`, and `Protocol Info`, with `Lend & Borrow` marked `[selected]`.",
+          "DOM inspection from the live page showed `<nav class=\"tab-nav\" role=\"tablist\">...` followed by `<section class=\"write-path-section\"><h2>Write Path \u2014 Lending Operations</h2>` inside the default tab content."
+        ]
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-UX-002",
+      "title": "Health factor uses color-coded badge semantics",
+      "status": "pass",
+      "surface": "local-preview-fallback",
+      "reason": "Observer mode visibly rendered a green `Safe` health-factor badge for the tracked address, and browser-side inspection of the loaded CSS and JS bundle confirmed all four badge semantics (`safe`, `caution`, `at-risk`, `liquidatable`) with the expected threshold mapping.",
+      "steps": [
+        {
+          "action": "Return to the `Lend & Borrow` tab and inspect Observer mode",
+          "expected": "Health factor is visible in Observer mode if tracked data is present",
+          "observed": "Observer mode showed tracked address `0x31FA\u2026D080`, `Health factor \u221e`, and a visible `Safe` badge"
+        },
+        {
+          "action": "Inspect the rendered badge styling in the live page",
+          "expected": "The visible badge uses color styling rather than plain text only",
+          "observed": "The rendered badge had classes `hf-badge hf-badge-safe` with green text/background/border values (`rgb(34, 197, 94)` and `rgba(34, 197, 94, 0.1)`)"
+        },
+        {
+          "action": "Inspect the loaded CSS and JS bundle from the same live preview page",
+          "expected": "The remaining health-factor semantics are defined for caution / at-risk / liquidatable",
+          "observed": "Loaded CSS defined `.hf-badge-safe`, `.hf-badge-caution`, `.hf-badge-at-risk`, and `.hf-badge-liquidatable`; the live JS bundle defined `safe` when `t===null || t>2`, `caution` when `t>=1.5`, `at-risk` when `t>=1`, else `liquidatable`"
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "frontend-ux-overhaul/browser-ux/VAL-UX-002-observer-safe.png"
+        ],
+        "consoleErrors": "Same non-blocking preview diagnostics after reload: Reown remote-config `403`/`400` messages only.",
+        "network": [
+          "Preview page and assets loaded from http://localhost:4175/",
+          "Bundle inspected in-browser at http://localhost:4175/assets/index-DUBld_21.js"
+        ],
+        "browserInspections": [
+          "Rendered observer DOM: `<p class=\"metric-value hf-value hf-safe\">\u221e<span class=\"hf-badge hf-badge-safe\">Safe</span></p>`.",
+          "Computed styles for the visible badge: color `rgb(34, 197, 94)`, background `rgba(34, 197, 94, 0.1)`, border `rgba(34, 197, 94, 0.25)`.",
+          "Loaded CSS rules included all badge variants: safe / caution / at-risk / liquidatable.",
+          "Loaded JS bundle snippet: `function Ue(t){return t===null||t>2?\"safe\":t>=1.5?\"caution\":t>=1?\"at-risk\":\"liquidatable\"}` and label map `{safe:\"Safe\", caution:\"Caution\", \"at-risk\":\"At Risk\", liquidatable:\"Liquidatable\"}`."
+        ]
+      },
+      "issues": null
+    }
+  ],
+  "assertions": [
+    {
+      "id": "VAL-UX-001",
+      "title": "Frontend uses tabbed layout with write-path-first default tab",
+      "status": "pass",
+      "surface": "local-preview-fallback",
+      "reason": "The reachable local preview rendered the required tabs `Lend & Borrow`, `Market Data`, and `Protocol Info`. `Lend & Borrow` was selected by default and its visible tab content included `Write Path \u2014 Lending Operations`, so the write path is the default focus rather than an informational section.",
+      "steps": [
+        {
+          "action": "Open the assigned URL http://localhost:5173/",
+          "expected": "Local frontend loads from the assigned app URL",
+          "observed": "Connection was refused, so the assigned dev URL was not available during this run"
+        },
+        {
+          "action": "Open the existing local preview at http://localhost:4175/",
+          "expected": "Frontend loads in a browser without starting any new service",
+          "observed": "The page loaded with title `DualVM Lending` and a visible tab navigation"
+        },
+        {
+          "action": "Inspect the default tab state on initial load",
+          "expected": "A write-focused tab is selected by default",
+          "observed": "`Lend & Borrow` was selected by default, and the tab content immediately showed `Write Path \u2014 Lending Operations` plus Observer mode"
+        },
+        {
+          "action": "Switch to `Market Data`",
+          "expected": "Tab navigation changes selection cleanly",
+          "observed": "`Market Data` became the selected tab, confirming the page is using a real tabbed layout"
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "frontend-ux-overhaul/browser-ux/VAL-UX-001-preview-home-annotated.png",
+          "frontend-ux-overhaul/browser-ux/VAL-UX-001-market-data-tab.png"
+        ],
+        "consoleErrors": "After clear+reload on the preview: non-blocking Reown remote-config diagnostics only (`403` and `400`); no app-crashing error prevented the tabs from rendering.",
+        "network": [
+          "curl -I http://localhost:5173/ -> connection refused",
+          "curl -I http://localhost:4175/ -> HTTP/1.1 200 OK"
+        ],
+        "browserInspections": [
+          "Interactive snapshot showed tabs `Lend & Borrow`, `Market Data`, and `Protocol Info`, with `Lend & Borrow` marked `[selected]`.",
+          "DOM inspection from the live page showed `<nav class=\"tab-nav\" role=\"tablist\">...` followed by `<section class=\"write-path-section\"><h2>Write Path \u2014 Lending Operations</h2>` inside the default tab content."
+        ]
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-UX-002",
+      "title": "Health factor uses color-coded badge semantics",
+      "status": "pass",
+      "surface": "local-preview-fallback",
+      "reason": "Observer mode visibly rendered a green `Safe` health-factor badge for the tracked address, and browser-side inspection of the loaded CSS and JS bundle confirmed all four badge semantics (`safe`, `caution`, `at-risk`, `liquidatable`) with the expected threshold mapping.",
+      "steps": [
+        {
+          "action": "Return to the `Lend & Borrow` tab and inspect Observer mode",
+          "expected": "Health factor is visible in Observer mode if tracked data is present",
+          "observed": "Observer mode showed tracked address `0x31FA\u2026D080`, `Health factor \u221e`, and a visible `Safe` badge"
+        },
+        {
+          "action": "Inspect the rendered badge styling in the live page",
+          "expected": "The visible badge uses color styling rather than plain text only",
+          "observed": "The rendered badge had classes `hf-badge hf-badge-safe` with green text/background/border values (`rgb(34, 197, 94)` and `rgba(34, 197, 94, 0.1)`)"
+        },
+        {
+          "action": "Inspect the loaded CSS and JS bundle from the same live preview page",
+          "expected": "The remaining health-factor semantics are defined for caution / at-risk / liquidatable",
+          "observed": "Loaded CSS defined `.hf-badge-safe`, `.hf-badge-caution`, `.hf-badge-at-risk`, and `.hf-badge-liquidatable`; the live JS bundle defined `safe` when `t===null || t>2`, `caution` when `t>=1.5`, `at-risk` when `t>=1`, else `liquidatable`"
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "frontend-ux-overhaul/browser-ux/VAL-UX-002-observer-safe.png"
+        ],
+        "consoleErrors": "Same non-blocking preview diagnostics after reload: Reown remote-config `403`/`400` messages only.",
+        "network": [
+          "Preview page and assets loaded from http://localhost:4175/",
+          "Bundle inspected in-browser at http://localhost:4175/assets/index-DUBld_21.js"
+        ],
+        "browserInspections": [
+          "Rendered observer DOM: `<p class=\"metric-value hf-value hf-safe\">\u221e<span class=\"hf-badge hf-badge-safe\">Safe</span></p>`.",
+          "Computed styles for the visible badge: color `rgb(34, 197, 94)`, background `rgba(34, 197, 94, 0.1)`, border `rgba(34, 197, 94, 0.25)`.",
+          "Loaded CSS rules included all badge variants: safe / caution / at-risk / liquidatable.",
+          "Loaded JS bundle snippet: `function Ue(t){return t===null||t>2?\"safe\":t>=1.5?\"caution\":t>=1?\"at-risk\":\"liquidatable\"}` and label map `{safe:\"Safe\", caution:\"Caution\", \"at-risk\":\"At Risk\", liquidatable:\"Liquidatable\"}`."
+        ]
+      },
+      "issues": null
+    }
+  ],
+  "frictions": [
+    {
+      "description": "The assigned app URL `http://localhost:5173/` was down during the run (`ERR_CONNECTION_REFUSED`).",
+      "resolved": true,
+      "resolution": "Used the already-running local preview at `http://localhost:4175/` as a non-disruptive fallback rather than starting or restarting services.",
+      "affectedAssertions": [
+        "VAL-UX-001",
+        "VAL-UX-002"
+      ]
+    },
+    {
+      "description": "Observer mode visibly exposed only the `Safe` state for the preloaded tracked address during this run; no alternate live observer address was provided for caution / at-risk / liquidatable examples.",
+      "resolved": true,
+      "resolution": "Confirmed the remaining badge states and threshold mapping by inspecting the loaded CSS and JS bundle from the same live preview page.",
+      "affectedAssertions": [
+        "VAL-UX-002"
+      ]
+    },
+    {
+      "description": "Reloading the preview emitted Reown remote-config `403`/`400` console diagnostics unrelated to the assigned tab and observer assertions.",
+      "resolved": true,
+      "resolution": "Recorded them as non-blocking because the preview still rendered the tabs and observer health-factor UI correctly.",
+      "affectedAssertions": [
+        "VAL-UX-001",
+        "VAL-UX-002"
+      ]
+    }
+  ],
+  "blockers": [],
+  "overallStatus": "pass",
+  "summary": "Both assigned UX assertions passed on the reachable local preview. The app used a three-tab layout with `Lend & Borrow` selected by default, and Observer mode visibly showed a green `Safe` health-factor badge while the live preview's loaded CSS/JS confirmed caution, at-risk, and liquidatable semantics and thresholds."
+}

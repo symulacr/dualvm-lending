@@ -1,0 +1,114 @@
+{
+  "groupId": "failure-deploy",
+  "milestone": "docs-diagrams-honesty",
+  "testedAt": "2026-03-18T17:18:49Z",
+  "isolation": {
+    "repoRoot": "/home/kpa/polkadot",
+    "appSourceRoot": "/home/kpa/polkadot/dualvm",
+    "missionDir": "/home/kpa/.factory/missions/dc664f26-9086-4d9b-896d-ba8f3bde8d71",
+    "assignedAssertions": [
+      "VAL-DOCS-003",
+      "VAL-DOCS-004"
+    ],
+    "guidance": [
+      ".factory/library/user-testing.md :: Flow Validator Guidance: terminal-doc-audit"
+    ]
+  },
+  "toolsUsed": [
+    "Read",
+    "Grep",
+    "Execute"
+  ],
+  "commandsRun": [
+    {
+      "command": "grep -nE '## Failure Modes|Oracle Stale|PVM Unavailable|Liquidity Exhausted|Circuit Breaker|Emergency Procedures|## Deployment Guide|### Required Environment Variables|### Deployment Order|### PVM Compilation|### Post-Deployment Checklist' README.md",
+      "exitCode": 0,
+      "evidence": "docs-diagrams-honesty/failure-deploy/failure-deployment-audit.txt",
+      "observation": "README contains the Failure Modes table with all five required scenarios and a Deployment Guide section containing env vars, deployment order, PVM compilation, and a post-deployment checklist."
+    }
+  ],
+  "toolReads": [
+    {
+      "tool": "Read",
+      "file": "/home/kpa/polkadot/README.md"
+    },
+    {
+      "tool": "Read",
+      "file": "/home/kpa/.factory/missions/dc664f26-9086-4d9b-896d-ba8f3bde8d71/validation-contract.md"
+    },
+    {
+      "tool": "Read",
+      "file": "/home/kpa/polkadot/.factory/library/user-testing.md"
+    },
+    {
+      "tool": "Read",
+      "file": "/home/kpa/.factory/missions/dc664f26-9086-4d9b-896d-ba8f3bde8d71/evidence/docs-diagrams-honesty/failure-deploy/failure-deployment-audit.txt"
+    }
+  ],
+  "searches": [
+    {
+      "tool": "Grep",
+      "pattern": "Oracle Stale|PVM Unavailable|Liquidity Exhausted|Circuit Breaker|Emergency Procedures|Required Environment Variables|Deployment Order|PVM Compilation|Post-Deployment Checklist",
+      "path": "/home/kpa/polkadot/README.md"
+    }
+  ],
+  "filesInspected": [
+    "/home/kpa/polkadot/README.md",
+    "/home/kpa/.factory/missions/dc664f26-9086-4d9b-896d-ba8f3bde8d71/validation-contract.md",
+    "/home/kpa/polkadot/.factory/library/user-testing.md",
+    "/home/kpa/.factory/missions/dc664f26-9086-4d9b-896d-ba8f3bde8d71/evidence/docs-diagrams-honesty/failure-deploy/failure-deployment-audit.txt"
+  ],
+  "assertionResults": [
+    {
+      "id": "VAL-DOCS-003",
+      "title": "README contains the failure mode catalog",
+      "status": "pass",
+      "observations": [
+        "README has a Failure Modes section at line 272.",
+        "The table explicitly covers Oracle Stale, PVM Unavailable, Liquidity Exhausted, Circuit Breaker, and Emergency Procedures.",
+        "Each row includes impact and recovery text rather than only a heading mention."
+      ],
+      "files": [
+        "/home/kpa/polkadot/README.md"
+      ],
+      "evidence": [
+        "docs-diagrams-honesty/failure-deploy/failure-deployment-audit.txt"
+      ],
+      "issues": null
+    },
+    {
+      "id": "VAL-DOCS-004",
+      "title": "README contains the deployment guide",
+      "status": "pass",
+      "observations": [
+        "README has a Deployment Guide section at line 430.",
+        "Subsections Required Environment Variables, Deployment Order, PVM Compilation, and Post-Deployment Checklist are all present.",
+        "The guide includes concrete env vars and command examples, not just a pointer."
+      ],
+      "files": [
+        "/home/kpa/polkadot/README.md"
+      ],
+      "evidence": [
+        "docs-diagrams-honesty/failure-deploy/failure-deployment-audit.txt"
+      ],
+      "issues": null
+    }
+  ],
+  "frictions": [
+    {
+      "description": "Task subagent invocations failed in this session with internal eval parse errors, so the parent validator performed the read-only doc audit directly.",
+      "resolved": true,
+      "resolution": "Completed the same terminal-doc-audit steps manually and wrote the required flow report JSON directly.",
+      "affectedAssertions": [
+        "VAL-DOCS-003",
+        "VAL-DOCS-004"
+      ]
+    }
+  ],
+  "blockers": [],
+  "conciseObservations": [
+    "VAL-DOCS-003 passed: README Failure Modes covers all five required scenarios with impact and recovery language.",
+    "VAL-DOCS-004 passed: README Deployment Guide includes env vars, deployment order, PVM compilation, and post-deployment checklist sections."
+  ],
+  "summary": "Validated the failure-mode and deployment-guide assertions for docs-diagrams-honesty. Both assertions pass based on the current README content."
+}

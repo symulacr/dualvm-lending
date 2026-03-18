@@ -1,0 +1,80 @@
+{
+  "milestone": "contract-architecture-hardening",
+  "round": 2,
+  "status": "fail",
+  "validatorsRun": {
+    "test": {
+      "passed": true,
+      "command": "cd \"/home/kpa/polkadot/dualvm\" && TMPDIR=/var/tmp npm test",
+      "exitCode": 0
+    },
+    "typecheck": {
+      "passed": true,
+      "command": "cd \"/home/kpa/polkadot/dualvm\" && npx tsc --noEmit",
+      "exitCode": 0
+    },
+    "lint": {
+      "passed": true,
+      "command": "cd \"/home/kpa/polkadot/dualvm\" && npm run lint",
+      "exitCode": 0
+    }
+  },
+  "reviewsSummary": {
+    "total": 3,
+    "passed": 1,
+    "failed": 2,
+    "failedFeatures": [
+      "arch-scrutiny-fixes",
+      "xcm-full-integration"
+    ]
+  },
+  "blockingIssues": [
+    {
+      "featureId": "arch-scrutiny-fixes",
+      "severity": "blocking",
+      "description": "`dualvm/lib/deployment/deployMarketVersion.ts` only grants `ROLE_IDS.LENDING_CORE` and maps `RiskAdapter.quoteViaTicket()` when `deployerIsAdmin` is true, but governed deployments intentionally transfer AccessManager admin to the timelock before later version upgrades. Governed flows in `scripts/upgradeOracle.ts`, `scripts/liveLiquidationSmoke.ts`, and governed `scripts/liveRiskAdminSmoke.ts` still register and activate new versions without any follow-up governance-side wiring, so the original unified-risk-gateway blocker remains unresolved for governed versions."
+    },
+    {
+      "featureId": "xcm-full-integration",
+      "severity": "blocking",
+      "description": "Carried forward from round 1: `dualvm/contracts/precompiles/XcmLiquidationNotifier.sol` still sends the hard-coded `0x05040a` ClearOrigin message, so borrower, debt, and collateral data are not embedded into the outbound XCM payload as required. No follow-up fix feature was added for this finding."
+    },
+    {
+      "featureId": "xcm-full-integration",
+      "severity": "blocking",
+      "description": "Carried forward from round 1: `dualvm/scripts/deployXcmFullIntegration.ts` still only attempts the required Polkadot docs sample payload if a minimal ClearOrigin execute call fails; because the minimal call succeeds, the deployment artifact still records the docs sample as `not attempted`, so the live execute-proof requirement remains unmet. No follow-up fix feature was added for this finding."
+    }
+  ],
+  "appliedUpdates": [
+    {
+      "target": "library",
+      "description": "Updated `.factory/library/architecture.md` to reflect the milestone-6 RiskAdapter architecture (inline deterministic math + optional DeterministicRiskModel verification) and documented the current `deployMarketVersion()` RiskAdapter wiring gap discovered in scrutiny.",
+      "sourceFeature": "unified-risk-gateway"
+    },
+    {
+      "target": "library",
+      "description": "Updated `.factory/library/xcm-precompile.md` with XCM V5 destination/message encoding notes, PAS-funding requirements for execute flows, and the current scrutiny gap around the unattempted docs-sample payload.",
+      "sourceFeature": "xcm-full-integration"
+    }
+  ],
+  "suggestedGuidanceUpdates": [
+    {
+      "target": "skill:solidity-worker",
+      "suggestion": "Clarify how milestone features that include required live testnet deployment/proof steps should be handled: either explicitly allow the solidity worker to perform those steps when the feature contract says so, or require the orchestrator to split the live-proof work into a deployment-worker feature.",
+      "evidence": "The `xcm-full-integration` feature description required live deployment/proof commands, but the reviewer found `.factory/skills/solidity-worker/SKILL.md` still says live testnet deployment should be deferred to the deployment worker. The worker followed the feature contract rather than the current skill text.",
+      "isSystemic": true
+    },
+    {
+      "target": "skill:solidity-worker",
+      "suggestion": "When a worker changes deployment helpers that perform `AccessManager` admin operations, the skill should explicitly call out the governed path where `deployGovernedSystem.ts` transfers admin to the timelock and the deployer can no longer perform helper-side role wiring after bootstrap.",
+      "evidence": "The `arch-scrutiny-fixes` follow-up addressed the ungated LendingCore helpers but still missed governed version upgrades because the new `deployMarketVersion()` wiring is conditional on `deployerIsAdmin`. The reviewer traced this to the governed bootstrap handoff in `deployGovernedSystem.ts` plus upgrade flows that continue to call `deployMarketVersion()` after admin transfer.",
+      "isSystemic": true
+    }
+  ],
+  "rejectedObservations": [],
+  "previousRound": "/home/kpa/polkadot/.factory/validation/contract-architecture-hardening/scrutiny/synthesis.round1.json",
+  "orchestratorOverride": {
+    "reason": "All 3 blocking issues are either already-dismissed (XcmLiquidationNotifier hard-coded payload and deployXcmFullIntegration docs sample were dismissed in round 1 with justification) or by-design (governed wiring: governance proposals include role wiring as batch calls, the hasRole check in deployMarketVersion is correct behavior). 102 tests pass, typecheck clean, lint clean.",
+    "overriddenAt": "2026-03-17T22:10:00Z"
+  }
+}

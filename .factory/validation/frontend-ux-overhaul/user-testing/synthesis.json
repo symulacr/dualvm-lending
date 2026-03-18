@@ -1,0 +1,36 @@
+{
+  "milestone": "frontend-ux-overhaul",
+  "round": 1,
+  "status": "fail",
+  "assertionsSummary": {
+    "total": 5,
+    "passed": 4,
+    "failed": 1,
+    "blocked": 0
+  },
+  "passedAssertions": [
+    "VAL-UX-001",
+    "VAL-UX-002",
+    "VAL-UX-004",
+    "VAL-UX-005"
+  ],
+  "failedAssertions": [
+    {
+      "id": "VAL-UX-003",
+      "reason": "Max buttons exist in Borrow and Repay, but the max-fill logic reparses formatted observer strings rather than using raw numeric observer-state values."
+    }
+  ],
+  "blockedAssertions": [],
+  "appliedUpdates": [
+    {
+      "target": "user-testing.md",
+      "description": "Documented that localhost:5173 was unavailable during the frontend-ux-overhaul run and localhost:4175 preview was the successful fallback for browser validation.",
+      "source": "flow-report"
+    }
+  ],
+  "previousRound": null,
+  "flowReports": [
+    ".factory/validation/frontend-ux-overhaul/user-testing/flows/browser-ux.json",
+    ".factory/validation/frontend-ux-overhaul/user-testing/flows/terminal-ux.json"
+  ]
+}

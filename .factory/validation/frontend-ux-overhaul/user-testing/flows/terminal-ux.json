@@ -1,0 +1,201 @@
+{
+  "groupId": "terminal-ux",
+  "milestone": "frontend-ux-overhaul",
+  "testedAt": "2026-03-17T23:10:00Z",
+  "isolation": {
+    "repoRoot": "/home/kpa/polkadot",
+    "appSourceRoot": "/home/kpa/polkadot/dualvm",
+    "missionDir": "/home/kpa/.factory/missions/dc664f26-9086-4d9b-896d-ba8f3bde8d71",
+    "assignedAssertions": [
+      "VAL-UX-003",
+      "VAL-UX-004",
+      "VAL-UX-005"
+    ],
+    "guidance": [
+      ".factory/library/user-testing.md :: Flow Validator Guidance: terminal-hardhat",
+      ".factory/library/user-testing.md :: Flow Validator Guidance: terminal-doc-audit"
+    ]
+  },
+  "toolsUsed": [
+    "Read",
+    "Grep",
+    "LS",
+    "Execute"
+  ],
+  "commandsRun": [
+    {
+      "command": "npm --prefix \"/home/kpa/polkadot/dualvm\" run build > \"/home/kpa/.factory/missions/dc664f26-9086-4d9b-896d-ba8f3bde8d71/evidence/frontend-ux-overhaul/terminal-ux/npm-run-build.log\" 2>&1; code=$?; printf 'EXIT_CODE=%s\\n' \"$code\" >> \"/home/kpa/.factory/missions/dc664f26-9086-4d9b-896d-ba8f3bde8d71/evidence/frontend-ux-overhaul/terminal-ux/npm-run-build.log\"; cat \"/home/kpa/.factory/missions/dc664f26-9086-4d9b-896d-ba8f3bde8d71/evidence/frontend-ux-overhaul/terminal-ux/npm-run-build.log\"; exit \"$code\"",
+      "exitCode": 0,
+      "evidence": "frontend-ux-overhaul/terminal-ux/npm-run-build.log",
+      "observation": "Build completed successfully; hardhat compile reported nothing to compile, build-pvm wrote pvm-artifacts, and vite build finished with EXIT_CODE=0."
+    }
+  ],
+  "toolReads": [
+    {
+      "tool": "Read",
+      "file": "/home/kpa/polkadot/README.md"
+    },
+    {
+      "tool": "Read",
+      "file": "/home/kpa/.factory/missions/dc664f26-9086-4d9b-896d-ba8f3bde8d71/AGENTS.md"
+    },
+    {
+      "tool": "Read",
+      "file": "/home/kpa/.factory/missions/dc664f26-9086-4d9b-896d-ba8f3bde8d71/validation-contract.md"
+    },
+    {
+      "tool": "Read",
+      "file": "/home/kpa/polkadot/dualvm/package.json"
+    },
+    {
+      "tool": "Read",
+      "file": "/home/kpa/polkadot/dualvm/src/components/sections/WritePathSection.tsx"
+    },
+    {
+      "tool": "Read",
+      "file": "/home/kpa/polkadot/dualvm/src/lib/readModel/types.ts"
+    },
+    {
+      "tool": "Read",
+      "file": "/home/kpa/polkadot/dualvm/src/lib/readModel/observer.ts"
+    },
+    {
+      "tool": "Read",
+      "file": "/home/kpa/polkadot/dualvm/contracts/LendingRouter.sol"
+    },
+    {
+      "tool": "Read",
+      "file": "/home/kpa/polkadot/dualvm/test/LendingRouter.ts"
+    },
+    {
+      "tool": "Read",
+      "file": "/home/kpa/polkadot/dualvm/src/lib/abi.ts"
+    },
+    {
+      "tool": "Read",
+      "file": "/home/kpa/.factory/missions/dc664f26-9086-4d9b-896d-ba8f3bde8d71/evidence/frontend-ux-overhaul/terminal-ux/source-inspection.txt"
+    },
+    {
+      "tool": "Read",
+      "file": "/home/kpa/.factory/missions/dc664f26-9086-4d9b-896d-ba8f3bde8d71/evidence/frontend-ux-overhaul/terminal-ux/npm-run-build.log"
+    }
+  ],
+  "searches": [
+    {
+      "tool": "Grep",
+      "pattern": "Flow Validator Guidance: (terminal-hardhat|terminal-doc-audit)",
+      "path": "/home/kpa/polkadot/.factory/library/user-testing.md"
+    },
+    {
+      "tool": "Grep",
+      "pattern": "VAL-UX-003|VAL-UX-004|VAL-UX-005",
+      "path": "/home/kpa/.factory/missions/dc664f26-9086-4d9b-896d-ba8f3bde8d71/validation-contract.md"
+    },
+    {
+      "tool": "Grep",
+      "pattern": "Max",
+      "path": "/home/kpa/polkadot/dualvm/src"
+    },
+    {
+      "tool": "Grep",
+      "pattern": "depositCollateralFromPAS",
+      "path": "/home/kpa/polkadot/dualvm"
+    },
+    {
+      "tool": "Grep",
+      "pattern": "interface ObserverSnapshot|type ObserverSnapshot|availableToBorrowRaw|currentDebtRaw|availableToBorrow|currentDebt",
+      "path": "/home/kpa/polkadot/dualvm/src"
+    },
+    {
+      "tool": "Grep",
+      "pattern": "lendingRouter",
+      "path": "/home/kpa/polkadot/dualvm/src"
+    },
+    {
+      "tool": "Grep",
+      "pattern": "extractAmount\\(|healthFactorNumeric|liquidationPrice",
+      "path": "/home/kpa/polkadot/dualvm/src"
+    }
+  ],
+  "filesInspected": [
+    "/home/kpa/polkadot/README.md",
+    "/home/kpa/.factory/missions/dc664f26-9086-4d9b-896d-ba8f3bde8d71/AGENTS.md",
+    "/home/kpa/.factory/missions/dc664f26-9086-4d9b-896d-ba8f3bde8d71/validation-contract.md",
+    "/home/kpa/polkadot/.factory/library/user-testing.md",
+    "/home/kpa/polkadot/dualvm/package.json",
+    "/home/kpa/polkadot/dualvm/src/components/sections/WritePathSection.tsx",
+    "/home/kpa/polkadot/dualvm/src/lib/readModel/types.ts",
+    "/home/kpa/polkadot/dualvm/src/lib/readModel/observer.ts",
+    "/home/kpa/polkadot/dualvm/contracts/LendingRouter.sol",
+    "/home/kpa/polkadot/dualvm/test/LendingRouter.ts",
+    "/home/kpa/polkadot/dualvm/src/lib/abi.ts",
+    "/home/kpa/.factory/missions/dc664f26-9086-4d9b-896d-ba8f3bde8d71/evidence/frontend-ux-overhaul/terminal-ux/source-inspection.txt",
+    "/home/kpa/.factory/missions/dc664f26-9086-4d9b-896d-ba8f3bde8d71/evidence/frontend-ux-overhaul/terminal-ux/npm-run-build.log"
+  ],
+  "assertionResults": [
+    {
+      "id": "VAL-UX-003",
+      "title": "Borrow and Repay forms expose Max buttons and use raw observer values",
+      "status": "fail",
+      "observations": [
+        "BorrowForm and RepayForm both render a `Max` button in `src/components/sections/WritePathSection.tsx`.",
+        "Borrow uses `const maxAmount = observer ? extractAmount(observer.availableToBorrow) : null;` and Repay uses `const maxAmount = observer ? extractAmount(observer.currentDebt) : null;`.",
+        "`extractAmount()` strips commas and the token suffix from formatted display strings rather than reading a raw numeric field.",
+        "`ObserverSnapshot` only exposes `currentDebt: string` and `availableToBorrow: string`, and `loadObserverSnapshot()` populates them as formatted strings like `${formatTokenAmount(...)} USDC-test`."
+      ],
+      "files": [
+        "/home/kpa/polkadot/dualvm/src/components/sections/WritePathSection.tsx",
+        "/home/kpa/polkadot/dualvm/src/lib/readModel/types.ts",
+        "/home/kpa/polkadot/dualvm/src/lib/readModel/observer.ts"
+      ],
+      "evidence": [
+        "frontend-ux-overhaul/terminal-ux/source-inspection.txt"
+      ],
+      "issues": "The buttons exist, but the max-fill logic does not use raw numeric observer state; it reparses formatted UI strings."
+    },
+    {
+      "id": "VAL-UX-004",
+      "title": "LendingRouter reduces PAS collateral deposit to 1 transaction",
+      "status": "pass",
+      "observations": [
+        "`contracts/LendingRouter.sol` exists and declares `depositCollateralFromPAS() external payable nonReentrant`.",
+        "That function wraps PAS with `wpas.deposit{value: amount}()`, approves LendingCore via `IERC20(address(wpas)).forceApprove(...)`, and immediately calls `lendingCore.depositCollateral(amount)` in the same function.",
+        "`src/lib/abi.ts` exports `lendingRouterWriteAbi` with `depositCollateralFromPAS`, and `test/LendingRouter.ts` contains a test named `depositCollateralFromPAS wraps PAS and deposits collateral in one TX`."
+      ],
+      "files": [
+        "/home/kpa/polkadot/dualvm/contracts/LendingRouter.sol",
+        "/home/kpa/polkadot/dualvm/src/lib/abi.ts",
+        "/home/kpa/polkadot/dualvm/test/LendingRouter.ts"
+      ],
+      "evidence": [
+        "frontend-ux-overhaul/terminal-ux/source-inspection.txt"
+      ],
+      "issues": null
+    },
+    {
+      "id": "VAL-UX-005",
+      "title": "Frontend build succeeds after UX overhaul changes",
+      "status": "pass",
+      "observations": [
+        "`npm run build` completed with `EXIT_CODE=0`.",
+        "Build steps observed: `hardhat compile` (Nothing to compile), `node scripts/build-pvm.mjs` (wrote pvm-artifacts), and `vite build` (built in 10.71s).",
+        "The build emitted warnings about `/tmp/factory-cli-certs.pem`, Rollup PURE comment annotations in dependencies, and large Vite chunks, but none caused a non-zero exit."
+      ],
+      "files": [
+        "/home/kpa/.factory/missions/dc664f26-9086-4d9b-896d-ba8f3bde8d71/evidence/frontend-ux-overhaul/terminal-ux/npm-run-build.log"
+      ],
+      "evidence": [
+        "frontend-ux-overhaul/terminal-ux/npm-run-build.log"
+      ],
+      "issues": null
+    }
+  ],
+  "frictions": [],
+  "blockers": [],
+  "conciseObservations": [
+    "VAL-UX-003 failed because Max-fill still reparses formatted observer strings instead of consuming raw numeric observer values.",
+    "VAL-UX-004 passed by source inspection and supporting test coverage for the 1-click PAS -> WPAS -> deposit router entrypoint.",
+    "VAL-UX-005 passed; the full project build exits 0 despite non-fatal warnings."
+  ],
+  "summary": "Tested 3 assertions: 2 passed (VAL-UX-004, VAL-UX-005), 1 failed (VAL-UX-003). Evidence saved under the mission evidence directory and report written to the required validation flow path."
+}

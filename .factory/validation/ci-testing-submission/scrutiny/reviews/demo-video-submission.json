@@ -1,0 +1,39 @@
+{
+  "featureId": "demo-video-submission",
+  "reviewedAt": "2026-03-17T13:07:52.754464+00:00",
+  "commitId": "6c1e2d7",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "fail",
+  "codeReview": {
+    "summary": "Submission assets were added, but the feature did not satisfy the requested end-to-end demo deliverable. The recorded WebM is only a headless page-navigation walkthrough, and the final submission doc still lacks a usable demo video link.",
+    "issues": [
+      {
+        "file": "docs/dualvm/demo_guide.md",
+        "line": 133,
+        "severity": "blocking",
+        "description": "The Demo Video section lists only frontend/explorer navigation, and line 143 explicitly says the WebM is a headless recording with no wallet transactions. As delivered, the demo does not show the required collateral deposit, borrow, partial repay, or health-factor change steps from the feature description and expected behavior."
+      },
+      {
+        "file": "docs/dualvm/dualvm_submission_final.md",
+        "line": 29,
+        "severity": "blocking",
+        "description": "The final submission doc does not provide a usable demo-video link. It references only a repo-local path (`docs/dualvm/demo-video.webm`) while claiming the video shows the complete flow, but there is no clickable hosted/blob URL and the companion guide admits the video omits live wallet transactions."
+      }
+    ]
+  },
+  "sharedStateObservations": [
+    {
+      "area": "skills",
+      "observation": "The docs-worker procedure does not tell submission-packaging workers to verify that demo assets are externally accessible and actually cover the requested user flow. That made it easy to treat a repo-local, non-interactive walkthrough as a finished submission asset.",
+      "evidence": "/home/kpa/polkadot/.factory/skills/docs-worker/SKILL.md:30-31 says only 'Be truthful \u2014 no overclaiming', and 55-57 only requires tests/typecheck plus commit. The handoff at /home/kpa/.factory/missions/dc664f26-9086-4d9b-896d-ba8f3bde8d71/handoffs/2026-03-17T13-02-47-624Z__demo-video-submission__868e69ab-299d-45cb-9234-4d3796e11ba1.json:12 and :77-78 admits the recorded demo has no wallet transactions and still needs a real video URL update."
+    },
+    {
+      "area": "knowledge",
+      "observation": "Shared state should record that Blockscout transaction pages can fail in headless agent-browser sessions, so submission/demo work may need a headed browser or API-based fallback for explorer evidence.",
+      "evidence": "The handoff file /home/kpa/.factory/missions/dc664f26-9086-4d9b-896d-ba8f3bde8d71/handoffs/2026-03-17T13-02-47-624Z__demo-video-submission__868e69ab-299d-45cb-9234-4d3796e11ba1.json:60-77 records client-side rendering errors on Blockscout in headless Chrome; /home/kpa/polkadot/.factory/library/user-testing.md:49-52 documents rate limiting and verification caveats but not this rendering failure."
+    }
+  ],
+  "addressesFailureFrom": null,
+  "summary": "Fail: the feature added screenshots, a guide, and a WebM, but the committed demo submission still misses the required live deposit/borrow/repay/health-factor walkthrough and does not include a usable demo video link in the final submission doc."
+}
