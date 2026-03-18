@@ -540,7 +540,7 @@ export async function main() {
   // ─── Restore oracle if it was changed ──────────────────────────────────
   if (oracleWasDropped && originalOraclePrice !== LIQUIDATION_ORACLE_PRICE) {
     console.log(`\n═══ Restoring oracle from 50 → ${formatWad(originalOraclePrice)} USDC/PAS ═══`);
-    let oracleRestored = false;
+    let oracleRestored: boolean;
     try {
       // Step 1: 50 → 99 (within 99% circuit breaker limit)
       const intermediatePrice = 99n * WAD;
