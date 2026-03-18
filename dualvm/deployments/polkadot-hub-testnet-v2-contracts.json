@@ -1,0 +1,37 @@
+{
+  "generatedAt": "2026-03-18T20:58:11.582Z",
+  "description": "V2 contract deployments: RiskAdapterV2 (quoteEngine=PVM DeterministicRiskModel), LendingCoreV2 (with XCM liquidation notifier), DebtPoolV2",
+  "pvmDeterministicRiskModel": "0xC6907B609ba4b94C9e319570BaA35DaF587252f8",
+  "contracts": {
+    "riskAdapterV2": {
+      "address": "0x0b7C5Dd3e9Bc5B23347b0850332117219a2b170E",
+      "deployTxHash": "0x40cdb9cb382d4c9535a40bdbf2513b72562fde240580eef5fdc802b0ab98d295",
+      "explorerUrl": "https://blockscout-testnet.polkadot.io/address/0x0b7C5Dd3e9Bc5B23347b0850332117219a2b170E",
+      "quoteEngine": "0xC6907B609ba4b94C9e319570BaA35DaF587252f8",
+      "note": "RiskAdapter with PVM DeterministicRiskModel as quoteEngine (VAL-STAB-002)"
+    },
+    "debtPoolV2": {
+      "address": "0xF55D74C74CFDb81194337D82181d48233C8a6426",
+      "deployTxHash": "0x863795412e71e92a970f0cd3e411583a92c465d3f90b1efbc4a36f444c8363ad",
+      "explorerUrl": "https://blockscout-testnet.polkadot.io/address/0xF55D74C74CFDb81194337D82181d48233C8a6426",
+      "note": "Fresh DebtPool for V2 (V1 DebtPool already wired to LendingCore V1)"
+    },
+    "lendingCoreV2": {
+      "address": "0xab2620577Aaf2BDB0Fdb582DaEB16dbc0f07213f",
+      "deployTxHash": "0xd38bdfac37a3d8f873985aae0f01e391ce260bb3cae7717cffe7a4f97ab56e0f",
+      "explorerUrl": "https://blockscout-testnet.polkadot.io/address/0xab2620577Aaf2BDB0Fdb582DaEB16dbc0f07213f",
+      "liquidationNotifier": "0x2Aa42227790Fa05F755cB202a128b0c0041b21C4",
+      "note": "LendingCoreV2 with depositCollateralFor + XcmLiquidationNotifier hook"
+    }
+  },
+  "governance": {
+    "proposalTxHash": "0xda8d6a17c499df16a0d3fe3e39efc1d754572ac3710846ef5a7c011d960c58b4",
+    "voteTxHash": "0x74ef4b0c6bef37f5519964b7bebfd3395c677e21469c37a46f118c43f2c6b5db",
+    "queueTxHash": "0xf7c667d90834a0a3924fda8b3bf9fbee9e14fc5ed30f810fb4ed70943f4bebc1",
+    "executeTxHash": "0x611731706a0920dfe7e1655cfe6c388c0f64175cfe6aa233ab3bd9c8b3ba2de9"
+  },
+  "roles": {
+    "lendingCoreV2HoldsLendingCoreRole": true,
+    "debtPoolV2WiredToLendingCoreV2": true
+  }
+}
