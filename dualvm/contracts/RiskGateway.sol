@@ -6,8 +6,9 @@ import {IRiskAdapter} from "./interfaces/IRiskAdapter.sol";
 import {IRiskEngine} from "./interfaces/IRiskEngine.sol";
 import {GovernancePolicyStore} from "./GovernancePolicyStore.sol";
 
-/// @notice Unified cross-VM risk gateway. Computes the canonical deterministic kinked-curve
-/// result inline, and optionally verifies against a PVM-deployed quoteEngine.
+/// @notice Unified cross-VM risk gateway. Uses PVM-deployed quoteEngine as the
+/// primary risk computation source, with inline deterministic kinked-curve
+/// as fallback when PVM is unavailable.
 /// Optionally reads governance risk policy overrides from GovernancePolicyStore.
 contract RiskGateway is IRiskAdapter, AccessManaged {
     uint256 private constant BPS = 10_000;
@@ -41,14 +42,6 @@ contract RiskGateway is IRiskAdapter, AccessManaged {
     error InvalidRiskParams();
 
     event QuoteVerified(bytes32 indexed ticketId, string reason);
-    event CrossVMDivergence(
-        uint256 expectedBorrowRateBps,
-        uint256 actualBorrowRateBps,
-        uint256 expectedMaxLtvBps,
-        uint256 actualMaxLtvBps,
-        uint256 expectedLiquidationThresholdBps,
-        uint256 actualLiquidationThresholdBps
-    );
 
     struct RiskModelConfig {
         uint256 baseRateBps;
@@ -64,7 +57,7 @@ contract RiskGateway is IRiskAdapter, AccessManaged {
     }
 
     /// @param authority_    AccessManager address.
-    /// @param quoteEngine_  Optional PVM quote engine for cross-VM verification (address(0) = disabled).
+    /// @param quoteEngine_  Optional PVM quote engine as primary risk source (address(0) = inline-only fallback).
     /// @param policyStore_  Optional governance policy override store (address(0) = disabled).
     /// @param config_       Immutable risk model parameters.
     constructor(address authority_, address quoteEngine_, address policyStore_, RiskModelConfig memory config_)
@@ -92,7 +85,7 @@ contract RiskGateway is IRiskAdapter, AccessManaged {
         staleBorrowRatePenaltyBps = config_.staleBorrowRatePenaltyBps;
         stressedCollateralRatioBps = config_.stressedCollateralRatioBps;
 
-        // quoteEngine can be address(0) — means no PVM cross-VM verification
+        // quoteEngine can be address(0) — means PVM primary disabled, inline fallback only
         quoteEngine = IRiskEngine(quoteEngine_);
 
         // policyStore can be address(0) — no overrides
@@ -122,12 +115,38 @@ contract RiskGateway is IRiskAdapter, AccessManaged {
             return _outputFromTicket(ticket);
         }
 
-        // Compute inline deterministic result (canonical path)
-        output = _inlineQuote(input);
-
-        // If PVM quoteEngine is set, verify cross-VM match
+        // PVM is primary source; REVM inline is fallback
         if (address(quoteEngine) != address(0)) {
-            _verifyCrossVM(ticketId, input, output);
+            // Enrich input with governance policy overrides so PVM can apply them
+            IRiskEngine.QuoteInput memory enrichedInput = IRiskEngine.QuoteInput({
+                utilizationBps: input.utilizationBps,
+                collateralRatioBps: input.collateralRatioBps,
+                oracleAgeSeconds: input.oracleAgeSeconds,
+                oracleFresh: input.oracleFresh,
+                policyMaxLtvBps: 0,
+                policyLiqThresholdBps: 0,
+                policyBorrowRateFloorBps: 0
+            });
+            if (address(policyStore) != address(0)) {
+                if (policyStore.policyActive(POLICY_MAX_LTV)) {
+                    enrichedInput.policyMaxLtvBps = policyStore.getPolicy(POLICY_MAX_LTV);
+                }
+                if (policyStore.policyActive(POLICY_LIQ_THRESHOLD)) {
+                    enrichedInput.policyLiqThresholdBps = policyStore.getPolicy(POLICY_LIQ_THRESHOLD);
+                }
+                if (policyStore.policyActive(POLICY_BORROW_RATE_FLOOR)) {
+                    enrichedInput.policyBorrowRateFloorBps = policyStore.getPolicy(POLICY_BORROW_RATE_FLOOR);
+                }
+            }
+            try quoteEngine.quote(enrichedInput) returns (QuoteOutput memory pvmOutput) {
+                output = pvmOutput;
+                emit QuoteVerified(ticketId, "pvm-primary");
+            } catch {
+                output = _inlineQuote(input);
+                emit QuoteVerified(ticketId, "pvm-unavailable-fallback");
+            }
+        } else {
+            output = _inlineQuote(input);
         }
 
         // Cache as ticket
@@ -205,33 +224,6 @@ contract RiskGateway is IRiskAdapter, AccessManaged {
         return baseRateBps + slope1Bps + (excessUtilization * slope2Bps) / postKinkRange;
     }
 
-    // --- Cross-VM verification ---
-
-    function _verifyCrossVM(bytes32 ticketId, QuoteInput calldata input, QuoteOutput memory expected) private {
-        try quoteEngine.quote(input) returns (QuoteOutput memory actual) {
-            if (
-                actual.borrowRateBps == expected.borrowRateBps && actual.maxLtvBps == expected.maxLtvBps
-                    && actual.liquidationThresholdBps == expected.liquidationThresholdBps
-            ) {
-                emit QuoteVerified(ticketId, "cross-vm-match");
-            } else {
-                emit CrossVMDivergence(
-                    expected.borrowRateBps,
-                    actual.borrowRateBps,
-                    expected.maxLtvBps,
-                    actual.maxLtvBps,
-                    expected.liquidationThresholdBps,
-                    actual.liquidationThresholdBps
-                );
-            }
-        } catch {
-            // PVM call failed — log but do not revert; inline result is canonical
-            emit CrossVMDivergence(
-                expected.borrowRateBps, 0, expected.maxLtvBps, 0, expected.liquidationThresholdBps, 0
-            );
-        }
-    }
-
     // --- Ticket storage ---
 
     function _storeTicket(
@@ -277,14 +269,25 @@ contract RiskGateway is IRiskAdapter, AccessManaged {
                 input.utilizationBps,
                 input.collateralRatioBps,
                 input.oracleAgeSeconds,
-                input.oracleFresh
+                input.oracleFresh,
+                input.policyMaxLtvBps,
+                input.policyLiqThresholdBps,
+                input.policyBorrowRateFloorBps
             )
         );
     }
 
     function _quoteInputHash(QuoteInput calldata input) private pure returns (bytes32) {
         return keccak256(
-            abi.encode(input.utilizationBps, input.collateralRatioBps, input.oracleAgeSeconds, input.oracleFresh)
+            abi.encode(
+                input.utilizationBps,
+                input.collateralRatioBps,
+                input.oracleAgeSeconds,
+                input.oracleFresh,
+                input.policyMaxLtvBps,
+                input.policyLiqThresholdBps,
+                input.policyBorrowRateFloorBps
+            )
         );
     }
 

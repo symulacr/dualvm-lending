@@ -7,6 +7,10 @@ interface IRiskEngine {
         uint256 collateralRatioBps;
         uint256 oracleAgeSeconds;
         bool oracleFresh;
+        // Governance policy overrides (0 = not active/no override)
+        uint256 policyMaxLtvBps;
+        uint256 policyLiqThresholdBps;
+        uint256 policyBorrowRateFloorBps;
     }
 
     struct QuoteOutput {

@@ -30,7 +30,15 @@ library DualVmProbeLib {
 
     function hashQuoteInput(IRiskEngine.QuoteInput calldata input) internal pure returns (bytes32) {
         return keccak256(
-            abi.encode(input.utilizationBps, input.collateralRatioBps, input.oracleAgeSeconds, input.oracleFresh)
+            abi.encode(
+                input.utilizationBps,
+                input.collateralRatioBps,
+                input.oracleAgeSeconds,
+                input.oracleFresh,
+                input.policyMaxLtvBps,
+                input.policyLiqThresholdBps,
+                input.policyBorrowRateFloorBps
+            )
         );
     }
 

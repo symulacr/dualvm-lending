@@ -773,7 +773,10 @@ contract LendingEngine is AccessManaged, Pausable, ReentrancyGuard, IMigratableL
             utilizationBps: utilizationBps,
             collateralRatioBps: collateralRatioBps,
             oracleAgeSeconds: normalizedOracleAgeSeconds,
-            oracleFresh: state.oracleFresh
+            oracleFresh: state.oracleFresh,
+            policyMaxLtvBps: 0,
+            policyLiqThresholdBps: 0,
+            policyBorrowRateFloorBps: 0
         });
     }
 

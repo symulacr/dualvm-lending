@@ -35,6 +35,9 @@ contract XcmLiquidationNotifier {
         address indexed borrower, uint256 debtRepaid, uint256 collateralSeized, bytes32 indexed correlationId
     );
 
+    /// @notice Emitted when a local XCM execution is completed with a correlation ID.
+    event LocalXcmExecuted(bytes32 indexed correlationId, uint64 refTime, uint64 proofSize);
+
     /// @notice The destination was empty.
     error EmptyDestination();
 
@@ -86,5 +89,21 @@ contract XcmLiquidationNotifier {
         IXcm(XCM_PRECOMPILE_ADDRESS).send(destination, message);
 
         emit LiquidationNotified(borrower, debtRepaid, collateralSeized, correlationId);
+    }
+
+    /// @notice Executes an XCM ClearOrigin+SetTopic message locally via the XCM precompile.
+    /// @dev Unlike notifyLiquidation which uses send() to dispatch cross-chain,
+    /// this function uses execute() for provable local XCM execution.
+    /// The correlationId is embedded as the XCM topic, providing on-chain proof
+    /// that the XCM precompile processed the bilateral correlation payload.
+    /// @param correlationId The bilateral async correlation ID to embed as SetTopic.
+    function executeLocalNotification(bytes32 correlationId) external {
+        // SCALE-encoded XCM V5: ClearOrigin + SetTopic(correlationId)
+        bytes memory message = abi.encodePacked(bytes1(0x05), bytes1(0x08), bytes1(0x0a), bytes1(0x2c), correlationId);
+
+        IXcm.Weight memory weight = IXcm(XCM_PRECOMPILE_ADDRESS).weighMessage(message);
+        IXcm(XCM_PRECOMPILE_ADDRESS).execute(message, weight);
+
+        emit LocalXcmExecuted(correlationId, weight.refTime, weight.proofSize);
     }
 }

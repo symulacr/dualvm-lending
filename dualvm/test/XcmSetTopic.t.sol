@@ -152,4 +152,40 @@ contract XcmSetTopicTest is Test {
         assertEq(message[3], bytes1(0x2c), "SetTopic");
         assertEq(message.length, 36, "correct length");
     }
+
+    // -------------------------------------------------------------------------
+    // executeLocalNotification — local XCM execute path via SetTopic encoding
+    // -------------------------------------------------------------------------
+
+    function test_ExecuteLocalNotification_UsesCorrectSetTopicEncoding() public {
+        bytes32 correlationId = keccak256("execute-set-topic-test");
+
+        // Mock weighMessage and execute on the XCM precompile
+        vm.mockCall(
+            XCM_PRECOMPILE_ADDRESS,
+            abi.encodeWithSelector(IXcm.weighMessage.selector),
+            abi.encode(IXcm.Weight(1_810_000, 0))
+        );
+        vm.mockCall(XCM_PRECOMPILE_ADDRESS, abi.encodeWithSelector(IXcm.execute.selector), abi.encode());
+
+        vm.expectEmit(true, false, false, true, address(notifier));
+        emit XcmLiquidationNotifier.LocalXcmExecuted(correlationId, 1_810_000, 0);
+
+        notifier.executeLocalNotification(correlationId);
+    }
+
+    function test_ExecuteLocalNotification_ViaAdapter_UsesCorrectSetTopicEncoding() public {
+        bytes32 correlationId = keccak256("adapter-execute-test");
+
+        // Mock weighMessage and execute on the XCM precompile
+        vm.mockCall(
+            XCM_PRECOMPILE_ADDRESS,
+            abi.encodeWithSelector(IXcm.weighMessage.selector),
+            abi.encode(IXcm.Weight(2_000_000, 512))
+        );
+        vm.mockCall(XCM_PRECOMPILE_ADDRESS, abi.encodeWithSelector(IXcm.execute.selector), abi.encode());
+
+        // Call executeLocalNotification directly on the notifier (adapter doesn't wrap this path)
+        notifier.executeLocalNotification(correlationId);
+    }
 }

@@ -165,7 +165,10 @@ contract GovernancePolicyStoreTest is BaseTest {
             utilizationBps: 5_000, // 50% utilization
             collateralRatioBps: 20_000, // healthy
             oracleAgeSeconds: 0,
-            oracleFresh: true
+            oracleFresh: true,
+            policyMaxLtvBps: 0,
+            policyLiqThresholdBps: 0,
+            policyBorrowRateFloorBps: 0
         });
 
         IRiskAdapter.QuoteOutput memory outputBefore = gatewayWithPolicy.quote(input);
@@ -195,7 +198,13 @@ contract GovernancePolicyStoreTest is BaseTest {
             new RiskGateway(address(accessManager), address(quoteEngine), address(policyStore), riskConfig);
 
         IRiskEngine.QuoteInput memory input = IRiskEngine.QuoteInput({
-            utilizationBps: 5_000, collateralRatioBps: 20_000, oracleAgeSeconds: 0, oracleFresh: true
+            utilizationBps: 5_000,
+            collateralRatioBps: 20_000,
+            oracleAgeSeconds: 0,
+            oracleFresh: true,
+            policyMaxLtvBps: 0,
+            policyLiqThresholdBps: 0,
+            policyBorrowRateFloorBps: 0
         });
 
         // Set policy override: maxLtv=60%, liqThreshold=82% (must be > maxLtv)
@@ -228,7 +237,10 @@ contract GovernancePolicyStoreTest is BaseTest {
             utilizationBps: 0, // 0% utilization → baseRate = 200bps
             collateralRatioBps: 20_000,
             oracleAgeSeconds: 0,
-            oracleFresh: true
+            oracleFresh: true,
+            policyMaxLtvBps: 0,
+            policyLiqThresholdBps: 0,
+            policyBorrowRateFloorBps: 0
         });
 
         // Without floor: borrow rate = base (200bps)
@@ -259,7 +271,13 @@ contract GovernancePolicyStoreTest is BaseTest {
             new RiskGateway(address(accessManager), address(quoteEngine), address(policyStore), riskConfig);
 
         IRiskEngine.QuoteInput memory input = IRiskEngine.QuoteInput({
-            utilizationBps: 5_000, collateralRatioBps: 20_000, oracleAgeSeconds: 0, oracleFresh: true
+            utilizationBps: 5_000,
+            collateralRatioBps: 20_000,
+            oracleAgeSeconds: 0,
+            oracleFresh: true,
+            policyMaxLtvBps: 0,
+            policyLiqThresholdBps: 0,
+            policyBorrowRateFloorBps: 0
         });
 
         // Set override

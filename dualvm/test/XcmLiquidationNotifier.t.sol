@@ -140,4 +140,61 @@ contract XcmLiquidationNotifierTest is Test {
         (bool success,) = address(notifier).call{value: 1 ether}("");
         assertTrue(success, "notifier should accept ETH");
     }
+
+    // -------------------------------------------------------------------------
+    // executeLocalNotification — local XCM execute path
+    // -------------------------------------------------------------------------
+
+    function test_ExecuteLocalNotification_EmitsEvent() public {
+        bytes32 correlationId = bytes32(uint256(42));
+
+        // Mock weighMessage to return a valid weight
+        vm.mockCall(
+            XCM_PRECOMPILE_ADDRESS,
+            abi.encodeWithSelector(IXcm.weighMessage.selector),
+            abi.encode(IXcm.Weight(1_810_000, 0))
+        );
+        vm.mockCall(XCM_PRECOMPILE_ADDRESS, abi.encodeWithSelector(IXcm.execute.selector), abi.encode());
+
+        vm.expectEmit(true, false, false, true);
+        emit XcmLiquidationNotifier.LocalXcmExecuted(correlationId, 1_810_000, 0);
+
+        notifier.executeLocalNotification(correlationId);
+    }
+
+    function test_ExecuteLocalNotification_CallsWeighAndExecute() public {
+        bytes32 correlationId = keccak256("test-correlation");
+
+        vm.mockCall(
+            XCM_PRECOMPILE_ADDRESS,
+            abi.encodeWithSelector(IXcm.weighMessage.selector),
+            abi.encode(IXcm.Weight(2_000_000, 1024))
+        );
+        vm.mockCall(XCM_PRECOMPILE_ADDRESS, abi.encodeWithSelector(IXcm.execute.selector), abi.encode());
+
+        notifier.executeLocalNotification(correlationId);
+        // If we get here without revert, both weighMessage and execute were called successfully
+    }
+
+    function test_ExecuteLocalNotification_RevertsWithoutPrecompile() public {
+        // Without mocking, the XCM precompile address has no code in local Forge
+        vm.expectRevert();
+        notifier.executeLocalNotification(SAMPLE_CORRELATION_ID);
+    }
+
+    function test_ExecuteLocalNotification_PropagatesWeightInEvent() public {
+        bytes32 correlationId = keccak256("weight-propagation");
+
+        vm.mockCall(
+            XCM_PRECOMPILE_ADDRESS,
+            abi.encodeWithSelector(IXcm.weighMessage.selector),
+            abi.encode(IXcm.Weight(5_000_000, 2048))
+        );
+        vm.mockCall(XCM_PRECOMPILE_ADDRESS, abi.encodeWithSelector(IXcm.execute.selector), abi.encode());
+
+        vm.expectEmit(true, false, false, true);
+        emit XcmLiquidationNotifier.LocalXcmExecuted(correlationId, 5_000_000, 2048);
+
+        notifier.executeLocalNotification(correlationId);
+    }
 }

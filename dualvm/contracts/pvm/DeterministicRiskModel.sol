@@ -72,6 +72,21 @@ contract DeterministicRiskModel is IRiskEngine {
             output.maxLtvBps = healthyMaxLtvBps;
             output.liquidationThresholdBps = healthyLiquidationThresholdBps;
         }
+
+        // Apply governance policy overrides passed from RiskGateway
+        _applyInputPolicyOverrides(input, output);
+    }
+
+    function _applyInputPolicyOverrides(QuoteInput calldata input, QuoteOutput memory output) private pure {
+        if (input.policyMaxLtvBps > 0 && input.policyMaxLtvBps < 10_000) {
+            output.maxLtvBps = input.policyMaxLtvBps;
+        }
+        if (input.policyLiqThresholdBps > output.maxLtvBps && input.policyLiqThresholdBps <= 10_000) {
+            output.liquidationThresholdBps = input.policyLiqThresholdBps;
+        }
+        if (input.policyBorrowRateFloorBps > 0 && output.borrowRateBps < input.policyBorrowRateFloorBps) {
+            output.borrowRateBps = input.policyBorrowRateFloorBps;
+        }
     }
 
     function _borrowRate(uint256 utilizationBps_) private view returns (uint256) {
