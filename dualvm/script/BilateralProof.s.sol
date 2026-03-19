@@ -529,8 +529,10 @@ contract BilateralProof is Script {
         for (uint256 i = 0; i + keyLen <= data.length; i++) {
             bool found = true;
             for (uint256 j = 0; j < keyLen; j++) {
-                if (data[i + j] != keyBytes[j]) found = false;
-                break;
+                if (data[i + j] != keyBytes[j]) {
+                    found = false;
+                    break;
+                }
             }
             if (found) {
                 // Found key, read value until '"'
@@ -586,8 +588,10 @@ contract BilateralProof is Script {
         for (uint256 i = 0; i + keyLen <= data.length; i++) {
             bool found = true;
             for (uint256 j = 0; j < keyLen; j++) {
-                if (data[i + j] != keyBytes[j]) found = false;
-                break;
+                if (data[i + j] != keyBytes[j]) {
+                    found = false;
+                    break;
+                }
             }
             if (found) {
                 uint256 start = i + keyLen;

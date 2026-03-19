@@ -1,0 +1,42 @@
+{
+  "groupId": "m11-local-foundry",
+  "surface": "terminal-hardhat",
+  "assertions": [
+    {
+      "id": "VAL-BILATERAL-001",
+      "status": "fail",
+      "reason": "Foundry migration checks passed (`forge build` exit 0, `forge test` exit 0 with 294/294 tests), no project Hardhat config or `test/*.ts` files remain, and canonical files `LendingEngine.sol`, `RiskGateway.sol`, and `LendingRouter.sol` exist; however the active source tree still contains `contracts/LendingCore.sol` and multiple legacy-name references in contracts/tests, so the canonical rename assertion is not fully satisfied as written.",
+      "evidence": [
+        "/home/kpa/.factory/missions/dc664f26-9086-4d9b-896d-ba8f3bde8d71/evidence/bilateral-async-unified/m11-local-foundry/source-audit-active.json",
+        "/home/kpa/.factory/missions/dc664f26-9086-4d9b-896d-ba8f3bde8d71/evidence/bilateral-async-unified/m11-local-foundry/forge-build.txt",
+        "/home/kpa/.factory/missions/dc664f26-9086-4d9b-896d-ba8f3bde8d71/evidence/bilateral-async-unified/m11-local-foundry/forge-test.txt"
+      ],
+      "commands": [
+        {
+          "command": "python3 audit over /home/kpa/polkadot/dualvm active source roots -> source-audit-active.json",
+          "exitCode": 0,
+          "observation": "Canonical files present: contracts/LendingEngine.sol, contracts/RiskGateway.sol, contracts/LendingRouter.sol; legacy V2 files absent; projectHardhatConfigs=[]; typescriptTestFiles=[]; hardhatDependencies={}; but legacyContractFilesStillPresent includes contracts/LendingCore.sol and active-source legacy-name hits remain in contracts/tests comments and interfaces."
+        },
+        {
+          "command": "forge build --root /home/kpa/polkadot/dualvm",
+          "exitCode": 0,
+          "observation": "Build completed successfully with lint notes only; no compile errors."
+        },
+        {
+          "command": "forge test --root /home/kpa/polkadot/dualvm",
+          "exitCode": 0,
+          "observation": "Foundry suite passed: 19 test suites, 294/294 tests passed, 0 failed, 0 skipped."
+        }
+      ]
+    }
+  ],
+  "frictions": [],
+  "blockers": [],
+  "toolsUsed": [
+    "Read",
+    "LS",
+    "Glob",
+    "Grep",
+    "Execute"
+  ]
+}

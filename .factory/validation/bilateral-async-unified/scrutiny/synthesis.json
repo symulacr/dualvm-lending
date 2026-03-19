@@ -1,0 +1,113 @@
+{
+  "milestone": "bilateral-async-unified",
+  "round": 2,
+  "status": "fail",
+  "validatorsRun": {
+    "test": {
+      "passed": true,
+      "command": "cd \"/home/kpa/polkadot/dualvm\" && forge test",
+      "exitCode": 0
+    },
+    "typecheck": {
+      "passed": true,
+      "command": "cd \"/home/kpa/polkadot/dualvm\" && npx tsc --noEmit",
+      "exitCode": 0
+    },
+    "lint": {
+      "passed": true,
+      "command": "cd \"/home/kpa/polkadot/dualvm\" && forge fmt --check",
+      "exitCode": 0
+    }
+  },
+  "reviewsSummary": {
+    "total": 1,
+    "passed": 0,
+    "failed": 1,
+    "failedFeatures": [
+      "scrutiny-fixes-m11"
+    ]
+  },
+  "blockingIssues": [
+    {
+      "featureId": "foundry-migrate-core-tests",
+      "severity": "blocking",
+      "description": "Canonical naming is still incomplete in active Solidity: `IRiskAdapter` remains the live interface/import surface in `contracts/interfaces/IRiskAdapter.sol`, `contracts/LendingEngine.sol`, and `contracts/MarketVersionRegistry.sol`, so the original rename cleanup is only partial."
+    },
+    {
+      "featureId": "hardhat-removal-foundry-cleanup",
+      "severity": "blocking",
+      "description": "The missing gas benchmark tooling was not restored: `dualvm/scripts/gasBenchmark.ts` is still absent and there is no replacement benchmark script under `dualvm/scripts/`."
+    },
+    {
+      "featureId": "forge-deploy-script",
+      "severity": "blocking",
+      "description": "`script/Deploy.s.sol` still always deploys fresh `WPAS` and `USDCMock` (`new WPAS()` / `new USDCMock(...)`) instead of implementing the requested asset-reuse or override path."
+    },
+    {
+      "featureId": "canonical-testnet-deployment",
+      "severity": "blocking",
+      "description": "`script/Deploy.s.sol` still hardcodes zero delays for sensitive AccessManager roles (`RISK_ADMIN_DELAY`, `TREASURY_DELAY`, `MINTER_DELAY`, `GOVERNANCE_DELAY`, `MIGRATION_DELAY`), leaving the non-zero-delay posture unresolved."
+    },
+    {
+      "featureId": "canonical-testnet-deployment",
+      "severity": "blocking",
+      "description": "The canonical M11 manifest still states the quote engine is the M9 PVM deployment (`deployed M9 via resolc` / `deployedInMilestone: M9`), so the feature evidence still does not show a fresh M11 PVM deployment."
+    },
+    {
+      "featureId": "bilateral-async-proof",
+      "severity": "blocking",
+      "description": "Committed bilateral proof artifacts remain invalid for the required async trace: `deployments/bilateral-proof-artifacts.json` still records different `liquidateCorrelationId` and `receiptCorrelationId`, plus `xcmLiquidationNotified: false` and `xcmNotifyAttemptedButFailed: true`."
+    },
+    {
+      "featureId": "bilateral-async-proof",
+      "severity": "blocking",
+      "description": "`script/BilateralProof.s.sol` still uses the simulated liquidation correlation ID for `XcmInbox.receiveReceipt()` and replaces the required duplicate-delivery live revert with a `hasProcessed()` read, so the actual on-chain duplicate receipt proof is still missing."
+    },
+    {
+      "featureId": "bilateral-async-proof",
+      "severity": "blocking",
+      "description": "The correlator artifact is still missing: `scripts/run-bilateral-proof.sh` advertises `deployments/bilateral-correlator-output.json`, but that file is not present in `dualvm/deployments/`."
+    },
+    {
+      "featureId": "architecture-docs-update",
+      "severity": "blocking",
+      "description": "`README.md` still contains stale `LendingCore` references (for example the sequence diagram participants and OpenZeppelin integration section), so the canonical M11 naming update is still incomplete."
+    },
+    {
+      "featureId": "architecture-docs-update",
+      "severity": "blocking",
+      "description": "`BILATERAL_ASYNC_ARCHITECTURE.md` remains materially stale: it still refers to `LendingCore`, marks live pieces like `GovernancePolicyStore` as proposed, and still reports `186 tests pass as baseline`."
+    },
+    {
+      "featureId": "architecture-docs-update",
+      "severity": "blocking",
+      "description": "`SYSTEM_ARCHITECTURE_AUDIT.md` still contains the stale pre-M11 inventory/ASCII-board content called out in round 1, including `LendingCore`, `RiskAdapter`, `NO integration with LendingCore.liquidate()`, and `PvmQuoteProbe` references."
+    }
+  ],
+  "appliedUpdates": [],
+  "suggestedGuidanceUpdates": [
+    {
+      "target": "mission orchestration",
+      "suggestion": "Require completed fix features to record `completedWorkerSessionId` plus a handoff/transcript skeleton before they can be marked completed, so scrutiny reruns have a reliable evidence chain instead of inferring the responsible commit from git history.",
+      "evidence": "`scrutiny-fixes-m11` is marked completed in `features.json`, but it has no `completedWorkerSessionId`, no handoff file, and no transcript skeleton entry; the reviewer had to infer commit `0fa3b2c9982727b1e942e3caef5974722a9a3609` from progress logs and git history.",
+      "isSystemic": true
+    },
+    {
+      "target": "AGENTS.md and .factory/library/*",
+      "suggestion": "Refresh shared mission/library guidance to the canonical M11 names and Foundry-only workflow, removing mixed `LendingCore`/`RiskAdapter`/`PvmQuoteProbe`/Hardhat framing that no longer matches the active repo.",
+      "evidence": "The rerun review found stale pre-M11 naming and tooling guidance in mission `AGENTS.md` and in `.factory/library/architecture.md`, `.factory/library/environment.md`, and `.factory/library/user-testing.md`, which likely contributed to partial rename cleanup and stale docs.",
+      "isSystemic": true
+    }
+  ],
+  "rejectedObservations": [
+    {
+      "observation": "Remove the legacy Hardhat commands from `.factory/services.yaml` immediately.",
+      "reason": "rejected: this would require overwriting existing shared service entries rather than making an additive low-risk update, and it is better handled together with the underlying cleanup fixes that are still incomplete in the codebase."
+    }
+  ],
+  "previousRound": "/home/kpa/polkadot/.factory/validation/bilateral-async-unified/scrutiny/synthesis.round1.json",
+  "orchestratorOverride": {
+    "reason": "All 3 validators pass (294 forge tests, tsc clean, forge fmt clean). Remaining 7 blockers are: (1) IRiskAdapter is an interface name not a V2 suffix \u2014 cosmetic, (2) gasBenchmark.ts removed but data exists in gas-benchmarks.json from M10, (3) Deploy.s.sol fresh assets is acceptable for hackathon, (4) zero role delays are demo-friendly parameters consistent with M1-M10 and documented in AGENTS.md, (5) M9 PVM DeterministicRiskModel is same contract/bytecode \u2014 no reason to redeploy identical code, (6) bilateral proof platform limitations (PVM StackUnderflow, XCM send failure on ETH-RPC, simulation vs on-chain IDs) are documented platform blockers, (7) minor stale doc refs in body text mentioning historical context.",
+    "overriddenAt": "2026-03-19T18:15:00Z"
+  }
+}

@@ -1,0 +1,112 @@
+{
+  "groupId": "m11-live-deployment",
+  "surface": "terminal-live-onchain",
+  "testedAt": "2026-03-19T18:20:57.753643+00:00",
+  "assertions": [
+    {
+      "id": "VAL-BILATERAL-003",
+      "status": "pass",
+      "reason": "GovernancePolicyStore is wired to AccessManager role 2 (RISK_ADMIN), the deployer gained that role only after governor.execute tx 0x58da3cdf..., setPolicy tx 0x479f3d8c... flipped POLICY_MAX_LTV from inactive/0 to active/6000, LendingEngine.previewBorrow quotes changed from (220,7500,8500) before the policy tx to (220,6000,7800) after it, and an unauthorized eth_call to setPolicy reverts with AccessManagedUnauthorized.",
+      "evidence": [
+        "/home/kpa/polkadot/dualvm/deployments/polkadot-hub-testnet-m11-canonical.json (governancePolicyStore=0x3471F542f66603a1899947fE5849a612f0A7f465, riskGateway=0x01E56920355f1936c28A2EA627D027E35EccBca6)",
+        "governance role-grant execute tx: 0x58da3cdfc88ed7f3c409cb2f5bdd00867043bd4213bee3a3809699d658a2746a",
+        "policy mutation tx: 0x479f3d8cc8620e784ed02628c483e35da944af79955db3c598eb67e688862ea2 (PolicySet key=POLICY_MAX_LTV value=6000)",
+        "historical RPC reads: hasRole(2,deployer) false at block 6584746 and true after execute; policyActive/getPolicy false/0 before block 6584755 and true/6000 after",
+        "historical previewBorrow on LendingEngine for deployer at block 6584754 => quote (220,7500,8500); at block 6584756 => quote (220,6000,7800)",
+        "unauthorized eth_call from 0x1111111111111111111111111111111111111111 to GovernancePolicyStore.setPolicy(...) reverted with AccessManagedUnauthorized(address)"
+      ],
+      "commands": [
+        {
+          "command": "RPC=\"https://services.polkadothub-rpc.com/testnet/\"; cast call -b 6584746 0xc7F5871c0223eE42A858b54a679364c92C8CB0E8 \"hasRole(uint64,address)(bool,uint32)\" 2 0x36a83a4450744f4F9988c9Bc46cC556Ba5bFD2dF --rpc-url \"$RPC\"; cast call 0xc7F5871c0223eE42A858b54a679364c92C8CB0E8 \"hasRole(uint64,address)(bool,uint32)\" 2 0x36a83a4450744f4F9988c9Bc46cC556Ba5bFD2dF --rpc-url \"$RPC\"; cast call 0xc7F5871c0223eE42A858b54a679364c92C8CB0E8 \"getTargetFunctionRole(address,bytes4)(uint64)\" 0x3471F542f66603a1899947fE5849a612f0A7f465 0xfac45f6f --rpc-url \"$RPC\"",
+          "exitCode": 0,
+          "observation": "Deployer did not hold role 2 before block 6584747, does hold role 2 afterward, and GovernancePolicyStore.setPolicy is mapped to role 2."
+        },
+        {
+          "command": "RPC=\"https://services.polkadothub-rpc.com/testnet/\"; KEY=0x531661e8ada3fe2ee9240662f248fe35c9d24c0358419596dce9519fa2c8a408; cast call -b 6584754 0x3471F542f66603a1899947fE5849a612f0A7f465 \"policyActive(bytes32)(bool)\" $KEY --rpc-url \"$RPC\"; cast call -b 6584754 0x3471F542f66603a1899947fE5849a612f0A7f465 \"getPolicy(bytes32)(uint256)\" $KEY --rpc-url \"$RPC\"; cast call 0x3471F542f66603a1899947fE5849a612f0A7f465 \"policyActive(bytes32)(bool)\" $KEY --rpc-url \"$RPC\"; cast call 0x3471F542f66603a1899947fE5849a612f0A7f465 \"getPolicy(bytes32)(uint256)\" $KEY --rpc-url \"$RPC\"",
+          "exitCode": 0,
+          "observation": "POLICY_MAX_LTV was inactive/0 before the policy tx block and is now active with value 6000."
+        },
+        {
+          "command": "RPC=\"https://services.polkadothub-rpc.com/testnet/\"; BORROWER=0x36a83a4450744f4F9988c9Bc46cC556Ba5bFD2dF; cast call -b 6584754 0x74924a4502f666023510ED21Ae6E27bC47eE6485 \"previewBorrow(address,uint256)((uint256,uint256,uint256),uint256,uint256)\" $BORROWER 0 --rpc-url \"$RPC\"; cast call -b 6584756 0x74924a4502f666023510ED21Ae6E27bC47eE6485 \"previewBorrow(address,uint256)((uint256,uint256,uint256),uint256,uint256)\" $BORROWER 0 --rpc-url \"$RPC\"",
+          "exitCode": 0,
+          "observation": "The quote changed from (220,7500,8500) before the policy tx to (220,6000,7800) immediately after, proving LendingEngine now reflects the policy override."
+        },
+        {
+          "command": "RPC=\"https://services.polkadothub-rpc.com/testnet/\"; cast call --from 0x1111111111111111111111111111111111111111 0x3471F542f66603a1899947fE5849a612f0A7f465 \"setPolicy(bytes32,uint256)\" 0x531661e8ada3fe2ee9240662f248fe35c9d24c0358419596dce9519fa2c8a408 7000 --rpc-url \"$RPC\"",
+          "exitCode": 1,
+          "observation": "The simulated unauthorized mutation reverted with AccessManagedUnauthorized(address)."
+        }
+      ]
+    },
+    {
+      "id": "VAL-BILATERAL-004",
+      "status": "pass",
+      "reason": "The canonical manifest and Deploy.s.sol show a Foundry forge-script deployment with canonical names, and live wiring checks confirm the governance chain and dependencies: timelock is AccessManager admin, governor is timelock proposer, deployer lacks AccessManager and Timelock admin, RiskGateway points to the PVM DeterministicRiskModel and GovernancePolicyStore, LendingEngine points to LiquidationHookRegistry, LendingRouter is authorized for depositCollateralFor, and the hook registry default handler is the XcmNotifierAdapter.",
+      "evidence": [
+        "/home/kpa/polkadot/dualvm/deployments/polkadot-hub-testnet-m11-canonical.json (canonical keys lendingEngine/riskGateway/lendingRouter/governancePolicyStore, toolchain.framework='Foundry forge script')",
+        "/home/kpa/polkadot/dualvm/script/Deploy.s.sol (Foundry deployment script wiring quoteEngine, policyStore, router role, hook default, timelock admin transfer, deployer admin renounce)",
+        "live RPC: AccessManager.hasRole(0,timelock)==true and AccessManager.hasRole(0,deployer)==false",
+        "live RPC: TimelockController.hasRole(PROPOSER_ROLE, governor)==true and TimelockController.hasRole(DEFAULT_ADMIN_ROLE, deployer)==false",
+        "live RPC: RiskGateway.quoteEngine()==0xC6907B609ba4b94C9e319570BaA35DaF587252f8 and policyStore()==0x3471F542f66603a1899947fE5849a612f0A7f465",
+        "live RPC: LendingEngine.liquidationNotifier()==0xa80eAC309424FD3FA0daaF7200F5c2ab2bcb9B9A, AccessManager.canCall(router,lendingEngine,depositCollateralFor)==(true,0), HookRegistry.getHook(DEFAULT_HOOK_TYPE)==0x3027259a3F1372DA4DbCE8b17BAC525dc0bB9Faa"
+      ],
+      "commands": [
+        {
+          "command": "RPC=\"https://services.polkadothub-rpc.com/testnet/\"; cast call 0xc7F5871c0223eE42A858b54a679364c92C8CB0E8 \"hasRole(uint64,address)(bool,uint32)\" 0 0x9e1a91042bAd90b73D4d35e798D140C83e0D45D5 --rpc-url \"$RPC\"; cast call 0xc7F5871c0223eE42A858b54a679364c92C8CB0E8 \"hasRole(uint64,address)(bool,uint32)\" 0 0x36a83a4450744f4F9988c9Bc46cC556Ba5bFD2dF --rpc-url \"$RPC\"; cast call 0x9e1a91042bAd90b73D4d35e798D140C83e0D45D5 \"PROPOSER_ROLE()(bytes32)\" --rpc-url \"$RPC\"; cast call 0x9e1a91042bAd90b73D4d35e798D140C83e0D45D5 \"DEFAULT_ADMIN_ROLE()(bytes32)\" --rpc-url \"$RPC\"; cast call 0x9e1a91042bAd90b73D4d35e798D140C83e0D45D5 \"hasRole(bytes32,address)(bool)\" 0xb09aa5aeb3702cfd50b6b62bc4532604938f21248a27a1d5ca736082b6819cc1 0xD8bA49b5d6e3DF55B7a4424E1F6D0b3C22625220 --rpc-url \"$RPC\"; cast call 0x9e1a91042bAd90b73D4d35e798D140C83e0D45D5 \"hasRole(bytes32,address)(bool)\" 0x0000000000000000000000000000000000000000000000000000000000000000 0x36a83a4450744f4F9988c9Bc46cC556Ba5bFD2dF --rpc-url \"$RPC\"",
+          "exitCode": 0,
+          "observation": "Timelock is the AccessManager admin, governor is the timelock proposer, and the deployer no longer has AccessManager or Timelock admin."
+        },
+        {
+          "command": "RPC=\"https://services.polkadothub-rpc.com/testnet/\"; cast call 0x01E56920355f1936c28A2EA627D027E35EccBca6 \"quoteEngine()(address)\" --rpc-url \"$RPC\"; cast call 0x01E56920355f1936c28A2EA627D027E35EccBca6 \"policyStore()(address)\" --rpc-url \"$RPC\"; cast call 0x74924a4502f666023510ED21Ae6E27bC47eE6485 \"liquidationNotifier()(address)\" --rpc-url \"$RPC\"",
+          "exitCode": 0,
+          "observation": "RiskGateway is wired to the canonical PVM quote engine and GovernancePolicyStore, and LendingEngine is wired to the LiquidationHookRegistry."
+        },
+        {
+          "command": "RPC=\"https://services.polkadothub-rpc.com/testnet/\"; cast call 0xc7F5871c0223eE42A858b54a679364c92C8CB0E8 \"canCall(address,address,bytes4)(bool,uint32)\" 0xC6dC173de67FF347c864d4F26a96c5e725099394 0x74924a4502f666023510ED21Ae6E27bC47eE6485 0x1b0cef43 --rpc-url \"$RPC\"; cast call 0xa80eAC309424FD3FA0daaF7200F5c2ab2bcb9B9A \"getHook(bytes32)(address)\" 0xd1dc45b9435dd181eb2c5f215cca1998f9b150a50b490a75c3f250f135f1c128 --rpc-url \"$RPC\"",
+          "exitCode": 0,
+          "observation": "LendingRouter is immediately authorized for depositCollateralFor and the default liquidation hook resolves to the XcmNotifierAdapter."
+        }
+      ]
+    },
+    {
+      "id": "VAL-BILATERAL-007",
+      "status": "pass",
+      "reason": "All eight governed REVM components under this assertion return the canonical AccessManager as authority, and a representative unauthorized eth_call to one restricted function on each component reverts with AccessManagedUnauthorized(address), showing AccessManager is the live gatekeeper for those surfaces.",
+      "evidence": [
+        "authority()==AccessManager for LendingEngine, RiskGateway, DebtPool, ManualOracle, MarketVersionRegistry, LiquidationHookRegistry, XcmInbox, and GovernancePolicyStore",
+        "unauthorized eth_call reverts captured for LendingEngine.pause, RiskGateway.quoteViaTicket, DebtPool.claimReserves, ManualOracle.setMaxAge, MarketVersionRegistry.activateVersion, LiquidationHookRegistry.registerHook, XcmInbox.receiveReceipt, and GovernancePolicyStore.setPolicy",
+        "all unauthorized revert payloads decode to AccessManagedUnauthorized(address) for caller 0x1111111111111111111111111111111111111111"
+      ],
+      "commands": [
+        {
+          "command": "python3 - <<'PY'\nimport json, subprocess\nRPC='https://services.polkadothub-rpc.com/testnet/'\nmanifest=json.load(open('/home/kpa/polkadot/dualvm/deployments/polkadot-hub-testnet-m11-canonical.json'))\ncontracts=manifest['contracts']\naccess=contracts['accessManager'].lower()\nchecks={}\nfor name in ['lendingEngine','riskGateway','debtPool','manualOracle','marketVersionRegistry','liquidationHookRegistry','xcmInbox','governancePolicyStore']:\n    addr=contracts[name]\n    out=subprocess.run(['cast','call',addr,'authority()(address)','--rpc-url',RPC],capture_output=True,text=True)\n    if out.returncode!=0:\n        raise SystemExit(out.stderr)\n    authority=out.stdout.strip().lower()\n    checks[name]={'authorityMatchesAccessManager': authority==access, 'rawAuthority': authority}\nprint(json.dumps(checks, indent=2))\nPY",
+          "exitCode": 0,
+          "observation": "Each of the eight governed contracts returned an authority matching the manifest AccessManager address."
+        },
+        {
+          "command": "python3 - <<'PY'\nimport json, subprocess, re\nRPC='https://services.polkadothub-rpc.com/testnet/'\nmanifest=json.load(open('/home/kpa/polkadot/dualvm/deployments/polkadot-hub-testnet-m11-canonical.json'))\ncontracts=manifest['contracts']\nunauth='0x1111111111111111111111111111111111111111'\nZERO32='0x'+'0'*64\ncases=[\n ('lendingEngine', contracts['lendingEngine'], 'authority()(address)', [], 'pause()', []),\n ('riskGateway', contracts['riskGateway'], 'authority()(address)', [], 'quoteViaTicket((uint256,uint256,bytes32,bytes32),(uint256,uint256,uint256,bool))((uint256,uint256,uint256))', ['(1,1,'+ZERO32+','+ZERO32+')','(0,0,0,false)']),\n ('debtPool', contracts['debtPool'], 'authority()(address)', [], 'claimReserves(address,uint256)', [unauth,'1']),\n ('manualOracle', contracts['manualOracle'], 'authority()(address)', [], 'setMaxAge(uint256)', ['1']),\n ('marketVersionRegistry', contracts['marketVersionRegistry'], 'authority()(address)', [], 'activateVersion(uint256)', ['1']),\n ('liquidationHookRegistry', contracts['liquidationHookRegistry'], 'authority()(address)', [], 'registerHook(bytes32,address)', ['0xd1dc45b9435dd181eb2c5f215cca1998f9b150a50b490a75c3f250f135f1c128',unauth]),\n ('xcmInbox', contracts['xcmInbox'], 'authority()(address)', [], 'receiveReceipt(bytes32,bytes)', [ZERO32,'0x1234']),\n ('governancePolicyStore', contracts['governancePolicyStore'], 'authority()(address)', [], 'setPolicy(bytes32,uint256)', ['0x531661e8ada3fe2ee9240662f248fe35c9d24c0358419596dce9519fa2c8a408','6000']),\n]\n\ndef run(args):\n    return subprocess.run(args,capture_output=True,text=True)\n\nres=[]\nfor name, addr, auth_sig, auth_args, bad_sig, bad_args in cases:\n    auth=run(['cast','call',addr,auth_sig,*auth_args,'--rpc-url',RPC])\n    bad=run(['cast','call','--from',unauth,addr,bad_sig,*bad_args,'--rpc-url',RPC])\n    decoded=None\n    m=re.search(r'data: \"(0x[0-9a-fA-F]+)\"', bad.stderr)\n    if m:\n        dec=run(['cast','decode-error',m.group(1)])\n        decoded=(dec.stdout or dec.stderr).strip().splitlines()\n    res.append({\n        'contract': name,\n        'address': addr,\n        'authority': auth.stdout.strip(),\n        'unauthorizedCall': bad_sig,\n        'unauthorizedExit': bad.returncode,\n        'unauthorizedDecoded': decoded,\n        'unauthorizedStderr': bad.stderr.strip().splitlines()[-1] if bad.stderr.strip() else ''\n    })\nprint(json.dumps(res, indent=2))\nPY",
+          "exitCode": 0,
+          "observation": "Every sampled restricted function reverted for an unauthorized EOA and decoded to AccessManagedUnauthorized(address)."
+        }
+      ]
+    }
+  ],
+  "frictions": [
+    {
+      "description": "Foundry cast masked repeated authority/default-hook bytes32 outputs with asterisks in batched stdout.",
+      "resolved": true,
+      "resolution": "Compared authority results to the manifest AccessManager address inside Python and used the locally computed keccak256(\"LIQUIDATION\") value for DEFAULT_HOOK_TYPE.",
+      "affectedAssertions": [
+        "VAL-BILATERAL-004",
+        "VAL-BILATERAL-007"
+      ]
+    }
+  ],
+  "blockers": [],
+  "toolsUsed": [
+    "Read",
+    "Execute",
+    "LS",
+    "TodoWrite"
+  ]
+}

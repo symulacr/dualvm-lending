@@ -1,0 +1,92 @@
+{
+  "featureId": "scrutiny-fixes-m11",
+  "reviewedAt": "2026-03-19T18:05:07Z",
+  "commitId": "0fa3b2c9982727b1e942e3caef5974722a9a3609",
+  "transcriptSkeletonReviewed": false,
+  "diffReviewed": true,
+  "status": "fail",
+  "codeReview": {
+    "summary": "Fail. Current repo state shows that fix commit `0fa3b2c` did resolve several earlier blockers: the old V2 source files are gone, `GovernorLifecycle.t.sol` now covers both execute-after-timelock and governance-driven `activateVersion()`, `dualvm/package-lock.json` no longer contains Hardhat dependencies, and `Deploy.s.sol` now accepts `PVM_QUOTE_ENGINE_ADDRESS`. But multiple prior blocking issues still remain open: canonical naming is still incomplete in active Solidity interfaces/imports, the gas benchmark tooling is still missing, `Deploy.s.sol` still unconditionally redeploys WPAS/USDC and still hardcodes zero sensitive-role delays, the canonical manifest still points at an M9 PVM deployment, the bilateral proof artifacts are still invalid, and the README / BILATERAL / SYSTEM_ARCHITECTURE_AUDIT docs still contain stale M10-era names and assertions. I did not find a new blocking regression unique to the fix commit beyond these still-open prior failures. No handoff file or worker transcript skeleton was available for worker session `4d42e1e2-3520-42f0-8be7-c43aff1b50f3`, so the reviewed commit had to be inferred from git history plus mission progress logs.",
+    "issues": [
+      {
+        "file": "/home/kpa/polkadot/dualvm/contracts/LendingEngine.sol",
+        "line": 11,
+        "severity": "blocking",
+        "description": "The original canonical-rename blocker is only partially fixed. `LendingCoreV2.sol`, `RiskAdapter.sol`, and `LendingRouterV2.sol` were deleted, but active Solidity still imports and types against `IRiskAdapter` (`dualvm/contracts/interfaces/IRiskAdapter.sol:6`, `dualvm/contracts/LendingEngine.sol:11`, `dualvm/contracts/MarketVersionRegistry.sol:6,54`). That means the repo still has live `RiskAdapter`-named interfaces/imports after the supposed canonical rename, so the `foundry-migrate-core-tests` blocking issue is not fully resolved."
+      },
+      {
+        "file": "/home/kpa/polkadot/dualvm/scripts/gasBenchmark.ts",
+        "line": 1,
+        "severity": "blocking",
+        "description": "The `hardhat-removal-foundry-cleanup` blocker about losing gas benchmark tooling remains unresolved. `dualvm/scripts/gasBenchmark.ts` is still absent in the current tree, and `/home/kpa/polkadot/dualvm/scripts/` contains no replacement gas benchmark script."
+      },
+      {
+        "file": "/home/kpa/polkadot/dualvm/script/Deploy.s.sol",
+        "line": 202,
+        "severity": "blocking",
+        "description": "`Deploy.s.sol` still unconditionally deploys fresh `WPAS` and `USDCMock` via `new WPAS()` / `new USDCMock(...)` instead of reusing existing token addresses when bytecode is already present. That leaves the `forge-deploy-script` asset-reuse blocker unresolved."
+      },
+      {
+        "file": "/home/kpa/polkadot/dualvm/script/Deploy.s.sol",
+        "line": 121,
+        "severity": "blocking",
+        "description": "The canonical deployment script still hardcodes `RISK_ADMIN_DELAY`, `TREASURY_DELAY`, `MINTER_DELAY`, `GOVERNANCE_DELAY`, and `MIGRATION_DELAY` to `0`, then grants those roles at lines 484-488. The `canonical-testnet-deployment` blocker about zero sensitive-role delays therefore remains unresolved in current repo state."
+      },
+      {
+        "file": "/home/kpa/polkadot/dualvm/deployments/polkadot-hub-testnet-m11-canonical.json",
+        "line": 52,
+        "severity": "blocking",
+        "description": "The canonical M11 manifest still records the live quote engine as `PVM DeterministicRiskModel (deployed M9 via resolc)` and `deployedInMilestone: M9 (stabilize-connect-derisk)` at line 67. The `canonical-testnet-deployment` blocker about reusing an M9 PVM deployment instead of producing a fresh M11 PVM deployment therefore still remains."
+      },
+      {
+        "file": "/home/kpa/polkadot/dualvm/deployments/bilateral-proof-artifacts.json",
+        "line": 19,
+        "severity": "blocking",
+        "description": "The `bilateral-async-proof` blockers remain open in the committed proof artifacts: `liquidateCorrelationId` and `receiptCorrelationId` still differ (lines 19-20), and the same artifact still records `xcmLiquidationNotified: false` plus `xcmNotifyAttemptedButFailed: true` (lines 22-23). The underlying script is also still using the simulated liquidation correlation ID for `receiveReceipt()` (`dualvm/script/BilateralProof.s.sol:366-373`) and still replacing the required duplicate-delivery revert with a `hasProcessed()` read (`dualvm/script/BilateralProof.s.sol:385-391`)."
+      },
+      {
+        "file": "/home/kpa/polkadot/dualvm/scripts/run-bilateral-proof.sh",
+        "line": 155,
+        "severity": "blocking",
+        "description": "The correlator-proof blocker is still unresolved. The wrapper still advertises `deployments/bilateral-correlator-output.json`, but that file is not present in `/home/kpa/polkadot/dualvm/deployments/`, so the required structured correlator output remains missing from the repo state."
+      },
+      {
+        "file": "/home/kpa/polkadot/README.md",
+        "line": 230,
+        "severity": "blocking",
+        "description": "The README is still not fully on canonical M11 naming. It still labels sequence-diagram participants as `LendingCore` (`README.md:230`, `:270`) and still says `SafeERC20` transfers happen in `LendingCore` (`README.md:359`). That leaves the `architecture-docs-update` README blocker unresolved."
+      },
+      {
+        "file": "/home/kpa/polkadot/BILATERAL_ASYNC_ARCHITECTURE.md",
+        "line": 44,
+        "severity": "blocking",
+        "description": "`BILATERAL_ASYNC_ARCHITECTURE.md` remains materially stale. It still says `XCM inbound → LendingCore` (line 44), still presents live/off-chain pieces as `PROPOSED` (`OpsOutbox` at lines 62 and 125; `GovernancePolicyStore` at line 144 and diagram line 287), and still says `186 tests pass as baseline` at line 450. This means the earlier architecture-docs blocker for this file is still unresolved despite partial wording cleanup."
+      },
+      {
+        "file": "/home/kpa/polkadot/SYSTEM_ARCHITECTURE_AUDIT.md",
+        "line": 135,
+        "severity": "blocking",
+        "description": "`SYSTEM_ARCHITECTURE_AUDIT.md` still contains the exact stale material called out by the prior review: the OZ inventory still names `LendingCore` and `RiskAdapter` (`:135-142`), the ASCII board still shows `LendingCore` / `RiskAdapter` (`:323-327`), still claims `NO integration with LendingCore.liquidate()` (`:352`), and still names `PvmQuoteProbe` as the quote engine (`:359`). The `architecture-docs-update` blocking issue therefore remains unresolved."
+      }
+    ]
+  },
+  "sharedStateObservations": [
+    {
+      "area": "conventions",
+      "observation": "Mission state for this fix feature is inconsistent: the feature is marked completed, but there is no `completedWorkerSessionId`, no handoff JSON, and no transcript skeleton entry for the recorded worker session. That forced this review to infer the relevant commit from git history and mission progress logs instead of following the normal evidence chain.",
+      "evidence": "`/home/kpa/.factory/missions/dc664f26-9086-4d9b-896d-ba8f3bde8d71/features.json:2314-2322` shows `status: completed` with worker session `4d42e1e2-3520-42f0-8be7-c43aff1b50f3` but `completedWorkerSessionId: null`; `worker-transcripts.jsonl` has no matching entry; `progress_log.jsonl:445-447` records the worker being selected, starting, then failing with `Droid process exited unexpectedly (exit code 0)`."
+    },
+    {
+      "area": "services",
+      "observation": "The shared service catalog still exposes legacy Hardhat commands even though one of the reviewed blockers was to remove Hardhat from the active workflow. That stale catalog can send later workers and validators down the wrong path.",
+      "evidence": "`/home/kpa/polkadot/.factory/services.yaml:11-13` still lists `# Legacy Hardhat commands`, `test_hardhat`, and `build_hardhat`."
+    },
+    {
+      "area": "knowledge",
+      "observation": "Shared mission/library guidance is still mixed between the pre-M11 and post-M11 architecture, which likely contributed to the repo only being partially cleaned up. The guidance still describes `LendingCore`, `RiskAdapter`, `PvmQuoteProbe`, Hardhat, and the old deploy manifest as current state.",
+      "evidence": "`/home/kpa/.factory/missions/dc664f26-9086-4d9b-896d-ba8f3bde8d71/AGENTS.md:53,57,67,85,97-99,128` still uses `RiskAdapter`, `LendingCore`, `PvmQuoteProbe`, and Hardhat-era framing; `/home/kpa/polkadot/.factory/library/architecture.md:12-17,47-53` still documents `LendingCore`/`RiskAdapter`; `/home/kpa/polkadot/.factory/library/environment.md:33-34,52` still lists Hardhat and `dualvm/deployments/deploy-manifest.json`; `/home/kpa/polkadot/.factory/library/user-testing.md:60-63,124-125` still centers `terminal-hardhat` and `npm test`."
+    }
+  ],
+  "addressesFailureFrom": "/home/kpa/polkadot/.factory/validation/bilateral-async-unified/scrutiny/synthesis.json",
+  "summary": "Reviewed the current repo state for `scrutiny-fixes-m11` against the prior failing scrutiny reports, using commit `0fa3b2c9982727b1e942e3caef5974722a9a3609`, the working tree, mission progress logs, and the relevant source/doc artifacts. Result: fail. Fully resolved prior blockers include deleting the old V2 source files, adding governance execute/activateVersion test coverage, removing Hardhat from `package-lock.json`, and adding `PVM_QUOTE_ENGINE_ADDRESS` support to `Deploy.s.sol`. Remaining blocking issues include the still-live `IRiskAdapter` naming in Solidity, the missing gas benchmark script, the deploy script's missing asset-reuse behavior and zero delays, the canonical manifest's reused M9 PVM deployment, the still-invalid bilateral proof artifacts/correlator output, and the still-stale README / BILATERAL / SYSTEM_ARCHITECTURE_AUDIT docs. I did not find a new blocking regression unique to the fix commit itself."
+}

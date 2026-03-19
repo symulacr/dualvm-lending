@@ -241,6 +241,55 @@ This is non-trivial OZ integration. The ERC4626 implementation correctly handles
 
 ---
 
+### 2.6 POST-REPORT TRACK 2 FIXES (PVM-PRIMARY ARCHITECTURE)
+
+> **Track 2 was rearchitected after M11. The PVM risk engine is now the primary computation source, not optional verification. This section documents the changes and their impact on the Track 2 score. It does not change the DQ verdict.**
+
+**Key Track 2 changes:**
+
+1. **PVM is now PRIMARY source, REVM is fallback.** `RiskGateway` calls `quoteEngine.quote(input)` as the primary computation path. The REVM inline `_inlineQuote()` is wrapped in try/catch as a fallback — used only if PVM fails. This inverts the M11 architecture where inline was canonical and PVM was optional verification. The PVM result is now authoritative.
+
+2. **QuoteInput extended with 3 governance policy fields.** The `QuoteInput` struct now carries 7 fields instead of 4: the original `(totalCollateral, totalDebt, utilizationBps, isNewBorrow)` plus `(maxLtvOverride, liquidationThresholdOverride, borrowRateFloorOverride)`. The PVM `DeterministicRiskModel` applies these governance overrides — when non-zero, it clamps/replaces default parameters. The REVM inline fallback does NOT apply these overrides. This means PVM and REVM produce **different outputs** when governance policy is active. This is the core Track 2 differentiator: PVM is not "same math twice" — it carries governance-aware logic that REVM inline does not.
+
+3. **XCM execute() proven on-chain.** TX `0xa05693ff9b9af12fbf38f5f786240486137194923160d953fb1607a1f212ef8a` at block 6595576 — `ClearOrigin+SetTopic(0x42)` V5 message executed successfully via XCM precompile. `executeLocalNotification()` end-to-end at block 6595577 with event `LocalXcmExecuted(correlationId=0xff, refTime=1810000, proofSize=0)`.
+
+4. **300 Foundry tests (up from 294).** New tests cover the extended QuoteInput, governance policy override paths, PVM-primary fallback behavior, and XCM execute integration.
+
+**On-chain verification (6/6 pass):**
+
+| Test | Result | Verdict |
+|------|--------|---------|
+| PVM quote (no policy) | borrowRate=700, maxLtv=7500, liqThreshold=8500 | ✅ PASS |
+| PVM quote (with policy) | maxLtv=7500→6000, liqThreshold=8500→8000 (governance applied) | ✅ PASS |
+| RiskGateway.quoteEngine | returns DeterministicRiskModel address | ✅ PASS |
+| XCM weighMessage | refTime=1810000, proofSize=0 | ✅ PASS |
+| XCM execute | ClearOrigin+SetTopic, block 6595576, success | ✅ PASS |
+| executeLocalNotification | end-to-end, block 6595577, success | ✅ PASS |
+
+Evidence: `dualvm/deployments/track2-verification.json`
+
+**What Track 2 fixes DO address:**
+- S-1: PVM is now primary (not optional). Governance policy overrides make PVM produce different output than REVM.
+- S-2: XCM execute() proven on-chain (not just weighMessage). SetTopic carries correlationId.
+- The "same algorithm twice" criticism is now factually incorrect — PVM applies governance-aware overrides.
+
+**What Track 2 fixes do NOT fix (brutal honesty):**
+- **DeterministicRiskModel is currently deployed as EVM bytecode, not PVM bytecode.** The contract at `0xd3e20fe4650ad8b690f494f8008cf9b284c855c4` is EVM-compiled. PVM recompilation via `resolc` is architecturally ready but not yet executed. A judge will note: EVM deployment ≠ PVM deployment. The architecture is PVM-primary, but the current bytecode is EVM. This is a legitimate gap.
+- Stage 2 (PVM→REVM callback) — still broken (platform limitation).
+- XCM messages still cannot be delivered cross-chain on the testnet (execute works, delivery does not).
+- The commit timeline (DQ-1) — unchanged.
+
+**Revised Track 2 score: 5–6/10 (up from 3/10)**
+
+Justification for the increase:
+- **+1:** PVM is architecturally primary, not optional. The try/catch inversion is a real structural change.
+- **+1:** Governance-aware QuoteInput produces demonstrably different output. Not "same math twice."
+- **+0.5:** XCM execute() proven on-chain (ClearOrigin+SetTopic with correlationId).
+- **−0.5:** EVM bytecode deployment ≠ PVM bytecode deployment. Architecture is right, execution artifact is wrong.
+- **Net:** 3 + 2 to 3 = 5–6/10. Honest improvement. Not yet full Track 2 credit.
+
+---
+
 ## 3. CODE QUALITY & SECURITY (BRUTAL)
 
 ### Solidity version
@@ -269,7 +318,7 @@ The state changes complete before this call. **Safe.** But the blank `catch {}` 
 `ManualOracle.sol` — freshness window of 1800 seconds (30 min). A governance-controlled manual price feed. **This is acknowledged in CLAUDE.md.** A judge will mark this as a critical production risk. For a hackathon, acceptable but must be disclosed — and it is.
 
 ### Tests
-- 18 Solidity test files (`test/*.t.sol`), 294 passing Foundry tests (`forge test`). Zero TypeScript test files. No Hardhat, no npm test — Foundry exclusively.
+- 18 Solidity test files (`test/*.t.sol`), 300 passing Foundry tests (`forge test`). Zero TypeScript test files. No Hardhat, no npm test — Foundry exclusively.
 - Coverage includes: liquidation, batch liquidation, reentrancy attack, oracle staleness, migration, governance lifecycle, XCM inbox, bilateral flow, correlation IDs
 - `ReentrantAttacker.sol` and `ReentrantCollateral.sol` test contracts confirm deliberate reentrancy testing
 - `GovernorLifecycle.t.sol` now includes `execute()` + `activateVersion()` tests, addressing a prior scrutiny gap where governance execution was untested.
@@ -423,11 +472,11 @@ Despite being called `batchLiquidate`, a single failed liquidation reverts all p
 | Technical execution on Polkadot Hub | **6/10** | Live deployment, real TXs, working XCM precompile calls. PVM integration is thin. XCM is decorative. |
 | Production readiness | **3/10** | Manual oracle, no multi-market, no production security audit, no compounding. Too raw. |
 | Track 1 fit (EVM DeFi) | **7/10** | Solid lending protocol on REVM. Would score well if timeline was valid. |
-| Track 2 fit (PVM cross-VM) | **3/10** | Stage 2 broken. Same algorithm runs twice. PVM is optional and non-blocking. GovernancePolicyStore + correlationId add substance but PVM remains optional. |
+| Track 2 fit (PVM cross-VM) | **5-6/10** | PVM now primary (not optional). Governance-aware QuoteInput produces different output than REVM inline. XCM execute() proven on-chain. But: DeterministicRiskModel deployed as EVM bytecode, not PVM. Stage 2 callbacks still broken. See §2.6. |
 | OpenZeppelin track fit | **7/10** | Genuine, non-trivial OZ usage across 5+ libraries. |
 | Likelihood of winning any prize | **0/10** | Disqualified before scoring. |
 
-**Test infrastructure note:** All 294 tests are Solidity `.t.sol` files running under Foundry (`forge test`). Zero TypeScript tests. No Hardhat dependency. Full Foundry-native pipeline.
+**Test infrastructure note:** All 300 tests are Solidity `.t.sol` files running under Foundry (`forge test`). Zero TypeScript tests. No Hardhat dependency. Full Foundry-native pipeline.
 
 ---
 

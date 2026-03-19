@@ -1,0 +1,45 @@
+{
+  "featureId": "architecture-docs-update",
+  "reviewedAt": "2026-03-19T16:41:46Z",
+  "commitId": "676da4c",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "fail",
+  "codeReview": {
+    "summary": "The feature substantially refreshes README.md and rewrites SYSTEM_ARCHITECTURE_MERMAID.md for M11, but it does not fully satisfy the architecture-docs-update requirements because README.md and SYSTEM_ARCHITECTURE_AUDIT.md still contain multiple legacy LendingCore/RiskAdapter-era sections, and the required verification of BILATERAL_ASYNC_ARCHITECTURE.md was missed even though that file remains pre-M11.",
+    "issues": [
+      {
+        "file": "SYSTEM_ARCHITECTURE_AUDIT.md",
+        "line": 135,
+        "severity": "blocking",
+        "description": "SYSTEM_ARCHITECTURE_AUDIT.md still contains several contradictory pre-M11 sections after the claimed update. The OpenZeppelin inventory at lines 135-142 still lists `LendingCore` and `RiskAdapter`; the large ASCII system board starting at line 323 still says `LendingCore`, `RiskAdapter`, `PvmQuoteProbe`, `⚠ credits SELF`, `⚠ NO integration with LendingCore.liquidate()`, and `DeterministicRiskModel: EXISTS as .sol but NOT compiled to PVM`; and the issue table at line 485 still says the README System Overview diagram is stale. The feature description explicitly required this file to use canonical M11 names, resolved-gap status, correlationId/XCM wiring, and Foundry-only framing, so the audit document is still internally inconsistent and not fully updated." 
+      },
+      {
+        "file": "README.md",
+        "line": 230,
+        "severity": "blocking",
+        "description": "README.md still retains multiple legacy contract names outside the refreshed top architecture section. `README.md:230` and `README.md:270` still label Mermaid participants as `LendingCore`; `README.md:321` still says `RiskAdapter` in the failure-mode table; and `README.md:324`, `README.md:359`, `README.md:475-478`, and `README.md:601` continue to describe the live system using `LendingCore`. The feature's expected behavior required README contract names to be canonical (`LendingEngine`, `RiskGateway`, `LendingRouter`), so the README is not consistently M11-accurate." 
+      },
+      {
+        "file": "BILATERAL_ASYNC_ARCHITECTURE.md",
+        "line": 17,
+        "severity": "blocking",
+        "description": "The feature description explicitly said `BILATERAL_ASYNC_ARCHITECTURE.md` was already committed and had to be verified as up to date, but the file remains pre-M11. Lines 17-20 still say `Hardhat` stays installed, line 33 still says `now 186 tests`, lines 140-145 still mark `GovernancePolicyStore` and related components as `PROPOSED`, and lines 451-452 still present `186 tests pass as baseline`. Because the reviewed commit did not update this architecture document or report it as stale, the feature does not meet its own verification requirement." 
+      }
+    ]
+  },
+  "sharedStateObservations": [
+    {
+      "area": "skills",
+      "observation": "The docs-worker skill still instructs documentation/CI workers to validate with the legacy npm-centric pipeline instead of the repo's current Foundry-first commands.",
+      "evidence": "/home/kpa/polkadot/.factory/skills/docs-worker/SKILL.md:26-29 tells workers to run `npm test && npx tsc --noEmit && npm run build`, while /home/kpa/polkadot/.factory/services.yaml defines `forge test` and `forge build` as the canonical test/build commands. The reviewed handoff's skillFeedback also called this mismatch out."
+    },
+    {
+      "area": "knowledge",
+      "observation": "Shared state references are still mixed between pre-M11 and post-M11 architecture, which makes docs work prone to carrying legacy names and toolchain details forward.",
+      "evidence": "/home/kpa/polkadot/.factory/library/architecture.md:12-17 and 46-53 still describe `LendingCore`, `RiskAdapter`, and quote-ticket wiring; /home/kpa/polkadot/.factory/library/environment.md:33-34 and 52 still present Hardhat and `dualvm/deployments/deploy-manifest.json` as current; /home/kpa/.factory/missions/dc664f26-9086-4d9b-896d-ba8f3bde8d71/AGENTS.md:27,53,57,81 still says Hardhat is being removed and references `RiskAdapter`, `LendingCore`, and `PvmQuoteProbe` even though the M11 docs are supposed to use canonical names and a Foundry-only posture."
+    }
+  ],
+  "addressesFailureFrom": null,
+  "summary": "Review failed. SYSTEM_ARCHITECTURE_MERMAID.md looks materially updated, but README.md and SYSTEM_ARCHITECTURE_AUDIT.md still contain legacy LendingCore/RiskAdapter-era sections, and the task's required verification of BILATERAL_ASYNC_ARCHITECTURE.md was not satisfied because that file remains pre-M11 and pre-Foundry-only."
+}

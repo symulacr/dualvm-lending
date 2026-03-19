@@ -1,0 +1,26 @@
+{
+  "featureId": "forge-fmt-fix",
+  "reviewedAt": "2026-03-19T16:42:08Z",
+  "commitId": "bc680119a94bfc1d0521ba7f1b7619fed0ff5129",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "pass",
+  "codeReview": {
+    "summary": "The implementation fully covers the feature request. I reviewed the feature metadata, handoff, transcript skeleton, commit `bc68011`, and representative/current files including `dualvm/contracts/DebtPool.sol`, `dualvm/contracts/LendingEngine.sol`, `dualvm/script/Deploy.s.sol`, `dualvm/contracts/interfaces/IRiskAdapter.sol`, and `dualvm/test/BilateralFlow.t.sol`. The changes are scoped to forge-driven formatting (line wrapping, brace placement, spacing, and blank-line cleanup) and I found no blocking or non-blocking feature-specific code issues.",
+    "issues": []
+  },
+  "sharedStateObservations": [
+    {
+      "area": "knowledge",
+      "observation": "The shared library docs are stale for M11 and still describe pre-canonical naming/toolchain assumptions, which can mislead future workers reviewing or editing the same Solidity surface area.",
+      "evidence": "`/home/kpa/polkadot/.factory/library/architecture.md:12-17,47-59` still uses `LendingCore`, `RiskAdapter`, and `lendingCoreV2`, while `/home/kpa/polkadot/.factory/library/environment.md:36` still says `Foundry (optional secondary compiler, foundry.toml)`. Current repo guidance says M11 uses canonical names and Foundry as the sole toolchain; see `/home/kpa/polkadot/README.md:42` and current contracts such as `/home/kpa/polkadot/dualvm/contracts/LendingEngine.sol`."
+    },
+    {
+      "area": "skills",
+      "observation": "The `solidity-worker` skill's validation procedure is too rigid for formatting-only fixes. This worker reasonably skipped `forge build`, but the skill still marks that step as mandatory for every feature, so the procedure should document a style-only exception or clarify when `forge test` is sufficient for compile coverage.",
+      "evidence": "`/home/kpa/polkadot/.factory/skills/solidity-worker/SKILL.md:56-59` requires both `forge test` and `forge build`. The fmt-fix handoff at `/home/kpa/.factory/missions/dc664f26-9086-4d9b-896d-ba8f3bde8d71/handoffs/2026-03-19T16-37-22-740Z__forge-fmt-fix__ae2113bd-bfe3-4667-8400-a6dc16ec78ed.json:20-28` records only `forge fmt --check` and `forge test`, yet `skillFeedback.followedProcedure` is still true."
+    }
+  ],
+  "addressesFailureFrom": null,
+  "summary": "Review passed. Commit `bc68011` is appropriately scoped to formatting-only changes that satisfy the fmt-fix feature, and I found no code-level issues in the reviewed diff/current files. I recorded shared-state observations about stale internal M11 guidance and the `solidity-worker` validation procedure for style-only fixes."
+}

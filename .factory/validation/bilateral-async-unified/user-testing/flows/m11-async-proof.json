@@ -1,0 +1,121 @@
+{
+  "groupId": "m11-async-proof",
+  "surface": "terminal-live-onchain",
+  "assertions": [
+    {
+      "id": "VAL-BILATERAL-002",
+      "status": "fail",
+      "reason": "Live liquidation tx 0xa1ad2ca7c7ada4cee6daa13e11866ae56ec8bc7b57b7a302c7837c39f2083b03 emitted Liquidated(correlationId=0xca4aaead8c096b98d48fc31faba8a5022ac73bc2fc376ca98031b912384740e1), but HookRegistry emitted HookFailed and no LiquidationNotified logs exist on XcmLiquidationNotifier from the proof block range to latest. The committed correlator run fetched 1 Liquidated / 0 LiquidationNotified / 1 ReceiptReceived and found 0 correlations, so XCM notifier success and SetTopic(correlationId) are not proven onchain. The failure appears to stem from the testnet XCM send reverting with \"destination or message format may be incompatible\".",
+      "evidence": [
+        "/home/kpa/.factory/missions/dc664f26-9086-4d9b-896d-ba8f3bde8d71/evidence/bilateral-async-unified/m11-async-proof/live-rpc-checks.json",
+        "/home/kpa/.factory/missions/dc664f26-9086-4d9b-896d-ba8f3bde8d71/evidence/bilateral-async-unified/m11-async-proof/event-correlator-historical.txt",
+        "/home/kpa/polkadot/dualvm/deployments/bilateral-proof-artifacts.json",
+        "/home/kpa/polkadot/dualvm/broadcast/BilateralProof.s.sol/420420417/run-1773936798736.json"
+      ],
+      "commands": [
+        {
+          "command": "cd \"/home/kpa/polkadot/dualvm\" && node --input-type=module - <<'NODE' ... NODE",
+          "exitCode": 0,
+          "observation": "Fallback-RPC receipt/log inspection saved live-rpc-checks.json: liquidate correlationId=0xca4aae..., HookFailed was emitted, LiquidationNotified log count=0, receipt correlationId=0xf393ac..., and sameLiquidationAndReceiptCorrelationId=false."
+        },
+        {
+          "command": "cd \"/home/kpa/polkadot/dualvm\" && LENDING_ENGINE=0x74924a4502f666023510ED21Ae6E27bC47eE6485 XCM_NOTIFIER=0x051eBa834d9b8CfadEf166b441B80FC2f8bF0592 XCM_INBOX=0x6df5e3694976fd46Df67b1E6A7BdE85B39271719 FROM_BLOCK=0x6478a0 TO_BLOCK=0x6479b6 npx ts-node scripts/event-correlator.ts --historical > \"/home/kpa/.factory/missions/dc664f26-9086-4d9b-896d-ba8f3bde8d71/evidence/bilateral-async-unified/m11-async-proof/event-correlator-historical.txt\" 2>&1",
+          "exitCode": 0,
+          "observation": "Historical correlator run fetched 1 Liquidated event, 0 LiquidationNotified events, 1 ReceiptReceived event, and 0 correlations."
+        }
+      ]
+    },
+    {
+      "id": "VAL-BILATERAL-005",
+      "status": "fail",
+      "reason": "Deposit via LendingRouter is proven by tx 0x6abdb0c6172aa16138b09c27b0576d38acfb71e7b1c2ed9c8d8d1040b044962c and a historical positions() read showing user collateral=2e18 while router collateral=0. Borrow is proven by tx 0x4d6104a5661a88be0a7500870604f34c1a55577066ef1eaae2da8f5ae92192aa with QuoteVerified(reason=\"cross-vm-match\") and Borrowed(correlationId=0x98c582...). Liquidation is proven by tx 0xa1ad2ca7... with Liquidated(correlationId=0xca4aae...), but there are zero Repaid logs on LendingEngine from the deposit block to latest, and the liquidation is self-liquidation of the same address (borrower == liquidator == 0x36a83a...). The exact full cycle required by the assertion is therefore not proven.",
+      "evidence": [
+        "/home/kpa/.factory/missions/dc664f26-9086-4d9b-896d-ba8f3bde8d71/evidence/bilateral-async-unified/m11-async-proof/live-rpc-checks.json",
+        "/home/kpa/.factory/missions/dc664f26-9086-4d9b-896d-ba8f3bde8d71/evidence/bilateral-async-unified/m11-async-proof/broadcast-bilateral-proof-summary.txt",
+        "/home/kpa/polkadot/dualvm/broadcast/BilateralProof.s.sol/420420417/run-1773936057908.json",
+        "/home/kpa/polkadot/dualvm/broadcast/BilateralProof.s.sol/420420417/run-1773936798736.json"
+      ],
+      "commands": [
+        {
+          "command": "python3 - <<'PY' > \"/home/kpa/.factory/missions/dc664f26-9086-4d9b-896d-ba8f3bde8d71/evidence/bilateral-async-unified/m11-async-proof/broadcast-bilateral-proof-summary.txt\" ... PY",
+          "exitCode": 0,
+          "observation": "Committed BilateralProof broadcast files show stage-1 depositCollateralFromPAS, stage-3 borrow, liquidate, and receiveReceipt transactions, but no repay transaction."
+        },
+        {
+          "command": "cd \"/home/kpa/polkadot/dualvm\" && node --input-type=module - <<'NODE' ... NODE",
+          "exitCode": 0,
+          "observation": "Fallback-RPC checks saved live-rpc-checks.json: positions(user) after deposit block = 2e18 collateral, positions(router)=0, borrow emitted QuoteVerified and Borrowed with correlationId 0x98c582..., log search found repaidLogs=[], and liquidate tx had borrower == liquidator."
+        }
+      ]
+    },
+    {
+      "id": "VAL-BILATERAL-006",
+      "status": "fail",
+      "reason": "The only live XcmInbox receipt tx 0xb5eeb3530a9968a7c062e346771da5f6246128fb546daf3d8383b496ac167499 emitted ReceiptReceived(correlationId=0xf393acd43052b79143eaedbaf47dff7a441a3a0127ef4f2437f4e323ed30878a), which does not match the liquidation correlationId 0xca4aaead8c096b98d48fc31faba8a5022ac73bc2fc376ca98031b912384740e1. Live reads show hasProcessed(0xca4aae...)=false and hasProcessed(0xf393ac...)=true; a read-only receiveReceipt(0xca4aae..., data) call succeeds, while duplicate receiveReceipt(0xf393ac..., data) reverts with DuplicateCorrelationId. That proves duplicate protection exists for the synthetic receipt correlationId, but not the same-correlation Liquidated -> LiquidationNotified -> ReceiptReceived chain required by the assertion. The correlator run still found 0 traces.",
+      "evidence": [
+        "/home/kpa/.factory/missions/dc664f26-9086-4d9b-896d-ba8f3bde8d71/evidence/bilateral-async-unified/m11-async-proof/live-rpc-checks.json",
+        "/home/kpa/.factory/missions/dc664f26-9086-4d9b-896d-ba8f3bde8d71/evidence/bilateral-async-unified/m11-async-proof/event-correlator-historical.txt",
+        "/home/kpa/polkadot/dualvm/deployments/bilateral-proof-artifacts.json",
+        "/home/kpa/polkadot/dualvm/broadcast/BilateralProof.s.sol/420420417/run-1773936798736.json"
+      ],
+      "commands": [
+        {
+          "command": "cd \"/home/kpa/polkadot/dualvm\" && node --input-type=module - <<'NODE' ... NODE",
+          "exitCode": 0,
+          "observation": "Fallback-RPC checks saved live-rpc-checks.json: liquidateCorrelationId=0xca4aae..., receiptCorrelationId=0xf393ac..., sameLiquidationAndReceiptCorrelationId=false, processedLiquidate=false, processedReceipt=true, liquidateCorrCall.status=success, duplicateReceiptCall.decodedError=DuplicateCorrelationId."
+        },
+        {
+          "command": "cd \"/home/kpa/polkadot/dualvm\" && LENDING_ENGINE=0x74924a4502f666023510ED21Ae6E27bC47eE6485 XCM_NOTIFIER=0x051eBa834d9b8CfadEf166b441B80FC2f8bF0592 XCM_INBOX=0x6df5e3694976fd46Df67b1E6A7BdE85B39271719 FROM_BLOCK=0x6478a0 TO_BLOCK=0x6479b6 npx ts-node scripts/event-correlator.ts --historical > \"/home/kpa/.factory/missions/dc664f26-9086-4d9b-896d-ba8f3bde8d71/evidence/bilateral-async-unified/m11-async-proof/event-correlator-historical.txt\" 2>&1",
+          "exitCode": 0,
+          "observation": "The correlator found 0 correlated traces because there was no LiquidationNotified event and the inbox receipt used a different correlationId."
+        }
+      ]
+    },
+    {
+      "id": "VAL-CROSS-M11-001",
+      "status": "fail",
+      "reason": "The committed BilateralProof run demonstrates deposit, borrow, oracle price updates, liquidation, and a receipt submission, but it does not prove one connected async bilateral trace on live deployment. The liquidation tx produced HookFailed instead of LiquidationNotified, the inbox receipt used a different correlationId than the liquidation, and the committed historical correlator run reported 0 correlations. As a result, the user -> LendingEngine -> RiskGateway -> PVM -> HookRegistry -> XCM -> XcmInbox pipeline is not proven end-to-end from current committed artifacts plus live read-only checks.",
+      "evidence": [
+        "/home/kpa/.factory/missions/dc664f26-9086-4d9b-896d-ba8f3bde8d71/evidence/bilateral-async-unified/m11-async-proof/broadcast-bilateral-proof-summary.txt",
+        "/home/kpa/.factory/missions/dc664f26-9086-4d9b-896d-ba8f3bde8d71/evidence/bilateral-async-unified/m11-async-proof/live-rpc-checks.json",
+        "/home/kpa/.factory/missions/dc664f26-9086-4d9b-896d-ba8f3bde8d71/evidence/bilateral-async-unified/m11-async-proof/event-correlator-historical.txt",
+        "/home/kpa/polkadot/dualvm/script/BilateralProof.s.sol"
+      ],
+      "commands": [
+        {
+          "command": "python3 - <<'PY' > \"/home/kpa/.factory/missions/dc664f26-9086-4d9b-896d-ba8f3bde8d71/evidence/bilateral-async-unified/m11-async-proof/broadcast-bilateral-proof-summary.txt\" ... PY",
+          "exitCode": 0,
+          "observation": "The committed broadcast summary shows the intended stage-1 deposit and stage-3 borrow/liquidate/receiveReceipt sequence, plus a non-broadcast duplicate receiveReceipt simulation (hash null)."
+        },
+        {
+          "command": "cd \"/home/kpa/polkadot/dualvm\" && node --input-type=module - <<'NODE' ... NODE",
+          "exitCode": 0,
+          "observation": "Fallback-RPC checks saved live-rpc-checks.json: borrow correlationId=0x98c582..., liquidate correlationId=0xca4aae..., receipt correlationId=0xf393ac..., HookFailed occurred, LiquidationNotified log count=0, and sameLiquidationAndReceiptCorrelationId=false."
+        },
+        {
+          "command": "cd \"/home/kpa/polkadot/dualvm\" && LENDING_ENGINE=0x74924a4502f666023510ED21Ae6E27bC47eE6485 XCM_NOTIFIER=0x051eBa834d9b8CfadEf166b441B80FC2f8bF0592 XCM_INBOX=0x6df5e3694976fd46Df67b1E6A7BdE85B39271719 FROM_BLOCK=0x6478a0 TO_BLOCK=0x6479b6 npx ts-node scripts/event-correlator.ts --historical > \"/home/kpa/.factory/missions/dc664f26-9086-4d9b-896d-ba8f3bde8d71/evidence/bilateral-async-unified/m11-async-proof/event-correlator-historical.txt\" 2>&1",
+          "exitCode": 0,
+          "observation": "The committed correlator implementation produced 0 correlated traces for the proof window, so no unified end-to-end async proof artifact exists."
+        }
+      ]
+    }
+  ],
+  "frictions": [],
+  "blockers": [
+    {
+      "description": "The live liquidation hook reached HookRegistry but emitted HookFailed with an XCM-send revert (\"destination or message format may be incompatible\"). This prevented any LiquidationNotified event from being observed on the canonical proof window.",
+      "affectedAssertions": [
+        "VAL-BILATERAL-002",
+        "VAL-CROSS-M11-001"
+      ],
+      "quickFixAttempted": "Used fallback-RPC receipt/log inspection and reran the committed historical correlator over the exact proof block range; both confirmed 0 notifier logs / 0 correlations."
+    }
+  ],
+  "toolsUsed": [
+    "Read",
+    "LS",
+    "Glob",
+    "Grep",
+    "Execute"
+  ]
+}

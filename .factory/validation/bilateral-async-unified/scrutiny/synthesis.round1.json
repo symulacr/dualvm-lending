@@ -1,0 +1,160 @@
+{
+  "milestone": "bilateral-async-unified",
+  "round": 1,
+  "status": "fail",
+  "validatorsRun": {
+    "test": {
+      "passed": true,
+      "command": "cd \"/home/kpa/polkadot/dualvm\" && forge test",
+      "exitCode": 0
+    },
+    "typecheck": {
+      "passed": true,
+      "command": "cd \"/home/kpa/polkadot/dualvm\" && npx tsc --noEmit",
+      "exitCode": 0
+    },
+    "lint": {
+      "passed": true,
+      "command": "cd \"/home/kpa/polkadot/dualvm\" && forge fmt --check",
+      "exitCode": 0
+    }
+  },
+  "reviewsSummary": {
+    "total": 8,
+    "passed": 1,
+    "failed": 7,
+    "failedFeatures": [
+      "architecture-docs-update",
+      "bilateral-async-proof",
+      "canonical-testnet-deployment",
+      "forge-deploy-script",
+      "foundry-migrate-core-tests",
+      "foundry-migrate-peripheral-tests",
+      "hardhat-removal-foundry-cleanup"
+    ]
+  },
+  "blockingIssues": [
+    {
+      "featureId": "foundry-migrate-core-tests",
+      "severity": "blocking",
+      "description": "Canonical rename was left incomplete: active Solidity still imports old interfaces/names and the old files `LendingCoreV2.sol`, `RiskAdapter.sol`, and `LendingRouterV2.sol` remain in `dualvm/contracts/`."
+    },
+    {
+      "featureId": "foundry-migrate-peripheral-tests",
+      "severity": "blocking",
+      "description": "The Foundry governance migration dropped execute/version-activation coverage: `GovernorLifecycle.t.sol` stops at `queue()` and no longer proves governance `execute()` plus `MarketVersionRegistry.activateVersion()` behavior required by the validation contract."
+    },
+    {
+      "featureId": "hardhat-removal-foundry-cleanup",
+      "severity": "blocking",
+      "description": "`dualvm/package-lock.json` still keeps root Hardhat dependencies, so clean installs via `npm ci` are not actually Foundry-only."
+    },
+    {
+      "featureId": "hardhat-removal-foundry-cleanup",
+      "severity": "blocking",
+      "description": "The cleanup deleted `dualvm/scripts/gasBenchmark.ts` without a replacement, removing requested live-ops benchmarking capability."
+    },
+    {
+      "featureId": "forge-deploy-script",
+      "severity": "blocking",
+      "description": "`Deploy.s.sol` never implemented the required WPAS/USDC asset reuse or override path; it always deploys fresh assets, so the script misses the requested idempotent asset behavior."
+    },
+    {
+      "featureId": "forge-deploy-script",
+      "severity": "blocking",
+      "description": "The reviewed PVM deployment wrapper was not end-to-end usable because `DeployPVM.sh` instructed operators to pass a quote-engine env var that the reviewed `Deploy.s.sol` did not actually consume."
+    },
+    {
+      "featureId": "canonical-testnet-deployment",
+      "severity": "blocking",
+      "description": "The canonical deployment reused an M9 PVM `DeterministicRiskModel` instead of freshly deploying it via `resolc` in this feature run, so the deployment evidence does not match the feature scope."
+    },
+    {
+      "featureId": "canonical-testnet-deployment",
+      "severity": "blocking",
+      "description": "The canonical deployment script hardcodes zero execution delays for sensitive AccessManager roles, violating the mission's non-zero delay posture for risk, treasury, minter, and related operations."
+    },
+    {
+      "featureId": "bilateral-async-proof",
+      "severity": "blocking",
+      "description": "The live proof never required `QuoteVerified`/successful PVM verification during borrow; it could succeed while only observing `CrossVMDivergence`."
+    },
+    {
+      "featureId": "bilateral-async-proof",
+      "severity": "blocking",
+      "description": "`XcmInbox.receiveReceipt()` was exercised with a simulated liquidation correlation ID instead of the real on-chain liquidation ID, so the proof did not close the actual bilateral async trace."
+    },
+    {
+      "featureId": "bilateral-async-proof",
+      "severity": "blocking",
+      "description": "The proof replaced the required duplicate-receipt live revert with a read-only `hasProcessed()` check, so `DuplicateCorrelationId` was not actually proven on testnet."
+    },
+    {
+      "featureId": "bilateral-async-proof",
+      "severity": "blocking",
+      "description": "The live liquidation/XCM proof only logged whether `LiquidationNotified` happened and allowed the proof to pass even when the notifier path failed."
+    },
+    {
+      "featureId": "bilateral-async-proof",
+      "severity": "blocking",
+      "description": "The wrapper makes the event-correlator step non-fatal (`|| true`), so the feature can report success without the required correlator output artifact."
+    },
+    {
+      "featureId": "architecture-docs-update",
+      "severity": "blocking",
+      "description": "`SYSTEM_ARCHITECTURE_AUDIT.md` still contains multiple contradictory pre-M11 sections (`LendingCore`, `RiskAdapter`, stale issue table/ASCII board), so the architecture audit is not consistently updated to the canonical bilateral async system."
+    },
+    {
+      "featureId": "architecture-docs-update",
+      "severity": "blocking",
+      "description": "`README.md` still contains multiple legacy `LendingCore` / `RiskAdapter` references outside the refreshed architecture section, so it is not consistently M11-accurate."
+    },
+    {
+      "featureId": "architecture-docs-update",
+      "severity": "blocking",
+      "description": "`BILATERAL_ASYNC_ARCHITECTURE.md` remained pre-M11/pre-Foundry-only even though the feature explicitly required it to be verified as current."
+    }
+  ],
+  "appliedUpdates": [],
+  "suggestedGuidanceUpdates": [
+    {
+      "target": "deployment-worker",
+      "suggestion": "Replace Hardhat-era deployment instructions with the repo's Foundry-first workflow (`forge build`, `forge test`, `forge script`, `cast` verification, deploy profile/flags), and add a required post-broadcast receipt re-fetch step for any proof that depends on block-derived IDs such as `correlationId`.",
+      "evidence": "Both `canonical-testnet-deployment` and `bilateral-async-proof` reviews found the active deployment procedure already relies on Foundry/cast rather than Hardhat, and the bilateral proof review showed simulation-derived correlation IDs diverging from final on-chain values.",
+      "isSystemic": true
+    },
+    {
+      "target": "docs-worker",
+      "suggestion": "Update the docs-worker validation procedure to use the repo's canonical validator commands from `.factory/services.yaml` (Foundry-first) instead of legacy `npm test` / `npm run build` defaults.",
+      "evidence": "The `architecture-docs-update` review found the docs-worker skill still prescribes npm-centric validation even though M11 repo guidance and services are now `forge test`, `forge build`, and `forge fmt --check`.",
+      "isSystemic": true
+    },
+    {
+      "target": "solidity-worker",
+      "suggestion": "Add an M11 Foundry migration gotchas section covering: updating all `vm.expectEmit` sites when event signatures change, handling Foundry manifest/log censoring for deployment outputs, and allowing a lighter validation path for formatting-only fixes.",
+      "evidence": "The `foundry-migrate-peripheral-tests`, `forge-deploy-script`, and `forge-fmt-fix` reviews each found worker-skill gaps around event-signature migrations, manifest-writing/censoring behavior, and style-only validation scope.",
+      "isSystemic": true
+    },
+    {
+      "target": "AGENTS.md",
+      "suggestion": "Normalize mission guidance to the canonical M11 names and toolchain only: remove contradictory `LendingCore`/`RiskAdapter`/Hardhat-era references and align all guidance with `LendingEngine`, `RiskGateway`, `LendingRouter`, and Foundry-only operations.",
+      "evidence": "The `foundry-migrate-core-tests` and `architecture-docs-update` reviews both found mission guidance and shared references mixing pre-M11 and post-M11 terminology, which likely contributed to incomplete renames and stale docs.",
+      "isSystemic": true
+    }
+  ],
+  "rejectedObservations": [
+    {
+      "observation": "Update `.factory/library/architecture.md`, `.factory/library/environment.md`, and `.factory/library/user-testing.md` immediately for every stale M11 naming/toolchain reference.",
+      "reason": "duplicate: multiple reviews reported the same stale-library drift, and the core guidance problem is already captured in the AGENTS/skill recommendations above rather than mutating several shared knowledge files during a failing scrutiny round."
+    },
+    {
+      "observation": "Remove the legacy Hardhat commands from `.factory/services.yaml` right now.",
+      "reason": "ambiguous: the same scrutiny round found the cleanup feature itself incomplete (`package-lock.json` still retains Hardhat dependencies), so changing the service catalog now would mask rather than document the mismatch until the underlying cleanup fix lands."
+    },
+    {
+      "observation": "Patch mission bookkeeping to backfill `completedWorkerSessionId` for `canonical-testnet-deployment`.",
+      "reason": "ambiguous: this is mission-state bookkeeping rather than a low-risk services/library fact update, and it should be handled by the orchestrator workflow that owns feature state transitions."
+    }
+  ],
+  "previousRound": null
+}

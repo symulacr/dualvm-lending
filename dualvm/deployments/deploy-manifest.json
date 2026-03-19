@@ -18,7 +18,7 @@
   "xcmInbox": "0xd49c285e4e0b5b0aea6d8b68bd2f7735a01b5376",
   "marketVersionRegistry": "0xc0e86b4c0e3ad3d5d5056ebdc07127c377cf89c3",
   "marketMigrationCoordinator": "0x70d3fdebde19709ee02baef2bff03b0fb01ec6a7",
-  "governanceToken": "cast call <dualVMGovernor> token()(address)",
+  "governanceToken": "0xf0eb7ab45481318d7b4a4df77b5a889486a9e4f0",
   "timelockController": "0xda50a7bb489a4316e6ac3816a338c34fae856d32",
   "dualVMGovernor": "0xc2ea3478d1a11c257a0f7f2d7f3d95722729c715"
 }

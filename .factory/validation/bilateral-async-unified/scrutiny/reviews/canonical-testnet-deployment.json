@@ -1,0 +1,45 @@
+{
+  "featureId": "canonical-testnet-deployment",
+  "reviewedAt": "2026-03-19T16:43:32Z",
+  "commitId": "54e3007",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "fail",
+  "codeReview": {
+    "summary": "Fail. I reviewed the feature metadata, the available handoff/transcript evidence for worker session `aaf348d1-307c-4cb9-a717-a6b254c006b7`, the matching deployment commit `54e3007`, and the committed deployment artifacts/current code. The feature does deploy and record a canonical EVM system, but it misses a required deployment step by reusing an older PVM DeterministicRiskModel from M9 instead of deploying one via resolc for this feature, and it hardcodes zero AccessManager execution delays for sensitive roles in the canonical deployment script. I also noted that the feature's transcript linkage is incomplete in `features.json` (`completedWorkerSessionId` is null), so I had to anchor the review via `workerSessionIds`, the handoff file, and the later matching git commit.",
+    "issues": [
+      {
+        "file": "dualvm/deployments/polkadot-hub-testnet-m11-canonical.json",
+        "line": 67,
+        "severity": "blocking",
+        "description": "The feature requirement explicitly says to deploy the PVM `DeterministicRiskModel` via resolc during this run, but the committed canonical manifest states the live quote engine was `deployed M9 via resolc` and `pvmProof.deployedInMilestone` is `M9 (stabilize-connect-derisk)`. That means this feature wired a pre-existing PVM deployment instead of completing step 2 of its own description, so the deployment evidence does not match the promised scope."
+      },
+      {
+        "file": "dualvm/script/Deploy.s.sol",
+        "line": 121,
+        "severity": "blocking",
+        "description": "The canonical deployment script sets `RISK_ADMIN_DELAY`, `TREASURY_DELAY`, `MINTER_DELAY`, `GOVERNANCE_DELAY`, and `MIGRATION_DELAY` to `0`, and those zero delays are then granted to the timelock-backed roles during `_wireLabelsAndGrants`. This violates the mission's locked deployment posture for non-zero sensitive-role delays and means the live canonical deployment created by this feature is not actually configured with the expected delayed execution model."
+      },
+      {
+        "file": "dualvm/deployments/polkadot-hub-testnet-m11-canonical.json",
+        "line": 41,
+        "severity": "non_blocking",
+        "description": "The feature description asked to explorer-verify contracts on Blockscout if possible, but the committed artifact preserves only four plain explorer URLs and no per-contract verification status or proof. The handoff/transcript evidence I reviewed also does not record a Blockscout verification step, so the deployment's explorer-verification evidence is incomplete even if verification happened out of band."
+      }
+    ]
+  },
+  "sharedStateObservations": [
+    {
+      "area": "conventions",
+      "observation": "Mission state tracking is inconsistent for this completed feature: `features.json` leaves `completedWorkerSessionId` null even though the feature has a worker session ID and a handoff file. That breaks the normal review lookup path and forced this review to recover the evidence indirectly from `workerSessionIds`, the handoff filename, and the later matching git commit.",
+      "evidence": "/home/kpa/.factory/missions/dc664f26-9086-4d9b-896d-ba8f3bde8d71/features.json:2195-2199 shows `workerSessionIds` containing `aaf348d1-307c-4cb9-a717-a6b254c006b7` while `completedWorkerSessionId` is null; the corresponding handoff exists at `/home/kpa/.factory/missions/dc664f26-9086-4d9b-896d-ba8f3bde8d71/handoffs/2026-03-19T04-59-13-012Z__canonical-testnet-deployment__aaf348d1-307c-4cb9-a717-a6b254c006b7.json`."
+    },
+    {
+      "area": "skills",
+      "observation": "`deployment-worker` is stale after the M11 Foundry migration. The skill still instructs workers to use Hardhat compile/deploy/verify commands and `npm test`, but this feature's transcript shows the real workflow was `forge build`, `forge script script/Deploy.s.sol`, direct `cast` checks, and a Foundry-based deployment profile. Future deployment workers are likely to start from the wrong procedure unless the skill is updated.",
+      "evidence": "/home/kpa/polkadot/.factory/skills/deployment-worker/SKILL.md:27,31-32,42,49 still prescribe `npx hardhat compile`, `npx hardhat run ...`, `npx hardhat run scripts/verifyAll.ts`, and `npm test`; the transcript skeleton for worker session `aaf348d1-307c-4cb9-a717-a6b254c006b7` shows `forge build`, `forge script script/Deploy.s.sol`, and multiple `cast` verification calls instead."
+    }
+  ],
+  "addressesFailureFrom": null,
+  "summary": "Reviewed the available handoff/transcript evidence for `canonical-testnet-deployment`, the matching repo commit `54e3007`, the deployment diff, and the committed manifests/script. This feature should fail scrutiny because its own canonical manifest says the live PVM quote engine was reused from M9 rather than freshly deployed via resolc, and the deployment script hardcodes zero sensitive-role delays for the canonical AccessManager configuration. I also recorded two shared-state gaps: missing `completedWorkerSessionId` linkage for the completed feature and an outdated deployment-worker skill that still documents Hardhat-era commands instead of the Foundry workflow actually used here."
+}

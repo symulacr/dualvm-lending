@@ -1,0 +1,56 @@
+{
+  "surface": "terminal-hardhat",
+  "assertions": [
+    {
+      "id": "VAL-BILATERAL-001",
+      "status": "fail",
+      "reason": "Fail: canonical top-level files now exist and Foundry build/test pass (forge build exit 0; forge test exit 0 with 294/294 tests), and Hardhat config/dependencies plus test/*.ts files are absent; however the strict rename/toolchain assertion is still not fully satisfied because active source roots retain legacy names/imports (for example IRiskAdapter.sol, IMigratableLendingCore.sol, DebtPool/MarketVersionRegistry/lendingCore identifiers, and LendingCore/LendingCoreV2 comments), and deployment is not Foundry-only because non-Foundry deployment entrypoints remain (script/DeployPVM.sh, scripts/deploy-deterministic-risk-model-pvm.mjs, scripts/deployNotifierDirect.mjs, and package.json deploy:pvm:riskmodel:standalone).",
+      "evidence": [
+        {
+          "check": "Canonical source rename at file level",
+          "result": "partial_pass",
+          "details": "Present: contracts/LendingEngine.sol, contracts/RiskGateway.sol, contracts/LendingRouter.sol, contracts/GovernancePolicyStore.sol. No matches for contracts/**/LendingCoreV2.sol, RiskAdapter.sol, LendingRouterV2.sol, or LendingCore.sol."
+        },
+        {
+          "check": "Foundry test migration",
+          "result": "pass",
+          "details": "18 Foundry test files under test/**/*.t.sol; no test/**/*.ts or test/**/*.js files found."
+        },
+        {
+          "check": "forge build / forge test status",
+          "result": "pass",
+          "details": "forge build exited 0 (compilation skipped, lint notes only, no compile errors). forge test exited 0 with 19 suites and 294/294 tests passing."
+        },
+        {
+          "check": "Hardhat config/dependencies/test infrastructure removal",
+          "result": "pass",
+          "details": "No hardhat.config.* file found; package.json has no dependency/devDependency containing \"hardhat\"; package-lock.json has no literal \"hardhat\" package entry; no TypeScript/JavaScript test files remain under test/."
+        },
+        {
+          "check": "Legacy names lingering in active source roots",
+          "result": "fail",
+          "details": "Examples: contracts/interfaces/IRiskAdapter.sol, contracts/interfaces/IMigratableLendingCore.sol, contracts/LendingEngine.sol imports those interfaces, contracts/DebtPool.sol still exposes lendingCore/setLendingCore/OnlyLendingCore, contracts/MarketVersionRegistry.sol and contracts/interfaces/IMarketVersionRegistry.sol still use lendingCore fields/params, scripts/snapshot-recent-events.mjs and scripts/liquidation-watch.mjs still reference manifest.contracts.lendingCore, and comments still mention LendingCore/LendingCoreV2."
+        },
+        {
+          "check": "Foundry-only deployment toolchain",
+          "result": "fail",
+          "details": "Non-Foundry deployment entrypoints remain in active roots/package scripts: script/DeployPVM.sh, scripts/deploy-deterministic-risk-model-pvm.mjs, scripts/deployNotifierDirect.mjs, and package.json script deploy:pvm:riskmodel:standalone=node scripts/deploy-deterministic-risk-model-pvm.mjs."
+        },
+        {
+          "check": "Saved evidence note",
+          "result": "info",
+          "details": "/home/kpa/.factory/missions/dc664f26-9086-4d9b-896d-ba8f3bde8d71/evidence/bilateral-async-unified/m11-local-foundry-rerun/source-toolchain-audit.json"
+        }
+      ]
+    }
+  ],
+  "toolsUsed": [
+    "Read",
+    "LS",
+    "Glob",
+    "Grep",
+    "Execute"
+  ],
+  "frictions": [],
+  "blockers": []
+}

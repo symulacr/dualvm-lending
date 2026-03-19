@@ -1,0 +1,70 @@
+{
+  "surface": "terminal-live-onchain",
+  "testedAt": "2026-03-19T18:36:15Z",
+  "assertions": [
+    {
+      "id": "VAL-BILATERAL-002",
+      "status": "fail",
+      "reason": "The live liquidation tx 0xa1ad2ca7c7ada4cee6daa13e11866ae56ec8bc7b57b7a302c7837c39f2083b03 emitted Liquidated with non-zero correlationId 0xca4aaead..., but HookRegistry emitted HookFailed instead of HookExecuted and no LiquidationNotified event was found. The historical correlator fetched 1 Liquidated, 0 LiquidationNotified, and 1 ReceiptReceived event, then found 0 correlations, so the on-chain hook/notifier leg is not proven.",
+      "evidence": [
+        "/home/kpa/.factory/missions/dc664f26-9086-4d9b-896d-ba8f3bde8d71/evidence/bilateral-async-unified/m11-live-async-rerun/live-async-summary.json",
+        "/home/kpa/polkadot/dualvm/deployments/bilateral-proof-artifacts.json",
+        "fallback RPC receipt 0xa1ad2ca7... -> Liquidated(correlationId=0xca4aaead...), HookFailed(handler=0x3027259a3F1372DA4DbCE8b17BAC525dc0bB9Faa)",
+        "historical correlator over blocks 6584752-6584758 -> correlations=0"
+      ]
+    },
+    {
+      "id": "VAL-BILATERAL-005",
+      "status": "fail",
+      "reason": "The canonical deployment proves deposit via LendingRouter (tx 0x6abdb0c6...), borrow with QuoteVerified and Borrowed(correlationId=0x98c58249...) (tx 0x4d6104a5...), and liquidation with Liquidated(correlationId=0xca4aaead...) (tx 0xa1ad2ca7...). It does not prove the full required cycle because there are zero Repaid events on LendingEngine from the proof start block to latest, and the only liquidation is self-liquidation of the same address as borrower and liquidator rather than a distinct second position.",
+      "evidence": [
+        "/home/kpa/.factory/missions/dc664f26-9086-4d9b-896d-ba8f3bde8d71/evidence/bilateral-async-unified/m11-live-async-rerun/live-async-summary.json",
+        "/home/kpa/polkadot/dualvm/deployments/bilateral-proof-artifacts.json",
+        "deposit tx 0x6abdb0c6... -> to LendingRouter, CollateralDeposited(account=0x36a83a..., correlationId=0x266edf0b...)",
+        "borrow tx 0x4d6104a5... -> QuoteVerified(reason=\"cross-vm-match\"), Borrowed(correlationId=0x98c58249...)",
+        "live event scan from block 6584400 -> repaid=0"
+      ]
+    },
+    {
+      "id": "VAL-BILATERAL-006",
+      "status": "fail",
+      "reason": "XcmInbox.receiveReceipt is only proven for receipt correlationId 0xf393acd4... in tx 0xb5eeb353..., not for the liquidation correlationId 0xca4aaead.... Live reads show hasProcessed(0xca4aaead...) = false and hasProcessed(0xf393acd4...) = true. Combined with the missing HookExecuted/LiquidationNotified leg, the live proof does not connect HookRegistry and XcmInbox through one shared correlationId.",
+      "evidence": [
+        "/home/kpa/.factory/missions/dc664f26-9086-4d9b-896d-ba8f3bde8d71/evidence/bilateral-async-unified/m11-live-async-rerun/live-async-summary.json",
+        "/home/kpa/polkadot/dualvm/deployments/bilateral-proof-artifacts.json",
+        "fallback RPC receipt 0xb5eeb353... -> ReceiptReceived(correlationId=0xf393acd4...)",
+        "cast call hasProcessed(0xca4aaead...) -> false; hasProcessed(0xf393acd4...) -> true",
+        "historical correlator over blocks 6584752-6584758 -> correlations=0"
+      ]
+    },
+    {
+      "id": "VAL-CROSS-M11-001",
+      "status": "fail",
+      "reason": "The current canonical M11 artifacts do not show one connected live async bilateral trace. The proof window contains deposit, borrow, liquidation, and a separate inbox receipt, but no repay tx, no LiquidationNotified event, no HookExecuted event, and no matching liquidation/receipt correlationId. The correlator therefore reports 0 connected traces, so the live partial proof required by the assertion is still not satisfied.",
+      "evidence": [
+        "/home/kpa/.factory/missions/dc664f26-9086-4d9b-896d-ba8f3bde8d71/evidence/bilateral-async-unified/m11-live-async-rerun/live-async-summary.json",
+        "/home/kpa/polkadot/dualvm/deployments/bilateral-proof-artifacts.json",
+        "live event counts since block 6584400 -> borrowed=1, repaid=0, liquidated=1, liquidationNotified=0, receiptReceived=1",
+        "historical correlator over blocks 6584752-6584758 -> correlations=0"
+      ]
+    }
+  ],
+  "toolsUsed": [
+    "Read",
+    "LS",
+    "Glob",
+    "Grep",
+    "Execute"
+  ],
+  "frictions": [],
+  "blockers": [
+    {
+      "description": "The live liquidation hook reached LiquidationHookRegistry but emitted HookFailed with the revert reason \"XCM send failed: destination or message format may be incompatible\", so no LiquidationNotified event was produced in the proof window.",
+      "affectedAssertions": [
+        "VAL-BILATERAL-002",
+        "VAL-BILATERAL-006",
+        "VAL-CROSS-M11-001"
+      ]
+    }
+  ]
+}

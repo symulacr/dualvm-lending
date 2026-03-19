@@ -1,0 +1,34 @@
+{
+  "featureId": "foundry-migrate-peripheral-tests",
+  "reviewedAt": "2026-03-19T16:44:15.204621Z",
+  "commitId": "4a1ae55a85256960e3f40e6576bfff5a857adf1c",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "fail",
+  "codeReview": {
+    "summary": "Most of the peripheral suites were moved to Foundry and the M11 contract changes are present, but the migration regresses the original governance coverage and slightly weakens one access-control assertion from the deleted Hardhat tests.",
+    "issues": [
+      {
+        "file": "/home/kpa/polkadot/dualvm/test/GovernorLifecycle.t.sol",
+        "line": 239,
+        "severity": "blocking",
+        "description": "`test_ProposalLifecycle_ProposeVoteQueueSucceeds` stops after `governor.queue()` and only asserts the proposal reached `Queued`. The deleted Hardhat suite covered the full `queue -> execute` flow and verified that a governance proposal actually activated a new market version (`dualvm/test/GovernorLifecycle.ts:106-206`). The mission validation contract also requires executed governance proposals and governance-driven version activation (`/home/kpa/.factory/missions/dc664f26-9086-4d9b-896d-ba8f3bde8d71/validation-contract.md:29-39`). Because the Foundry migration removed `execute()` and all `marketRegistry.activateVersion()` assertions from this file, it no longer fully migrates the original peripheral governance test or proves the required behavior."
+      },
+      {
+        "file": "/home/kpa/polkadot/dualvm/test/XcmInbox.t.sol",
+        "line": 124,
+        "severity": "non_blocking",
+        "description": "The unauthorized-path migration was weakened from a specific custom-error assertion to a generic `vm.expectRevert()`. The deleted Hardhat test asserted `AccessManagedUnauthorized` explicitly (`dualvm/test/XcmInbox.ts:195-202`), while the Foundry version at line 124 will pass for any revert reason. That makes the migrated suite less precise and could miss an accidental change in the access-control failure mode."
+      }
+    ]
+  },
+  "sharedStateObservations": [
+    {
+      "area": "skills",
+      "observation": "The Solidity worker skill documents `vm.expectEmit` generally, but it does not warn that changing an event signature requires updating every existing `vm.expectEmit` site across older suites. That omission showed up as the main migration gotcha in this worker run.",
+      "evidence": "`/home/kpa/polkadot/.factory/skills/solidity-worker/SKILL.md:30-38` covers generic Foundry test patterns, while `/home/kpa/.factory/missions/dc664f26-9086-4d9b-896d-ba8f3bde8d71/handoffs/2026-03-19T03-04-59-522Z__foundry-migrate-peripheral-tests__75bb15a2-ace2-4a75-a37d-f37eb78f1a2b.json:228-229` records the worker's note that event-signature changes forced follow-on updates in `BatchLiquidation.t.sol`, `LendingEngine.t.sol`, and `LendingHardened.t.sol`."
+    }
+  ],
+  "addressesFailureFrom": null,
+  "summary": "Reviewed the handoff, transcript skeleton, commit diff, and changed Solidity/test files for `foundry-migrate-peripheral-tests`. Result: fail, because the Foundry migration dropped the original governor execute/version-activation coverage and slightly weakened the XcmInbox access-control regression test."
+}

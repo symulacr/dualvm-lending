@@ -1,0 +1,51 @@
+{
+  "milestone": "bilateral-async-unified",
+  "round": 1,
+  "status": "fail",
+  "assertionsSummary": {
+    "total": 9,
+    "passed": 3,
+    "failed": 6,
+    "blocked": 0
+  },
+  "passedAssertions": [
+    "VAL-BILATERAL-003",
+    "VAL-BILATERAL-004",
+    "VAL-BILATERAL-007"
+  ],
+  "failedAssertions": [
+    {
+      "id": "VAL-BILATERAL-001",
+      "reason": "Foundry build/test passed and Hardhat config/tests are removed, but the active source tree still contains contracts/LendingCore.sol and additional legacy-name references, so the canonical rename assertion is not fully satisfied as written."
+    },
+    {
+      "id": "VAL-BILATERAL-002",
+      "reason": "The canonical liquidation tx emitted HookFailed, no LiquidationNotified event was observed, and the correlator produced zero matches, so the live correlationId flow through HookRegistry to XCM is not proven on-chain."
+    },
+    {
+      "id": "VAL-BILATERAL-005",
+      "reason": "Deposit, borrow, and liquidation are evidenced on the canonical deployment, but no repay transaction is recorded for the M11 proof window and the liquidation is not a second-position proof, so the full required lending cycle is not proven exactly as asserted."
+    },
+    {
+      "id": "VAL-BILATERAL-006",
+      "reason": "XcmInbox duplicate protection is proven only for a synthetic receipt correlationId; the recorded ReceiptReceived correlationId does not match the liquidation correlationId, so the required same-correlation Liquidated -> LiquidationNotified -> ReceiptReceived chain is not proven."
+    },
+    {
+      "id": "VAL-BILATERAL-008",
+      "reason": "SYSTEM_ARCHITECTURE_AUDIT.md and docs/dualvm/dualvm_submission_final.md still contain active pre-M11 names and claims, and README still has residual active LendingCore references, so the architecture docs do not yet fully reflect the unified bilateral system."
+    },
+    {
+      "id": "VAL-CROSS-M11-001",
+      "reason": "The committed bilateral proof does not prove one connected async bilateral trace: the liquidation path emitted HookFailed, the receipt used a different correlationId, and the correlator produced zero unified traces."
+    }
+  ],
+  "blockedAssertions": [],
+  "appliedUpdates": [
+    {
+      "target": "user-testing.md",
+      "description": "Added bilateral-async-unified run notes covering fallback-RPC governance checks, current async-proof gaps, and strict rename/doc-audit caveats.",
+      "source": "flow-report"
+    }
+  ],
+  "previousRound": null
+}

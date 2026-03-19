@@ -2,7 +2,7 @@
   "idleTimeoutMs": 900000,
   "servers": {
     "typescript-language-server": {
-      "rootMarkers": [".lsp.json", "dualvm/package.json", "dualvm/tsconfig.json"]
+      "rootMarkers": ["tsconfig.json", "jsconfig.json"]
     },
     "vscode-json-language-server": {
       "rootMarkers": [".lsp.json"]
@@ -18,18 +18,6 @@
       "initOptions": {
         "provideFormatter": true
       }
-    },
-    "yaml-language-server": {
-      "command": "yaml-language-server",
-      "args": ["--stdio"],
-      "fileTypes": [".yaml", ".yml"],
-      "rootMarkers": [".lsp.json"]
-    },
-    "bash-language-server": {
-      "command": "bash-language-server",
-      "args": ["start"],
-      "fileTypes": [".sh", ".bash", ".zsh"],
-      "rootMarkers": [".lsp.json"]
     },
     "pyright": {
       "rootMarkers": [".lsp.json"]
@@ -50,7 +38,7 @@
       "command": "nomicfoundation-solidity-language-server",
       "args": ["--stdio"],
       "fileTypes": [".sol"],
-      "rootMarkers": [".lsp.json", "dualvm/hardhat.config.ts", "dualvm/package.json"]
+      "rootMarkers": ["hardhat.config.ts", "hardhat.config.js", "foundry.toml", "remappings.txt"]
     }
   }
 }
