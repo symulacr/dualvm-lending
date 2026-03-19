@@ -1,12 +1,16 @@
 commands:
-  install: cd dualvm && npm ci
-  test: cd dualvm && TMPDIR=/var/tmp npm test
+  install: cd dualvm && npm ci && forge install
+  test: cd dualvm && forge test
+  test_verbose: cd dualvm && forge test -vvv
   typecheck: cd dualvm && npx tsc --noEmit
-  build: cd dualvm && npm run build
-  compile: cd dualvm && npx hardhat compile
+  build: cd dualvm && forge build
+  compile: cd dualvm && forge build
   compile_pvm: cd dualvm && npm run build:pvm:probes
   balance_check: cd dualvm && node scripts/check-testnet-balance.mjs
-  lint: cd dualvm && npm run lint
+  lint: cd dualvm && forge fmt --check
+  # Legacy Hardhat commands (will be removed after M11 hardhat-removal-foundry-cleanup)
+  test_hardhat: cd dualvm && TMPDIR=/var/tmp npm test
+  build_hardhat: cd dualvm && npm run build
 
 services:
   vite-dev:
