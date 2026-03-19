@@ -506,14 +506,20 @@ New markets (new asset pairs or upgraded risk parameters) are deployed, register
 
 ### 1. Deploy New Market Contracts
 
-Use `deployMarketVersion` from `lib/deployment/deployMarketVersion.ts`:
+Use `deployMarketVersion` from `lib/deployment/deployMarketVersion.ts` directly in a custom script:
 
-```bash
-# Set collateral + debt token addresses in .env, then:
-npm run deploy:governed:testnet
+```typescript
+import { deployMarketVersion } from "./lib/deployment/deployMarketVersion";
+
+const result = await deployMarketVersion({
+  deployer,
+  authority: EXISTING_ACCESS_MANAGER_ADDRESS,
+  collateralAsset: WPAS_ADDRESS,
+  debtAsset: USDC_ADDRESS,
+});
 ```
 
-This deploys a fresh `ManualOracle`, `RiskAdapter`, `DebtPool`, and `LendingCore` wired together under the existing `AccessManager`.
+This deploys a fresh `ManualOracle`, `RiskAdapter`, `DebtPool`, and `LendingCore` wired together under the existing `AccessManager`. Do **not** use `npm run deploy:governed:testnet` — that script creates a brand-new governed system (fresh AccessManager, WPAS, USDC) rather than adding a market to the existing registry.
 
 ### 2. Register via MarketVersionRegistry
 
@@ -525,7 +531,9 @@ After registration, submit a second proposal (or batch both calls) targeting `Ma
 
 ### 4. Open Migration Routes
 
-To let borrowers move from an old version, call `MarketMigrationCoordinator.openMigrationRoute(fromVersionId, toVersionId, borrowerEnabled, liquidityEnabled)` — also governance-restricted. Then call `migrateBorrower(account)` per position.
+To let borrowers move from an old version, call `MarketMigrationCoordinator.openMigrationRoute(fromVersionId, toVersionId, borrowerEnabled, liquidityEnabled)` — also governance-restricted. Then each borrower (or a migration operator) calls `migrateBorrower(fromVersionId, toVersionId)` per position.
+
+> **Permission note:** Before migration can execute, the `MarketMigrationCoordinator` address must be granted the role that authorises it to call `exportPositionForMigration` on the old `LendingCore` and `importMigratedPosition` on the new one. Wire these via an `AccessManager.setTargetFunctionRole` governance proposal before opening the route.
 
 ## Known Limitations
 

@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
+import {AccessManaged} from "@openzeppelin/contracts/access/manager/AccessManaged.sol";
+
 /**
  * @title XcmInbox
  * @notice Receives and de-duplicates asynchronous XCM receipts identified by a
@@ -11,8 +13,14 @@ pragma solidity ^0.8.28;
  *      cross-chain operation completes.  Duplicate delivery — which is possible
  *      under at-least-once XCM semantics — is rejected idempotently via the
  *      `processed` mapping.
+ *
+ *      Access control: `receiveReceipt` is restricted via AccessManaged so that
+ *      only the authorised relay/bridge caller (wired by the AccessManager admin)
+ *      can submit receipts.  This prevents any arbitrary account from spoofing a
+ *      receipt and consuming a correlationId before the legitimate XCM delivery
+ *      arrives.
  */
-contract XcmInbox {
+contract XcmInbox is AccessManaged {
     // -------------------------------------------------------------------------
     // State
     // -------------------------------------------------------------------------
@@ -40,18 +48,31 @@ contract XcmInbox {
     error DuplicateCorrelationId(bytes32 correlationId);
 
     // -------------------------------------------------------------------------
+    // Constructor
+    // -------------------------------------------------------------------------
+
+    /**
+     * @param authority_ The AccessManager that governs this contract.
+     *                   Must grant the desired relay/bridge address the role
+     *                   that is mapped to `receiveReceipt` before any receipt
+     *                   can be submitted.
+     */
+    constructor(address authority_) AccessManaged(authority_) {}
+
+    // -------------------------------------------------------------------------
     // External functions
     // -------------------------------------------------------------------------
 
     /**
      * @notice Record an incoming XCM receipt.
-     * @dev    Reverts with `DuplicateCorrelationId` if `correlationId` was already
-     *         received.  Marks the ID as processed before emitting to prevent
-     *         re-entrancy from causing double-processing.
+     * @dev    Restricted: only the authorised relay caller (wired via AccessManager)
+     *         may call this function.  Reverts with `DuplicateCorrelationId` if
+     *         `correlationId` was already received.  Marks the ID as processed
+     *         before emitting to prevent re-entrancy from causing double-processing.
      * @param correlationId Unique identifier for this receipt.
      * @param data          Arbitrary payload delivered with the receipt.
      */
-    function receiveReceipt(bytes32 correlationId, bytes calldata data) external {
+    function receiveReceipt(bytes32 correlationId, bytes calldata data) external restricted {
         if (processed[correlationId]) revert DuplicateCorrelationId(correlationId);
 
         processed[correlationId] = true;

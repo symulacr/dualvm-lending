@@ -78,42 +78,72 @@ export interface CorrelatorLog {
 
 /**
  * Correlates Liquidated and LiquidationNotified events by borrower address and
- * block number. Matched pairs are returned; each notified event is matched at most once.
+ * block number. Matched pairs are returned; each event is matched at most once.
+ *
+ * Algorithm: build every candidate (liq, notif) pair within tolerance, sort by
+ * ascending block distance (then by original liq index for stable tie-breaking),
+ * and greedily assign the closest matches first.  This ensures that when the same
+ * borrower is liquidated multiple times in nearby blocks the pairing favours the
+ * exact/nearest block match rather than the first event encountered.
+ *
+ * Example: Liquidated(Alice@100), Liquidated(Alice@101), LiquidationNotified(Alice@101)
+ * → the notification is assigned to Liquidated@101 (distance=0), not Liquidated@100
+ *   (distance=1).
  *
  * @param liquidatedEvents   Buffer of Liquidated events received.
  * @param notifiedEvents     Buffer of LiquidationNotified events received.
  * @param blockTolerance     Maximum block-number difference to consider a match (default 2).
- * @returns                  Array of correlated pairs in arrival order.
+ * @returns                  Array of correlated pairs ordered by original liquidated index.
  */
 export function correlateEvents(
   liquidatedEvents: LiquidatedEventData[],
   notifiedEvents: LiquidationNotifiedEventData[],
   blockTolerance = 2,
 ): CorrelatedPair[] {
-  const pairs: CorrelatedPair[] = [];
-  const usedNotifiedIndices = new Set<number>();
+  // Step 1: collect all candidate (liqIdx, notifIdx, dist) triples within tolerance.
+  interface Candidate {
+    liqIdx: number;
+    notifIdx: number;
+    dist: number;
+  }
 
-  for (const liq of liquidatedEvents) {
-    const matchIdx = notifiedEvents.findIndex(
-      (notif, idx) =>
-        !usedNotifiedIndices.has(idx) &&
-        notif.borrower.toLowerCase() === liq.borrower.toLowerCase() &&
-        Math.abs(Number(notif.blockNumber) - Number(liq.blockNumber)) <= blockTolerance,
-    );
-
-    if (matchIdx >= 0) {
-      usedNotifiedIndices.add(matchIdx);
-      pairs.push({
-        borrower: liq.borrower,
-        blockNumber: liq.blockNumber,
-        liquidated: liq,
-        notified: notifiedEvents[matchIdx],
-        correlatedAtMs: Date.now(),
-      });
+  const candidates: Candidate[] = [];
+  for (let li = 0; li < liquidatedEvents.length; li++) {
+    const liq = liquidatedEvents[li];
+    for (let ni = 0; ni < notifiedEvents.length; ni++) {
+      const notif = notifiedEvents[ni];
+      if (notif.borrower.toLowerCase() !== liq.borrower.toLowerCase()) continue;
+      const dist = Math.abs(Number(notif.blockNumber) - Number(liq.blockNumber));
+      if (dist > blockTolerance) continue;
+      candidates.push({ liqIdx: li, notifIdx: ni, dist });
     }
   }
 
-  return pairs;
+  // Step 2: sort by distance ascending; break ties by liqIdx then notifIdx (stable FIFO).
+  candidates.sort((a, b) => a.dist - b.dist || a.liqIdx - b.liqIdx || a.notifIdx - b.notifIdx);
+
+  // Step 3: greedy assignment — closest pair wins, each event used at most once.
+  const usedLiqIndices = new Set<number>();
+  const usedNotifIndices = new Set<number>();
+  const assigned: Array<{ liqIdx: number; notifIdx: number }> = [];
+
+  for (const { liqIdx, notifIdx } of candidates) {
+    if (usedLiqIndices.has(liqIdx) || usedNotifIndices.has(notifIdx)) continue;
+    usedLiqIndices.add(liqIdx);
+    usedNotifIndices.add(notifIdx);
+    assigned.push({ liqIdx, notifIdx });
+  }
+
+  // Step 4: restore original liquidated-event order and build result pairs.
+  assigned.sort((a, b) => a.liqIdx - b.liqIdx);
+
+  return assigned.map(({ liqIdx, notifIdx }) => ({
+    borrower: liquidatedEvents[liqIdx].borrower,
+    blockNumber: liquidatedEvents[liqIdx].blockNumber,
+    liquidated: liquidatedEvents[liqIdx],
+    notified: notifiedEvents[notifIdx],
+    correlatedAtMs: Date.now(),
+  }));
 }
 
 /**

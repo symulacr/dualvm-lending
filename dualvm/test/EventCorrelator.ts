@@ -167,6 +167,49 @@ describe("event-correlator", function () {
     expect(pairs[0].borrower.toLowerCase()).to.equal(ALICE.toLowerCase());
   });
 
+  // ── correlateEvents: closest-block matching for same-borrower repeats ────
+
+  it("matches notification to closest block, not first in-range, for repeated same-borrower liquidations", function () {
+    // Scenario: Alice is liquidated at block 100 and again at block 101.
+    // There is one LiquidationNotified for Alice at block 101 (exact match for liq2).
+    // Greedy first-in-range would match notif@101 to liq1@100 (gap=1, within tolerance=2).
+    // Closest-block matching must match notif@101 to liq2@101 (gap=0, exact).
+    const liq1 = makeLiquidated({ blockNumber: 100n, txHash: TX_LIQ_ALICE });
+    const liq2 = makeLiquidated({ blockNumber: 101n, txHash: TX_LIQ_BOB });
+    const notif = makeNotified({ blockNumber: 101n, txHash: TX_NOTIF_ALICE });
+
+    const pairs = correlateEvents([liq1, liq2], [notif], 2);
+
+    // Only one match is possible (one notif)
+    expect(pairs).to.have.length(1);
+    // The match must be liq2 (block 101) — exact block match — not liq1 (block 100)
+    expect(pairs[0].liquidated.txHash).to.equal(TX_LIQ_BOB);
+    expect(pairs[0].notified.txHash).to.equal(TX_NOTIF_ALICE);
+    expect(pairs[0].blockNumber).to.equal(101n);
+  });
+
+  it("matches each liquidation to its closest notification when both have nearby blocks", function () {
+    // Alice liquidated at 100 and 103. Two notifications at 100 and 103.
+    // Both should be matched to their exact block.
+    const liq1 = makeLiquidated({ blockNumber: 100n, txHash: TX_LIQ_ALICE });
+    const liq2 = makeLiquidated({ blockNumber: 103n, txHash: TX_LIQ_BOB });
+    const notif1 = makeNotified({ blockNumber: 100n, txHash: TX_NOTIF_ALICE });
+    const notif2 = makeNotified({ blockNumber: 103n, txHash: TX_NOTIF_BOB });
+
+    const pairs = correlateEvents([liq1, liq2], [notif1, notif2], 5);
+
+    expect(pairs).to.have.length(2);
+    // liq1@100 should pair with notif1@100
+    const pair1 = pairs.find((p) => p.liquidated.txHash === TX_LIQ_ALICE);
+    expect(pair1).to.not.be.undefined;
+    expect(pair1!.notified.txHash).to.equal(TX_NOTIF_ALICE);
+
+    // liq2@103 should pair with notif2@103
+    const pair2 = pairs.find((p) => p.liquidated.txHash === TX_LIQ_BOB);
+    expect(pair2).to.not.be.undefined;
+    expect(pair2!.notified.txHash).to.equal(TX_NOTIF_BOB);
+  });
+
   // ── correlateEvents: each notified event used at most once ───────────────
 
   it("does not match the same LiquidationNotified event to two different Liquidated events", function () {
