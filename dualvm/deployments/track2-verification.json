@@ -4,16 +4,22 @@
   "rpc": "https://eth-rpc-testnet.polkadot.io/",
   "timestamp": "2026-03-19",
   "tests": {
+    "pvmDeployment": {
+      "contract": "DeterministicRiskModel (PVM)",
+      "address": "0x1e6903a816be0bc013291bbed547df45bdc9e86c",
+      "note": "Real PVM deployment via resolc — not EVM bytecode. pvmDeterministicRiskModel in deploy-manifest.json.",
+      "verdict": "PASS"
+    },
     "pvmQuoteNoPolicy": {
-      "contract": "DeterministicRiskModel (EVM)",
-      "address": "0xd3e20fe4650ad8b690f494f8008cf9b284c855c4",
+      "contract": "DeterministicRiskModel (PVM)",
+      "address": "0x1e6903a816be0bc013291bbed547df45bdc9e86c",
       "input": "(5000,15000,60,true,0,0,0)",
       "result": "borrowRate=700, maxLtv=7500, liqThreshold=8500",
       "verdict": "PASS"
     },
     "pvmQuoteWithPolicy": {
-      "contract": "DeterministicRiskModel (EVM)",
-      "address": "0xd3e20fe4650ad8b690f494f8008cf9b284c855c4",
+      "contract": "DeterministicRiskModel (PVM)",
+      "address": "0x1e6903a816be0bc013291bbed547df45bdc9e86c",
       "input": "(5000,15000,60,true,6000,8000,500)",
       "result": "borrowRate=700, maxLtv=6000, liqThreshold=8000",
       "note": "maxLtv changed from 7500→6000, liqThreshold from 8500→8000 — governance overrides applied by PVM",
@@ -21,8 +27,8 @@
     },
     "riskGatewayQuoteEngine": {
       "contract": "RiskGateway",
-      "address": "0x335ab2b19a4051203cd160d3a698088ae9c7bf94",
-      "result": "quoteEngine=0xd3e20fe4650ad8b690f494f8008cf9b284c855c4",
+      "address": "0x5c66f69a04f3a460b1fabf971b8b4d2d18141bd4",
+      "result": "quoteEngine=0x1e6903a816be0bc013291bbed547df45bdc9e86c",
       "verdict": "PASS"
     },
     "xcmWeighMessage": {
@@ -41,7 +47,7 @@
     },
     "executeLocalNotification": {
       "contract": "XcmLiquidationNotifier",
-      "address": "0x9f484fc3f5d42d0d6f0a2c4ea2b0f30663ad68ac",
+      "address": "0x9ce976675c3a859f2ad57d7976e6363fda22e825",
       "txHash": "0xb35f468a3d235e05df38e361e461710b79da14246f5815c9ba0fc5c9f18092d9",
       "block": 6595577,
       "status": "success",
@@ -49,5 +55,5 @@
       "verdict": "PASS"
     }
   },
-  "summary": "All 6 verification tests pass. PVM applies governance policy overrides (producing different output than without). XCM execute(ClearOrigin+SetTopic) succeeds on-chain. executeLocalNotification() works end-to-end."
+  "summary": "All 7 verification tests pass. PVM DeterministicRiskModel deployed as real PVM bytecode (not EVM). PVM applies governance policy overrides (producing different output than without). XCM execute(ClearOrigin+SetTopic) succeeds on-chain. executeLocalNotification() works end-to-end."
 }

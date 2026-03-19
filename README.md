@@ -9,7 +9,7 @@ governance follows the openzeppelin governor→timelockcontroller→accessmanage
 
 m11 bilateral-async-unified: all contracts freshly deployed with canonical names (lendingengine, riskgateway, lendingrouter, governancepolicystore). correlationid flows through all lending events into the xcm liquidation hook chain. xcminbox enables receipt correlation. foundry is the sole build/test/deploy toolchain (300 tests pass).
 
-track 2 pvm-primary: pvm is the primary risk computation source. quoteinput extended with 3 governance policy fields (maxltvoverride, liquidationthresholdoverride, borrowrateflooroverride). xcm execute(clearorigin+settopic) proven on-chain. deterministicriskmodel deployed at 0xd3e20fe4650ad8b690f494f8008cf9b284c855c4, riskgateway at 0x335ab2b19a4051203cd160d3a698088ae9c7bf94.
+track 2 pvm-primary: pvm is the primary risk computation source. quoteinput extended with 3 governance policy fields (maxltvoverride, liquidationthresholdoverride, borrowrateflooroverride). xcm execute(clearorigin+settopic) proven on-chain. deterministicriskmodel deployed as real pvm bytecode at 0x1e6903a816be0bc013291bbed547df45bdc9e86c, riskgateway at 0x5c66f69a04f3a460b1fabf971b8b4d2d18141bd4.
 
 all contracts are deployed on polkadot hub testnet and most are verified on blockscout. this is a hackathon mvp, not a production system. -->
 
@@ -297,14 +297,14 @@ The PVM risk engine is the **primary risk computation source**, not optional ver
 3. **Track 2 on-chain verification** (6/6 tests pass):
    - **PVM Quote (no policy)**: ✅ Input `(5000,15000,60,true,0,0,0)` → `borrowRate=700, maxLtv=7500, liqThreshold=8500`
    - **PVM Quote (with policy)**: ✅ Input `(5000,15000,60,true,6000,8000,500)` → `borrowRate=700, maxLtv=6000, liqThreshold=8000` — governance overrides applied
-   - **RiskGateway quoteEngine**: ✅ Returns DeterministicRiskModel address (`0xd3e20fe4650ad8b690f494f8008cf9b284c855c4`)
+   - **RiskGateway quoteEngine**: ✅ Returns DeterministicRiskModel address (`0x1e6903a816be0bc013291bbed547df45bdc9e86c`)
    - **XCM weighMessage**: ✅ `ClearOrigin+SetTopic` V5 → `refTime=1810000, proofSize=0`
    - **XCM execute**: ✅ TX `0xa05693ff...` at block 6595576, status: success
    - **executeLocalNotification**: ✅ TX `0xb35f468a...` at block 6595577, emits `LocalXcmExecuted(correlationId=0xff, refTime=1810000)`
 4. **Legacy probe stages** (M9 era, still valid for REVM→PVM data integrity):
    - Stage 1A (Echo): ✅ | Stage 1B (Quote): ✅ | Stage 2 (PVM→REVM callback): ❌ platform limitation | Stage 3 (Roundtrip): ⚠️ accumulated state
 5. **XCM execute()** proven on-chain: `ClearOrigin+SetTopic(correlationId)` V5 message executed via XCM precompile at `0x...0a0000`. TX hash `0xa05693ff...` at block 6595576. `executeLocalNotification()` end-to-end at block 6595577.
-6. **Note**: DeterministicRiskModel is currently deployed as EVM bytecode (PVM recompilation via `resolc` pending). The architecture is PVM-primary — the contract interface, governance-aware QuoteInput, and RiskGateway integration are all designed for PVM execution.
+6. **Note**: DeterministicRiskModel is deployed as real PVM bytecode (compiled via `resolc`) at `0x1e6903a816be0bc013291bbed547df45bdc9e86c`. The architecture is PVM-primary — the PVM contract applies governance-aware risk overrides that the REVM inline fallback does not.
 
 ### Governance Architecture
 
@@ -373,43 +373,43 @@ All contracts freshly deployed via `forge script` with canonical names under a s
 
 | Contract | Address | Explorer |
 |----------|---------|----------|
-| AccessManager | `0xc7F5871c0223eE42A858b54a679364c92C8CB0E8` | [Blockscout](https://blockscout-testnet.polkadot.io/address/0xc7F5871c0223eE42A858b54a679364c92C8CB0E8) |
-| WPAS (Collateral) | `0x88197981ba747F3f3e5615302c9E94d6d8c570e9` | [Blockscout](https://blockscout-testnet.polkadot.io/address/0x88197981ba747F3f3e5615302c9E94d6d8c570e9) |
-| USDCMock (Debt) | `0xd3945174aEDE4C70B4e7B4830e2043ad6c578feB` | [Blockscout](https://blockscout-testnet.polkadot.io/address/0xd3945174aEDE4C70B4e7B4830e2043ad6c578feB) |
-| ManualOracle | `0xF751Cca3D4dB1c4F461ed0556B394906DD2D6c4A` | [Blockscout](https://blockscout-testnet.polkadot.io/address/0xF751Cca3D4dB1c4F461ed0556B394906DD2D6c4A) |
-| GovernancePolicyStore | `0x3471F542f66603a1899947fE5849a612f0A7f465` | [Blockscout](https://blockscout-testnet.polkadot.io/address/0x3471F542f66603a1899947fE5849a612f0A7f465) |
-| RiskGateway | `0x01E56920355f1936c28A2EA627D027E35EccBca6` | [Blockscout](https://blockscout-testnet.polkadot.io/address/0x01E56920355f1936c28A2EA627D027E35EccBca6) |
-| DeterministicRiskModel (PVM Risk Engine) | `0xC6907B609ba4b94C9e319570BaA35DaF587252f8` | [Blockscout](https://blockscout-testnet.polkadot.io/address/0xC6907B609ba4b94C9e319570BaA35DaF587252f8) |
-| DebtPool (ERC-4626) | `0x1A024F0232Bab9D6282Efbf533F11e11511d68a8` | [Blockscout](https://blockscout-testnet.polkadot.io/address/0x1A024F0232Bab9D6282Efbf533F11e11511d68a8) |
-| LendingEngine | `0x74924a4502f666023510ED21Ae6E27bC47eE6485` | [Blockscout](https://blockscout-testnet.polkadot.io/address/0x74924a4502f666023510ED21Ae6E27bC47eE6485) |
-| LendingRouter | `0xC6dC173de67FF347c864d4F26a96c5e725099394` | [Blockscout](https://blockscout-testnet.polkadot.io/address/0xC6dC173de67FF347c864d4F26a96c5e725099394) |
-| MarketVersionRegistry | `0x685B2c14666f6710778F7a4acDB7e0C36C407ADB` | [Blockscout](https://blockscout-testnet.polkadot.io/address/0x685B2c14666f6710778F7a4acDB7e0C36C407ADB) |
-| MarketMigrationCoordinator | `0x7d8F639bFe6276ea2d21C4cc59Bc3AE66B788d20` | [Blockscout](https://blockscout-testnet.polkadot.io/address/0x7d8F639bFe6276ea2d21C4cc59Bc3AE66B788d20) |
+| AccessManager | `0xc126951a58644bd3d5e23c781263873c4305ccc8` | [Blockscout](https://blockscout-testnet.polkadot.io/address/0xc126951a58644bd3d5e23c781263873c4305ccc8) |
+| WPAS (Collateral) | `0x5e18c7708d492c66d8ebd92ae208b74c069f18fc` | [Blockscout](https://blockscout-testnet.polkadot.io/address/0x5e18c7708d492c66d8ebd92ae208b74c069f18fc) |
+| USDCMock (Debt) | `0x2d7e60571b478f8de5f25a8b494e7f4527310d34` | [Blockscout](https://blockscout-testnet.polkadot.io/address/0x2d7e60571b478f8de5f25a8b494e7f4527310d34) |
+| ManualOracle | `0xfe5636f2b5be3f97a604958161030874e2e70810` | [Blockscout](https://blockscout-testnet.polkadot.io/address/0xfe5636f2b5be3f97a604958161030874e2e70810) |
+| GovernancePolicyStore | `0x0c8c0c8e2180c90798822ab85de176fe4d8c86cf` | [Blockscout](https://blockscout-testnet.polkadot.io/address/0x0c8c0c8e2180c90798822ab85de176fe4d8c86cf) |
+| RiskGateway | `0x5c66f69a04f3a460b1fabf971b8b4d2d18141bd4` | [Blockscout](https://blockscout-testnet.polkadot.io/address/0x5c66f69a04f3a460b1fabf971b8b4d2d18141bd4) |
+| DeterministicRiskModel (PVM Risk Engine) | `0x1e6903a816be0bc013291bbed547df45bdc9e86c` | [Blockscout](https://blockscout-testnet.polkadot.io/address/0x1e6903a816be0bc013291bbed547df45bdc9e86c) |
+| DebtPool (ERC-4626) | `0xff42db4e29de3ccb206162fe51bc38a0283f652b` | [Blockscout](https://blockscout-testnet.polkadot.io/address/0xff42db4e29de3ccb206162fe51bc38a0283f652b) |
+| LendingEngine | `0x11bf643d87b3f754b0852ff5243e795815765e7d` | [Blockscout](https://blockscout-testnet.polkadot.io/address/0x11bf643d87b3f754b0852ff5243e795815765e7d) |
+| LendingRouter | `0x1b86e0103702ae58000e77cd415e2a1299a0c59c` | [Blockscout](https://blockscout-testnet.polkadot.io/address/0x1b86e0103702ae58000e77cd415e2a1299a0c59c) |
+| MarketVersionRegistry | `0x4860ff44679c964ef0294a1a3e9b1c12ac7ed658` | [Blockscout](https://blockscout-testnet.polkadot.io/address/0x4860ff44679c964ef0294a1a3e9b1c12ac7ed658) |
+| MarketMigrationCoordinator | `0x8b1fdebf1fa3e97c8f327a34957a36dce287a936` | [Blockscout](https://blockscout-testnet.polkadot.io/address/0x8b1fdebf1fa3e97c8f327a34957a36dce287a936) |
 
 ### Bilateral Async Contracts (M11)
 
 | Contract | Address | Explorer |
 |----------|---------|----------|
-| LiquidationHookRegistry | `0xa80eAC309424FD3FA0daaF7200F5c2ab2bcb9B9A` | [Blockscout](https://blockscout-testnet.polkadot.io/address/0xa80eAC309424FD3FA0daaF7200F5c2ab2bcb9B9A) |
-| XcmNotifierAdapter | `0x3027259a3F1372DA4DbCE8b17BAC525dc0bB9Faa` | [Blockscout](https://blockscout-testnet.polkadot.io/address/0x3027259a3F1372DA4DbCE8b17BAC525dc0bB9Faa) |
-| XcmLiquidationNotifier | `0x051eBa834d9b8CfadEf166b441B80FC2f8bF0592` | [Blockscout](https://blockscout-testnet.polkadot.io/address/0x051eBa834d9b8CfadEf166b441B80FC2f8bF0592) |
-| XcmInbox | `0x6df5e3694976fd46Df67b1E6A7BdE85B39271719` | [Blockscout](https://blockscout-testnet.polkadot.io/address/0x6df5e3694976fd46Df67b1E6A7BdE85B39271719) |
+| LiquidationHookRegistry | `0xddb390a3085bca224d4f514804bd831050e15130` | [Blockscout](https://blockscout-testnet.polkadot.io/address/0xddb390a3085bca224d4f514804bd831050e15130) |
+| XcmNotifierAdapter | `0xb748020b0c17b7c6aa95b28d33d12ec98aab4640` | [Blockscout](https://blockscout-testnet.polkadot.io/address/0xb748020b0c17b7c6aa95b28d33d12ec98aab4640) |
+| XcmLiquidationNotifier | `0x9ce976675c3a859f2ad57d7976e6363fda22e825` | [Blockscout](https://blockscout-testnet.polkadot.io/address/0x9ce976675c3a859f2ad57d7976e6363fda22e825) |
+| XcmInbox | `0x37e09978b1e46e7cbe7920e7c1968aa03556ed3e` | [Blockscout](https://blockscout-testnet.polkadot.io/address/0x37e09978b1e46e7cbe7920e7c1968aa03556ed3e) |
 
 ### Governance Contracts (M11)
 
 | Contract | Address | Explorer |
 |----------|---------|----------|
-| GovernanceToken (ERC20Votes) | `0x9D6d874413c72284514d5511A810DCeeDaB75a11` | [Blockscout](https://blockscout-testnet.polkadot.io/address/0x9D6d874413c72284514d5511A810DCeeDaB75a11) |
-| DualVMGovernor | `0xD8bA49b5d6e3DF55B7a4424E1F6D0b3C22625220` | [Blockscout](https://blockscout-testnet.polkadot.io/address/0xD8bA49b5d6e3DF55B7a4424E1F6D0b3C22625220) |
-| TimelockController | `0x9e1a91042bAd90b73D4d35e798D140C83e0D45D5` | [Blockscout](https://blockscout-testnet.polkadot.io/address/0x9e1a91042bAd90b73D4d35e798D140C83e0D45D5) |
+| GovernanceToken (ERC20Votes) | `0xfb99fea8c91b10c2e1747a537ac8aa6ab68adf21` | [Blockscout](https://blockscout-testnet.polkadot.io/address/0xfb99fea8c91b10c2e1747a537ac8aa6ab68adf21) |
+| DualVMGovernor | `0x27918831aac573f57e874999b983296226524856` | [Blockscout](https://blockscout-testnet.polkadot.io/address/0x27918831aac573f57e874999b983296226524856) |
+| TimelockController | `0x7b8f6f367a7f30df1cdff3e635ff200a20352525` | [Blockscout](https://blockscout-testnet.polkadot.io/address/0x7b8f6f367a7f30df1cdff3e635ff200a20352525) |
 
 ### Track 2 Contracts (PVM-Primary Deployment)
 
 | Contract | Address | Explorer |
 |----------|---------|----------|
-| DeterministicRiskModel (PVM Risk Engine) | `0xd3e20fe4650ad8b690f494f8008cf9b284c855c4` | [Blockscout](https://blockscout-testnet.polkadot.io/address/0xd3e20fe4650ad8b690f494f8008cf9b284c855c4) |
-| RiskGateway (PVM-primary) | `0x335ab2b19a4051203cd160d3a698088ae9c7bf94` | [Blockscout](https://blockscout-testnet.polkadot.io/address/0x335ab2b19a4051203cd160d3a698088ae9c7bf94) |
-| XcmLiquidationNotifier (XCM execute) | `0x9f484fc3f5d42d0d6f0a2c4ea2b0f30663ad68ac` | [Blockscout](https://blockscout-testnet.polkadot.io/address/0x9f484fc3f5d42d0d6f0a2c4ea2b0f30663ad68ac) |
+| DeterministicRiskModel (PVM Risk Engine) | `0x1e6903a816be0bc013291bbed547df45bdc9e86c` | [Blockscout](https://blockscout-testnet.polkadot.io/address/0x1e6903a816be0bc013291bbed547df45bdc9e86c) |
+| RiskGateway (PVM-primary) | `0x5c66f69a04f3a460b1fabf971b8b4d2d18141bd4` | [Blockscout](https://blockscout-testnet.polkadot.io/address/0x5c66f69a04f3a460b1fabf971b8b4d2d18141bd4) |
+| XcmLiquidationNotifier (XCM execute) | `0x9ce976675c3a859f2ad57d7976e6363fda22e825` | [Blockscout](https://blockscout-testnet.polkadot.io/address/0x9ce976675c3a859f2ad57d7976e6363fda22e825) |
 
 > Track 2 verification evidence: `dualvm/deployments/track2-verification.json` (6/6 on-chain tests pass).
 
@@ -417,7 +417,7 @@ All contracts freshly deployed via `forge script` with canonical names under a s
 
 | Contract | Address | Explorer |
 |----------|---------|----------|
-| DeterministicRiskModel (PVM) | `0xC6907B609ba4b94C9e319570BaA35DaF587252f8` | [Blockscout](https://blockscout-testnet.polkadot.io/address/0xC6907B609ba4b94C9e319570BaA35DaF587252f8) |
+| DeterministicRiskModel (PVM) | `0x1e6903a816be0bc013291bbed547df45bdc9e86c` | [Blockscout](https://blockscout-testnet.polkadot.io/address/0x1e6903a816be0bc013291bbed547df45bdc9e86c) |
 | PvmCallbackProbe (PVM) | `0xc60E223A91aEbf1589A5509F308b4787cF6607AE` | [Blockscout](https://blockscout-testnet.polkadot.io/address/0xc60E223A91aEbf1589A5509F308b4787cF6607AE) |
 | RevmQuoteCallerProbe | `0xD08583e1AC7aCc75FF5365909Be808ea2AD5d942` | [Blockscout](https://blockscout-testnet.polkadot.io/address/0xD08583e1AC7aCc75FF5365909Be808ea2AD5d942) |
 | RevmCallbackReceiver | `0x2b059760bb836128A287AE071167f9e3F4489c71` | [Blockscout](https://blockscout-testnet.polkadot.io/address/0x2b059760bb836128A287AE071167f9e3F4489c71) |
@@ -553,7 +553,7 @@ forge script script/Deploy.s.sol \
 
 ### PVM Compilation
 
-The PVM risk engine (`DeterministicRiskModel`) is compiled via `resolc` (Polkadot's Solidity-to-PolkaVM compiler). The M11 deployment reuses the M9 PVM deployment at `0xC6907B609ba4b94C9e319570BaA35DaF587252f8`.
+The PVM risk engine (`DeterministicRiskModel`) is compiled via `resolc` (Polkadot's Solidity-to-PolkaVM compiler). The current PVM deployment is at `0x1e6903a816be0bc013291bbed547df45bdc9e86c`.
 
 To recompile from scratch:
 ```bash

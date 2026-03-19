@@ -30,7 +30,7 @@
 | Audit says DeterministicRiskModel NOT PVM-compiled | STALE — M9 deployed PVM version at 0xC6907B609... |
 | Audit says LendingRouter credits self | RESOLVED — M9 deployed LendingRouter (canonical) with depositCollateralFor |
 | Audit says oracle maxAge=21600s | STALE — M9 reduced to 1800s |
-| Audit says 105 tests | STALE — now 186 tests |
+| Audit says 105 tests | STALE — now 300 tests |
 | Request: bilateral PVM↔REVM | PVM→REVM callbacks broken at platform level. Design: REVM→PVM sync (works), results bridged via adapters |
 | Request: bilateral PVM↔XCM | PVM contracts cannot call XCM precompile (REVM address space). Design: REVM adapter bridges PVM↔XCM |
 | Request: immutable everything | Conflicts with emergency controls. Design: immutable core logic, governance-only for parameters and pause |
@@ -65,7 +65,8 @@
 
 | Direction | Peer | Sync/Async | Trigger | Payload | Auth | Failure | Dedup | Confidence |
 |---|---|---|---|---|---|---|---|---|
-| OUT→ | DeterministicRiskModel (PVM) | SYNC cross-VM | quoteViaTicket | QuoteInput | try/catch | CrossVMDivergence event | ticketId | HIGH |
+| OUT→ | DeterministicRiskModel (PVM) | SYNC cross-VM | quoteViaTicket | QuoteInput (7-field: totalCollateral, totalDebt, utilizationBps, isNewBorrow, maxLtvOverride, liquidationThresholdOverride, borrowRateFloorOverride) | try/catch | Falls back to REVM _inlineQuote() | ticketId | HIGH |
+| OUT→ | GovernancePolicyStore | SYNC view | quoteViaTicket | policy key lookup | none (view) | returns 0 (no override) | N/A | HIGH |
 | IN← | LendingEngine | SYNC restricted | quoteViaTicket | QuoteContext+Input | LENDING_CORE role | revert | ticketId cache | HIGH |
 | EMIT→ | OpsOutbox | SYNC event | quote computed | QuoteVerified/CrossVMDivergence | none | N/A | ticketId | HIGH |
 
@@ -138,10 +139,10 @@
 | Component | Type | Purpose |
 |---|---|---|
 | **LendingEngine** | DONE | Canonical lending core with correlationId in all events |
-| **RiskGateway** | DONE | Unified cross-VM risk gateway with inline math + PVM verify |
+| **RiskGateway** | DONE | Unified cross-VM risk gateway — PVM is primary source, REVM inline is fallback. Reads GovernancePolicyStore for governance overrides. |
 | **LendingRouter** | DONE | PAS→WPAS→deposit convenience |
+| **GovernancePolicyStore** | DONE | On-chain registry of PVM policy params (maxLtv, liquidationThreshold, borrowRateFloor). AccessManaged. Governance overrides feed into QuoteInput for PVM. |
 | **AsyncSettlementEngine** (PROPOSED) | NEW | Manages async XCM settlement lifecycle: request→pending→settled/expired |
-| **GovernancePolicyStore** (PROPOSED) | NEW | On-chain registry of PVM policy params; PVM reads via REVM→PVM call |
 | **OpsOutbox** (PROPOSED, off-chain) | DESIGN-ONLY | Normalized event schema + off-chain correlator (no new contract, just event standards) |
 
 ### Architecture Flow
@@ -152,9 +153,10 @@ User EOA
   ├──► LendingEngine.borrow(amount, correlationId?)
   │      ├──► ManualOracle.priceWad() [SYNC view]
   │      ├──► RiskGateway.quoteViaTicket() [SYNC restricted]
-  │      │      ├──► _inlineQuote() [SYNC pure math, CANONICAL]
-  │      │      └──► DeterministicRiskModel.quote() [SYNC cross-VM PVM, try/catch]
-  │      │            (if divergence: emit CrossVMDivergence)
+  │      │      ├──► GovernancePolicyStore.getPolicy() [SYNC view, governance overrides]
+  │      │      ├──► DeterministicRiskModel.quote(7-field input) [SYNC cross-VM PVM, PRIMARY]
+  │      │      │      (PVM applies governance overrides: maxLtv, liqThreshold, rateFloor)
+  │      │      └──► _inlineQuote() [SYNC pure math, FALLBACK only if PVM fails via try/catch]
   │      ├──► DebtPool.drawDebt() [SYNC restricted]
   │      └──► emit Borrowed(correlationId, borrower, amount, rate)
   │
@@ -239,11 +241,11 @@ User EOA
 ║                                    AFTER (M11)                                      ║
 ╠══════════════════════════════════════════════════════════════════════════════════════╣
 ║                                                                                      ║
-║  LendingEngine ──► RiskGateway ──►──► DeterministicRiskModel(PVM)                   ║
-║       │              │  [sync call + return = bilateral]                              ║
-║       │              │                                                               ║
+║  LendingEngine ──► RiskGateway ──►──► DeterministicRiskModel(PVM) [PRIMARY]          ║
+║       │              │  [PVM is primary source; REVM inline is fallback]              ║
+║       │              │  [QuoteInput: 7 fields incl. 3 governance policy overrides]    ║
 ║       │              └──► GovernancePolicyStore ◄── AccessManager (via governance)   ║
-║       │                   [PVM reads params from here]                                ║
+║       │                   [PVM applies governance overrides that REVM inline cannot]  ║
 ║       │                                                                              ║
 ║       └──► LiquidationHookRegistry ──► XcmNotifierAdapter ──► XCM Precompile        ║
 ║                │  [try/catch, correlationId]       [adapter]     [send+SetTopic]      ║
@@ -276,7 +278,7 @@ graph TB
 
     subgraph REVM["REVM Contracts"]
         LE["LendingEngine<br/>correlationId in events"]
-        RG["RiskGateway<br/>inline math + PVM verify"]
+        RG["RiskGateway<br/>PVM primary + REVM fallback"]
         DP["DebtPool<br/>ERC-4626 vault"]
         MO["ManualOracle<br/>maxAge=1800s"]
         LR["LendingRouter<br/>PAS→WPAS→deposit"]
@@ -284,7 +286,7 @@ graph TB
         XNA["XcmNotifierAdapter<br/>3-arg to 4-arg bridge"]
         XLN["XcmLiquidationNotifier<br/>ClearOrigin+SetTopic"]
         XI["XcmInbox<br/>receiveReceipt + dedup"]
-        GPS["GovernancePolicyStore<br/>(PROPOSED)"]
+        GPS["GovernancePolicyStore<br/>(DONE — governance overrides)"]
     end
 
     subgraph PVM["PVM Domain"]
@@ -314,8 +316,8 @@ graph TB
 
     EC -.->|watches| LE & XLN & XI
 
-    classDef proposed fill:#e8f5e9,stroke:#4caf50
-    class GPS proposed
+    classDef done fill:#e8f5e9,stroke:#4caf50
+    class GPS done
 ```
 
 ---
@@ -447,7 +449,7 @@ correlationId = keccak256(abi.encode(
 - Governance reach via PolicyStore is clean OZ pattern
 
 ### Implementation Now: **GO**
-- 186 tests pass as baseline
+- 300 tests pass as baseline
 - All dependencies stable
 - No new external dependencies needed
 - Funded wallet available for deployment

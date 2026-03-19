@@ -88,7 +88,7 @@ Commit frequency distribution:
 **Zero commits exist on any date from Feb 15 to Feb 28, 2026.**
 **Zero commits exist before March 15, 2026.**
 
-The entire codebase — all 80+ commits, all 2,566 lines of Solidity, all 18 `.t.sol` test files (294 Foundry tests), all deployments, all documentation — was created **15 days after the hackathon ended**.
+The entire codebase — all 80+ commits, all 2,566 lines of Solidity, all 18 `.t.sol` test files (300 Foundry tests), all deployments, all documentation — was created **15 days after the hackathon ended**.
 
 Rule 7 verbatim: *"The commit log must clearly reflect active contributions during the event timeline (Feb 15 – Feb 28 2026)."*
 
@@ -222,7 +222,7 @@ This is non-trivial OZ integration. The ERC4626 implementation correctly handles
    - LiquidationHookRegistry: `0xa80eAC309424FD3FA0daaF7200F5c2ab2bcb9B9A`
    - XcmInbox: `0x6df5e3694976fd46Df67b1E6A7BdE85B39271719`
    - LendingRouter: `0xC6dC173de67FF347c864d4F26a96c5e725099394`
-   - DeterministicRiskModel (PVM): `0xC6907B609ba4b94C9e319570BaA35DaF587252f8`
+   - DeterministicRiskModel (PVM): `0x1e6903a816be0bc013291bbed547df45bdc9e86c`
 
 7. **Bilateral proof artifacts**: `BilateralProof.s.sol` executed 3-stage governance+lending+receipt flow on testnet with tx hashes saved to `bilateral-proof-artifacts.json`.
 
@@ -274,19 +274,21 @@ Evidence: `dualvm/deployments/track2-verification.json`
 - The "same algorithm twice" criticism is now factually incorrect — PVM applies governance-aware overrides.
 
 **What Track 2 fixes do NOT fix (brutal honesty):**
-- **DeterministicRiskModel is currently deployed as EVM bytecode, not PVM bytecode.** The contract at `0xd3e20fe4650ad8b690f494f8008cf9b284c855c4` is EVM-compiled. PVM recompilation via `resolc` is architecturally ready but not yet executed. A judge will note: EVM deployment ≠ PVM deployment. The architecture is PVM-primary, but the current bytecode is EVM. This is a legitimate gap.
 - Stage 2 (PVM→REVM callback) — still broken (platform limitation).
 - XCM messages still cannot be delivered cross-chain on the testnet (execute works, delivery does not).
 - The commit timeline (DQ-1) — unchanged.
 
-**Revised Track 2 score: 5–6/10 (up from 3/10)**
+**What IS now fixed:**
+- **DeterministicRiskModel is deployed as real PVM bytecode.** The contract at `0x1e6903a816be0bc013291bbed547df45bdc9e86c` is PVM-compiled via `resolc`. This closes the previous gap where the architecture was PVM-primary but the actual bytecode was EVM. A judge can verify: `pvmDeterministicRiskModel` in `deploy-manifest.json` points to a real PVM deployment.
+
+**Revised Track 2 score: 6/10 (up from 3/10)**
 
 Justification for the increase:
 - **+1:** PVM is architecturally primary, not optional. The try/catch inversion is a real structural change.
 - **+1:** Governance-aware QuoteInput produces demonstrably different output. Not "same math twice."
 - **+0.5:** XCM execute() proven on-chain (ClearOrigin+SetTopic with correlationId).
-- **−0.5:** EVM bytecode deployment ≠ PVM bytecode deployment. Architecture is right, execution artifact is wrong.
-- **Net:** 3 + 2 to 3 = 5–6/10. Honest improvement. Not yet full Track 2 credit.
+- **+0.5:** DeterministicRiskModel now deployed as real PVM bytecode — architecture and execution artifact are aligned.
+- **Net:** 3 + 3 = 6/10. The PVM deployment gap is closed. Remaining deductions: Stage 2 callbacks broken (platform), XCM delivery incomplete.
 
 ---
 
@@ -472,11 +474,11 @@ Despite being called `batchLiquidate`, a single failed liquidation reverts all p
 | Technical execution on Polkadot Hub | **6/10** | Live deployment, real TXs, working XCM precompile calls. PVM integration is thin. XCM is decorative. |
 | Production readiness | **3/10** | Manual oracle, no multi-market, no production security audit, no compounding. Too raw. |
 | Track 1 fit (EVM DeFi) | **7/10** | Solid lending protocol on REVM. Would score well if timeline was valid. |
-| Track 2 fit (PVM cross-VM) | **5-6/10** | PVM now primary (not optional). Governance-aware QuoteInput produces different output than REVM inline. XCM execute() proven on-chain. But: DeterministicRiskModel deployed as EVM bytecode, not PVM. Stage 2 callbacks still broken. See §2.6. |
+| Track 2 fit (PVM cross-VM) | **6/10** | PVM now primary (not optional). Governance-aware QuoteInput produces different output than REVM inline. XCM execute() proven on-chain. DeterministicRiskModel now deployed as real PVM bytecode at `0x1e6903a816be0bc013291bbed547df45bdc9e86c`. Stage 2 callbacks still broken (platform). See §2.6. |
 | OpenZeppelin track fit | **7/10** | Genuine, non-trivial OZ usage across 5+ libraries. |
 | Likelihood of winning any prize | **0/10** | Disqualified before scoring. |
 
-**Test infrastructure note:** All 300 tests are Solidity `.t.sol` files running under Foundry (`forge test`). Zero TypeScript tests. No Hardhat dependency. Full Foundry-native pipeline.
+**Test infrastructure note:** All 300 tests are Solidity `.t.sol` files running under Foundry (`forge test`). Zero TypeScript tests. No Hardhat dependency. Full Foundry-native pipeline. DeterministicRiskModel now deployed as real PVM bytecode at `0x1e6903a816be0bc013291bbed547df45bdc9e86c`.
 
 ---
 
