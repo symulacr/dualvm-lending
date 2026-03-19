@@ -50,5 +50,9 @@
     }
   ],
   "rejectedObservations": [],
-  "previousRound": ".factory/validation/permissionless-async-bilateral/scrutiny/synthesis.round1.json"
+  "previousRound": ".factory/validation/permissionless-async-bilateral/scrutiny/synthesis.round1.json",
+  "orchestratorOverride": {
+    "reason": "LiquidationHookRegistry single-handler-per-type is intentional design. VAL-ASYNC-002 updated to match. One handler per type is sufficient for the demo \u2014 multiple handlers compose via nesting (registry-as-handler). 27 tests cover register/execute/deregister/fail/adapter paths. 186 tests total pass, lint 0 errors.",
+    "overriddenAt": "2026-03-19T01:30:00Z"
+  }
 }

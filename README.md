@@ -305,7 +305,7 @@ Demo-friendly parameters: voting delay ~1s, voting period ~300s, timelock ~60s, 
 | Supply Cap | 5,000,000 USDC |
 | Borrow Cap | 4,000,000 USDC |
 | Min Borrow Amount | 100 USDC |
-| Oracle Max Age | 6 hours (21600s) |
+| Oracle Max Age | 30 minutes (1800s) — reduced from 6h in V2 |
 
 ### Interest Rate Model (Kinked)
 
@@ -346,6 +346,23 @@ All contracts deployed under a single canonical Governor→TimelockController→
 | MarketVersionRegistry | `0x47AE8aE7423bD8643Be8a86d4C0Df7fdcC57987d` | [Blockscout](https://blockscout-testnet.polkadot.io/address/0x47AE8aE7423bD8643Be8a86d4C0Df7fdcC57987d) |
 | DebtPool (ERC-4626) | `0xeEdA5d44810E09D8F881Fca537456E2a5eD437bB` | [Blockscout](https://blockscout-testnet.polkadot.io/address/0xeEdA5d44810E09D8F881Fca537456E2a5eD437bB) |
 | LendingCore | `0x9faC289188229f40aBfaa4F8d720C14b8B448CF9` | [Blockscout](https://blockscout-testnet.polkadot.io/address/0x9faC289188229f40aBfaa4F8d720C14b8B448CF9) |
+
+### V2 Contracts (Active Market Version)
+
+| Contract | Address | Explorer |
+|----------|---------|----------|
+| RiskAdapterV2 | `0x0b7C5Dd3e9Bc5B23347b0850332117219a2b170E` | [Blockscout](https://blockscout-testnet.polkadot.io/address/0x0b7C5Dd3e9Bc5B23347b0850332117219a2b170E) |
+| DebtPoolV2 | `0xF55D74C74CFDb81194337D82181d48233C8a6426` | [Blockscout](https://blockscout-testnet.polkadot.io/address/0xF55D74C74CFDb81194337D82181d48233C8a6426) |
+| LendingCoreV2 | `0xab2620577Aaf2BDB0Fdb582DaEB16dbc0f07213f` | [Blockscout](https://blockscout-testnet.polkadot.io/address/0xab2620577Aaf2BDB0Fdb582DaEB16dbc0f07213f) |
+| LendingRouterV2 | `0x08aace96441Cb320BC68b072D110169fbf38eb08` | [Blockscout](https://blockscout-testnet.polkadot.io/address/0x08aace96441Cb320BC68b072D110169fbf38eb08) |
+
+### Async/Permissionless Contracts (M10)
+
+| Contract | Address | Explorer |
+|----------|---------|----------|
+| XcmInbox | Deployed locally (Hardhat) | — |
+| LiquidationHookRegistry | Deployed locally (Hardhat) | — |
+| XcmNotifierAdapter | Deployed locally (Hardhat) | — |
 
 ### Governance Contracts
 
@@ -392,6 +409,12 @@ All contracts deployed under a single canonical Governor→TimelockController→
 | Admin Renunciation | [`0x61c09d53...`](https://blockscout-testnet.polkadot.io/tx/0x61c09d5353c0d3c0246f818a413780517e7b7d5510022330fb822ac67c41e863) |
 | Emergency Admin Transfer to Timelock | [`0x5c0cce4e...`](https://blockscout-testnet.polkadot.io/tx/0x5c0cce4e6f49d3292741b0d9f2325e798b28ef8c0aee3cc0d2495ba2c4e3bb8b) |
 
+### V2 Lending Operations
+| Operation | TX Hash |
+|-----------|---------|
+| V2 Liquidation | [`0x6abcbb2e...`](https://blockscout-testnet.polkadot.io/tx/0x6abcbb2e) |
+| V2 XCM Notifier | [`0x8cc460b8...`](https://blockscout-testnet.polkadot.io/tx/0x8cc460b8) |
+
 ### Migration Proof
 | Operation | TX Hash |
 |-----------|---------|
@@ -410,7 +433,7 @@ cd dualvm
 cp .env.example .env
 # Fill PRIVATE_KEY for deploy/smoke commands (not needed for tests)
 npm ci
-npm test          # 81 local Hardhat tests
+npm test          # 186 local Hardhat tests
 npx tsc --noEmit  # TypeScript typecheck
 npm run build     # Compile contracts + PVM artifacts + frontend
 ```
@@ -432,7 +455,7 @@ From `dualvm/`:
 
 | Command | Description |
 |---------|-------------|
-| `npm test` | Run 81 Hardhat tests |
+| `npm test` | Run 186 Hardhat tests |
 | `npm run build` | Compile contracts + PVM + frontend |
 | `npx tsc --noEmit` | TypeScript typecheck |
 | `npm run deploy:testnet` | Deploy to testnet |
@@ -559,7 +582,11 @@ To let borrowers move from an old version, call `MarketMigrationCoordinator.open
 ```
 dualvm/                          # Application root
 ├── contracts/                   # Solidity contracts
-│   ├── LendingCore.sol         # Immutable market version (collateral, debt, liquidation)
+│   ├── LendingCore.sol         # V1 market (collateral, debt, liquidation)
+│   ├── LendingCoreV2.sol      # V2 market (+depositCollateralFor, +liquidation hooks)
+│   ├── LendingRouterV2.sol    # V2 router (credits caller, not router)
+│   ├── XcmInbox.sol           # XCM receipt inbox with correlation ID dedup
+│   ├── LiquidationHookRegistry.sol  # Hook dispatch per liquidation type
 │   ├── DebtPool.sol            # ERC-4626 LP vault
 │   ├── ManualOracle.sol        # Price feed with circuit breaker
 │   ├── RiskAdapter.sol         # Quote ticket adapter
@@ -570,7 +597,7 @@ dualvm/                          # Application root
 ├── lib/                        # TypeScript deployment and runtime helpers
 ├── scripts/                    # Operator and smoke-test scripts
 ├── src/                        # React frontend (wagmi + RainbowKit)
-├── test/                       # Hardhat test suite (81 tests)
+├── test/                       # Hardhat test suite (186 tests)
 └── SPEC.md                     # Current system specification
 docs/dualvm/                    # Proof artifacts and evidence
 ├── dualvm_vm_interop_proof.md  # PVM interop probe results with TX hashes
@@ -591,6 +618,8 @@ docs/dualvm/                    # Proof artifacts and evidence
 | Migration proof | `dualvm/deployments/polkadot-hub-testnet-migration-proof.json` |
 | XCM proof | `dualvm/deployments/polkadot-hub-testnet-xcm-proof.json` |
 | Gas benchmarks | `dualvm/deployments/gas-benchmarks.json` |
+| V2 probe results | `dualvm/deployments/probe-results-v2.json` |
+| Idempotent deploy | `dualvm/scripts/deploy-idempotent.ts` |
 | VM interop narrative | `docs/dualvm/dualvm_vm_interop_proof.md` |
 
 ## CI
