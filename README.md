@@ -485,6 +485,21 @@ Artifacts are produced in `artifacts-pvm/`. PVM contracts cannot be Blockscout-v
 - [ ] Check AccessManager roles: confirm riskAdmin, treasury, and minter delays are non-zero
 - [ ] Confirm deployer renunciation: `accessManager.hasRole(0, deployer)` returns `false`
 
+## Performance
+
+Gas usage measured from on-chain tx receipts on Polkadot Hub TestNet (chain 420420417). Block inclusion latency: ~2 s average (wall-clock from submission to receipt, public RPC).
+
+| Operation | Contract | Gas Used |
+|-----------|----------|----------|
+| `depositCollateral` | LendingRouterV2 | 66,103 |
+| `borrow` | LendingCoreV2 | 297,214 |
+| `repay` | LendingCoreV2 | 257,839 |
+| `liquidate` | LendingCoreV2 | 196,260 |
+| `supply` | DebtPool (ERC-4626) | 4,123 |
+| `withdraw` | DebtPool (ERC-4626) | 5,023 |
+
+Full benchmark data: `dualvm/deployments/gas-benchmarks.json`.
+
 ## Known Limitations
 
 - **Single isolated market only** — no multi-market support
@@ -540,6 +555,7 @@ docs/dualvm/                    # Proof artifacts and evidence
 | Explorer verification | `dualvm/deployments/polkadot-hub-testnet-canonical-verification.json` |
 | Migration proof | `dualvm/deployments/polkadot-hub-testnet-migration-proof.json` |
 | XCM proof | `dualvm/deployments/polkadot-hub-testnet-xcm-proof.json` |
+| Gas benchmarks | `dualvm/deployments/gas-benchmarks.json` |
 | VM interop narrative | `docs/dualvm/dualvm_vm_interop_proof.md` |
 
 ## CI

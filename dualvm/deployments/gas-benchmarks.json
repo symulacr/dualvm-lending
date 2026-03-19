@@ -1,0 +1,58 @@
+{
+  "generatedAt": "2026-03-19T00:46:21.534Z",
+  "network": "Polkadot Hub TestNet",
+  "chainId": 420420417,
+  "note": "gasUsed sourced from on-chain tx receipts. Ops 1-4 from liveV2Smoke-results.json; ops 5-6 run fresh. Block inclusion measured wall-clock from tx.submit() to tx.wait().",
+  "blockInclusion": {
+    "supply_ms": 2314,
+    "withdraw_ms": 1759,
+    "avg_ms": 2037,
+    "note": "Wall-clock time from tx submission to receipt confirmation (public RPC latency included)"
+  },
+  "benchmarks": {
+    "depositCollateral": {
+      "operation": "LendingRouterV2.depositCollateralFromPAS (PAS→WPAS+deposit, 1 TX)",
+      "gasUsed": "66103",
+      "txHash": "0x694e7c6c54d7c8684aa0a46ae21b85450a1b09a6d596912b20ee27715242b852",
+      "explorerUrl": "https://blockscout-testnet.polkadot.io/tx/0x694e7c6c54d7c8684aa0a46ae21b85450a1b09a6d596912b20ee27715242b852",
+      "source": "liveV2Smoke-results.json"
+    },
+    "borrow": {
+      "operation": "LendingCoreV2.borrow",
+      "gasUsed": "297214",
+      "txHash": "0x8646df1468c649433299143d49c02c27be414182d15796a6913245c59209e0b9",
+      "explorerUrl": "https://blockscout-testnet.polkadot.io/tx/0x8646df1468c649433299143d49c02c27be414182d15796a6913245c59209e0b9",
+      "source": "liveV2Smoke-results.json"
+    },
+    "repay": {
+      "operation": "LendingCoreV2.repay",
+      "gasUsed": "257839",
+      "txHash": "0x4c1bd8b593fe189e62ab719c0cf343ed0e8e24cc9c2a18a897aa3641f01b5c3a",
+      "explorerUrl": "https://blockscout-testnet.polkadot.io/tx/0x4c1bd8b593fe189e62ab719c0cf343ed0e8e24cc9c2a18a897aa3641f01b5c3a",
+      "source": "liveV2Smoke-results.json"
+    },
+    "liquidate": {
+      "operation": "LendingCoreV2.liquidate",
+      "gasUsed": "196260",
+      "txHash": "0x6abcbb2ea76f3bbe921920f3d29366e8156efe531d99b68c616567ff29feb4fd",
+      "explorerUrl": "https://blockscout-testnet.polkadot.io/tx/0x6abcbb2ea76f3bbe921920f3d29366e8156efe531d99b68c616567ff29feb4fd",
+      "source": "liveV2Smoke-results.json"
+    },
+    "supply": {
+      "operation": "DebtPool.deposit (LP supplies USDC-test to ERC-4626 vault)",
+      "gasUsed": "4123",
+      "txHash": "0xf7d8655fd2a77cd1eb18096fb4d7e582c01fc2f6208d1fa5d6857b81071c87d2",
+      "explorerUrl": "https://blockscout-testnet.polkadot.io/tx/0xf7d8655fd2a77cd1eb18096fb4d7e582c01fc2f6208d1fa5d6857b81071c87d2",
+      "inclusionMs": 2314,
+      "source": "fresh benchmark run"
+    },
+    "withdraw": {
+      "operation": "DebtPool.withdraw (LP redeems USDC-test from ERC-4626 vault)",
+      "gasUsed": "5023",
+      "txHash": "0xdf020c18fe3c89fb802acc63d77f21119fa605b9bb40ae63e970c8c5c968f436",
+      "explorerUrl": "https://blockscout-testnet.polkadot.io/tx/0xdf020c18fe3c89fb802acc63d77f21119fa605b9bb40ae63e970c8c5c968f436",
+      "inclusionMs": 1759,
+      "source": "fresh benchmark run"
+    }
+  }
+}
