@@ -1,0 +1,70 @@
+{
+  "description": "M11 bilateral-async-unified canonical deployment — all contracts freshly deployed with canonical names",
+  "milestone": "bilateral-async-unified",
+  "deployedAt": "2026-03-19T04:30:00.000Z",
+  "deployer": "0x36a83a4450744f4F9988c9Bc46cC556Ba5bFD2dF",
+  "network": {
+    "name": "Polkadot Hub TestNet",
+    "chainId": 420420417,
+    "rpcUrl": "https://eth-rpc-testnet.polkadot.io/",
+    "fallbackRpcUrl": "https://services.polkadothub-rpc.com/testnet/",
+    "explorerUrl": "https://blockscout-testnet.polkadot.io/"
+  },
+  "toolchain": {
+    "compiler": "solc 0.8.28",
+    "framework": "Foundry forge script",
+    "profile": "deploy (via_ir=false, evm_version=cancun)",
+    "flags": "--legacy --gas-estimate-multiplier 500 --slow",
+    "note": "Legacy (type 0) transactions required on Polkadot Hub TestNet; EIP-1559 type 2 underestimates gas for smaller contracts causing deployment failures"
+  },
+  "contracts": {
+    "accessManager": "0xc7F5871c0223eE42A858b54a679364c92C8CB0E8",
+    "wpas": "0x88197981ba747F3f3e5615302c9E94d6d8c570e9",
+    "usdcMock": "0xd3945174aEDE4C70B4e7B4830e2043ad6c578feB",
+    "manualOracle": "0xF751Cca3D4dB1c4F461ed0556B394906DD2D6c4A",
+    "governancePolicyStore": "0x3471F542f66603a1899947fE5849a612f0A7f465",
+    "pvmDeterministicRiskModel": "0xC6907B609ba4b94C9e319570BaA35DaF587252f8",
+    "riskGateway": "0x01E56920355f1936c28A2EA627D027E35EccBca6",
+    "debtPool": "0x1A024F0232Bab9D6282Efbf533F11e11511d68a8",
+    "liquidationHookRegistry": "0xa80eAC309424FD3FA0daaF7200F5c2ab2bcb9B9A",
+    "xcmLiquidationNotifier": "0x051eBa834d9b8CfadEf166b441B80FC2f8bF0592",
+    "xcmNotifierAdapter": "0x3027259a3F1372DA4DbCE8b17BAC525dc0bB9Faa",
+    "lendingEngine": "0x74924a4502f666023510ED21Ae6E27bC47eE6485",
+    "lendingRouter": "0xC6dC173de67FF347c864d4F26a96c5e725099394",
+    "xcmInbox": "0x6df5e3694976fd46Df67b1E6A7BdE85B39271719",
+    "marketVersionRegistry": "0x685B2c14666f6710778F7a4acDB7e0C36C407ADB",
+    "marketMigrationCoordinator": "0x7d8F639bFe6276ea2d21C4cc59Bc3AE66B788d20",
+    "governanceToken": "0x9D6d874413c72284514d5511A810DCeeDaB75a11",
+    "timelockController": "0x9e1a91042bAd90b73D4d35e798D140C83e0D45D5",
+    "dualVMGovernor": "0xD8bA49b5d6e3DF55B7a4424E1F6D0b3C22625220"
+  },
+  "explorerLinks": {
+    "accessManager": "https://blockscout-testnet.polkadot.io/address/0xc7F5871c0223eE42A858b54a679364c92C8CB0E8",
+    "lendingEngine": "https://blockscout-testnet.polkadot.io/address/0x74924a4502f666023510ED21Ae6E27bC47eE6485",
+    "riskGateway": "https://blockscout-testnet.polkadot.io/address/0x01E56920355f1936c28A2EA627D027E35EccBca6",
+    "debtPool": "https://blockscout-testnet.polkadot.io/address/0x1A024F0232Bab9D6282Efbf533F11e11511d68a8"
+  },
+  "smokeVerification": {
+    "allContractsHaveCode": true,
+    "accessManagerHasRole0Timelock": true,
+    "deployerHasNoAdminRole": true,
+    "riskGatewayQuoteEngine": "0xC6907B609ba4b94C9e319570BaA35DaF587252f8",
+    "riskGatewayQuoteEngineName": "PVM DeterministicRiskModel (deployed M9 via resolc)",
+    "lendingEngineNotifier": "0xa80eAC309424FD3FA0daaF7200F5c2ab2bcb9B9A",
+    "hookRegistryDefaultHook": "0x3027259a3F1372DA4DbCE8b17BAC525dc0bB9Faa",
+    "allAuthorityChecks": "all governed contracts return AccessManager address",
+    "timelockDeployerHasNoAdmin": true,
+    "governorIsTimelockProposer": true
+  },
+  "governanceChain": {
+    "chain": "DualVMGovernor -> TimelockController -> AccessManager -> all protocol contracts",
+    "timeLockMinDelay": "60 seconds",
+    "votingPeriod": "300 seconds",
+    "quorumNumerator": "4%"
+  },
+  "pvmProof": {
+    "pvmContractAddress": "0xC6907B609ba4b94C9e319570BaA35DaF587252f8",
+    "deployedInMilestone": "M9 (stabilize-connect-derisk)",
+    "verifyVia": "revive.accountInfoOf on WSS: wss://asset-hub-paseo-rpc.n.dwellir.com"
+  }
+}

@@ -13,3 +13,23 @@ fs_permissions = [
   { access = "read", path = "./" },
   { access = "write", path = "./deployments/" }
 ]
+
+# Deployment profile: disables via_ir to avoid bytecode patterns that fail
+# on Polkadot Hub TestNet's EVM implementation. Contracts compiled without
+# via_ir use a simpler bytecode layout that is compatible with pallet-revive.
+[profile.deploy]
+src = "contracts"
+out = "out-deploy"
+test = "test"
+script = "script"
+libs = ["node_modules", "lib"]
+solc_version = "0.8.28"
+evm_version = "cancun"
+optimizer = true
+optimizer_runs = 200
+via_ir = false
+ffi = false
+fs_permissions = [
+  { access = "read", path = "./" },
+  { access = "write", path = "./deployments/" }
+]

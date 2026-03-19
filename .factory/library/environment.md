@@ -41,3 +41,20 @@ Environment variables, external dependencies, and setup notes.
 
 ## Validator Environment Notes
 - On this machine, `/tmp` is currently a full tmpfs. Validators that create temporary files (notably `cd dualvm && npm test`) should be run with `TMPDIR=/var/tmp` to avoid `ENOSPC` failures from `os.tmpdir()`-based tests.
+
+## M11 Canonical Deployment (2026-03-19)
+- All 17 EVM contracts deployed to Polkadot Hub TestNet (chain 420420417)
+- **CRITICAL deployment flags**: `--legacy --gas-estimate-multiplier 500 --slow` are REQUIRED
+  - Polkadot Hub TestNet rejects EIP-1559 (type 2) transactions for smaller contracts
+  - Gas estimation underestimates by ~5x for some contracts (XcmLiquidationNotifier, XcmNotifierAdapter)
+- **Foundry profile**: Use `FOUNDRY_PROFILE=deploy` (via_ir=false, evm_version=cancun)
+- PVM DeterministicRiskModel: `0xC6907B609ba4b94C9e319570BaA35DaF587252f8`
+- Key deployed addresses (manifest: `dualvm/deployments/deploy-manifest.json`):
+  - AccessManager: `0xc7F5871c0223eE42A858b54a679364c92C8CB0E8`
+  - LendingEngine: `0x74924a4502f666023510ED21Ae6E27bC47eE6485`
+  - RiskGateway: `0x01E56920355f1936c28A2EA627D027E35EccBca6`
+  - DebtPool: `0x1A024F0232Bab9D6282Efbf533F11e11511d68a8`
+  - TimelockController: `0x9e1a91042bAd90b73D4d35e798D140C83e0D45D5`
+  - DualVMGovernor: `0xD8bA49b5d6e3DF55B7a4424E1F6D0b3C22625220`
+  - GovernanceToken: `0x9D6d874413c72284514d5511A810DCeeDaB75a11`
+- Deployer has NO admin roles (fully renounced post-deployment)
