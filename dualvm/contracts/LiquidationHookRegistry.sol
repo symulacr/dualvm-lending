@@ -85,13 +85,16 @@ contract LiquidationHookRegistry is AccessManaged, ILiquidationNotifier {
     }
 
     // -------------------------------------------------------------------------
-    // ILiquidationNotifier — called directly by LendingCoreV2
+    // ILiquidationNotifier — called directly by LendingEngine
     // -------------------------------------------------------------------------
 
     /// @inheritdoc ILiquidationNotifier
     /// @dev Dispatches to the DEFAULT_HOOK_TYPE handler via executeHooks.
-    function notifyLiquidation(address borrower, uint256 debtRepaid, uint256 collateralSeized) external override {
-        executeHooks(DEFAULT_HOOK_TYPE, abi.encode(borrower, debtRepaid, collateralSeized));
+    function notifyLiquidation(address borrower, uint256 debtRepaid, uint256 collateralSeized, bytes32 correlationId)
+        external
+        override
+    {
+        executeHooks(DEFAULT_HOOK_TYPE, abi.encode(borrower, debtRepaid, collateralSeized, correlationId));
     }
 
     // -------------------------------------------------------------------------
@@ -99,19 +102,19 @@ contract LiquidationHookRegistry is AccessManaged, ILiquidationNotifier {
     // -------------------------------------------------------------------------
 
     /// @notice Execute the registered hook for hookType with the given ABI-encoded data.
-    /// @dev    data must be ABI-encoded as (address borrower, uint256 debtRepaid, uint256 collateralSeized).
+    /// @dev    data must be ABI-encoded as (address borrower, uint256 debtRepaid, uint256 collateralSeized, bytes32 correlationId).
     ///         If no handler is registered, returns silently (no revert).
     ///         If the handler reverts, emits HookFailed and continues.
     /// @param hookType Identifier for the hook category.
-    /// @param data     ABI-encoded (address, uint256, uint256) liquidation parameters.
+    /// @param data     ABI-encoded (address, uint256, uint256, bytes32) liquidation parameters.
     function executeHooks(bytes32 hookType, bytes memory data) public {
         address handler = _hooks[hookType];
         if (handler == address(0)) return;
 
-        (address borrower, uint256 debtRepaid, uint256 collateralSeized) =
-            abi.decode(data, (address, uint256, uint256));
+        (address borrower, uint256 debtRepaid, uint256 collateralSeized, bytes32 correlationId) =
+            abi.decode(data, (address, uint256, uint256, bytes32));
 
-        try ILiquidationNotifier(handler).notifyLiquidation(borrower, debtRepaid, collateralSeized) {
+        try ILiquidationNotifier(handler).notifyLiquidation(borrower, debtRepaid, collateralSeized, correlationId) {
             emit HookExecuted(hookType, handler);
         } catch (bytes memory reason) {
             emit HookFailed(hookType, handler, reason);

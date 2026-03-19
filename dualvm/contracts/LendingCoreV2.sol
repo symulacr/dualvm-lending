@@ -621,7 +621,7 @@ contract LendingCoreV2 is AccessManaged, Pausable, ReentrancyGuard, IMigratableL
         // Post-liquidation hook: notify external contract if configured.
         // Wrapped in try/catch so a reverting notifier never blocks the liquidation.
         if (liquidationNotifier != address(0)) {
-            try ILiquidationNotifier(liquidationNotifier).notifyLiquidation(borrower, actualRepay, collateralSeized) {}
+            try ILiquidationNotifier(liquidationNotifier).notifyLiquidation(borrower, actualRepay, collateralSeized, bytes32(0)) {}
             catch {}
         }
     }

@@ -165,7 +165,7 @@ contract LendingHardenedTest is BaseTest {
 
         vm.prank(liquidator);
         vm.expectEmit(true, false, false, false, address(lendingEngine));
-        emit LendingEngine.Liquidated(borrower, liquidator, 0, 0, 0);
+        emit LendingEngine.Liquidated(borrower, liquidator, 0, 0, 0, bytes32(0));
         lendingEngine.liquidate(borrower, type(uint256).max);
     }
 
@@ -298,7 +298,7 @@ contract LendingHardenedTest is BaseTest {
             staleBorrowRatePenaltyBps: STALE_BORROW_RATE_PENALTY_BPS,
             stressedCollateralRatioBps: STRESSED_COLLATERAL_RATIO_BPS
         });
-        RiskGateway testRisk = new RiskGateway(address(testAm), address(0), cfg);
+        RiskGateway testRisk = new RiskGateway(address(testAm), address(0), address(0), cfg);
         DebtPool testPool = new DebtPool(testUsdc, address(testAm), POOL_SUPPLY_CAP);
 
         LendingEngine.MarketConfig memory coreCfg = LendingEngine.MarketConfig({

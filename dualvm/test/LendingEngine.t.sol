@@ -43,9 +43,9 @@ contract LendingEngineTest is BaseTest {
     function test_Borrow_EmitsBorrowedEvent() public {
         uint256 amount = 5_000 * WAD;
         vm.prank(borrower);
-        // Only check topic1 (borrower address); amount and rate are data fields (not checked)
+        // Only check topic1 (borrower address); amount, rate, and correlationId are not checked
         vm.expectEmit(true, false, false, false, address(lendingEngine));
-        emit LendingEngine.Borrowed(borrower, 0, 0);
+        emit LendingEngine.Borrowed(borrower, 0, 0, bytes32(0));
         lendingEngine.borrow(amount);
     }
 
@@ -102,9 +102,9 @@ contract LendingEngineTest is BaseTest {
     function test_Repay_EmitsRepaidEvent() public {
         _borrowAs(borrower, 5_000 * WAD);
         vm.prank(borrower);
-        // Only check topic1 (borrower address)
+        // Only check topic1 (borrower address); amount/principalPaid/interestPaid/correlationId not checked
         vm.expectEmit(true, false, false, false, address(lendingEngine));
-        emit LendingEngine.Repaid(borrower, 0, 0, 0);
+        emit LendingEngine.Repaid(borrower, 0, 0, 0, bytes32(0));
         lendingEngine.repay(1_000 * WAD);
     }
 
@@ -180,9 +180,9 @@ contract LendingEngineTest is BaseTest {
 
         uint256 liquidatorColBefore = wpas.balanceOf(liquidator);
         vm.prank(liquidator);
-        // Only check topic1 (borrower) and topic2 (liquidator)
+        // Only check topic1 (borrower) and topic2 (liquidator); correlationId (topic3) not checked
         vm.expectEmit(true, true, false, false, address(lendingEngine));
-        emit LendingEngine.Liquidated(borrower, liquidator, 0, 0, 0);
+        emit LendingEngine.Liquidated(borrower, liquidator, 0, 0, 0, bytes32(0));
         lendingEngine.liquidate(borrower, type(uint256).max);
 
         assertEq(lendingEngine.currentDebt(borrower), 0, "debt should be cleared after full liquidation");
@@ -340,8 +340,9 @@ contract LendingEngineTest is BaseTest {
         (uint256 beneficiaryBefore,,,,) = lendingEngine.positions(borrower);
         (uint256 callerBefore,,,,) = lendingEngine.positions(deployer);
 
+        // Check topic1 (beneficiary) and data (amount); correlationId (topic2) not checked
         vm.expectEmit(true, false, false, true, address(lendingEngine));
-        emit LendingEngine.CollateralDeposited(borrower, depositAmount);
+        emit LendingEngine.CollateralDeposited(borrower, depositAmount, bytes32(0));
         lendingEngine.depositCollateralFor(borrower, depositAmount);
 
         (uint256 beneficiaryAfter,,,,) = lendingEngine.positions(borrower);
@@ -392,7 +393,7 @@ contract LendingEngineTest is BaseTest {
 
         vm.prank(liquidator);
         vm.expectEmit(true, false, false, false, address(mockNotifier));
-        emit MockLiquidationNotifier.NotificationReceived(borrower, 0, 0);
+        emit MockLiquidationNotifier.NotificationReceived(borrower, 0, 0, bytes32(0));
         lendingEngine.liquidate(borrower, type(uint256).max);
 
         assertEq(mockNotifier.callCount(), 1, "notifier should have been called once");

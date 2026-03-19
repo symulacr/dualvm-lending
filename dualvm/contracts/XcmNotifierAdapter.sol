@@ -51,9 +51,12 @@ contract XcmNotifierAdapter is ILiquidationNotifier {
     // -------------------------------------------------------------------------
 
     /// @inheritdoc ILiquidationNotifier
-    /// @dev Injects RELAY_DESTINATION and forwards to the 4-arg XcmLiquidationNotifier.
-    function notifyLiquidation(address borrower, uint256 debtRepaid, uint256 collateralSeized) external override {
-        xcmNotifier.notifyLiquidation(RELAY_DESTINATION, borrower, debtRepaid, collateralSeized);
+    /// @dev Injects RELAY_DESTINATION and forwards to the 5-arg XcmLiquidationNotifier.
+    function notifyLiquidation(address borrower, uint256 debtRepaid, uint256 collateralSeized, bytes32 correlationId)
+        external
+        override
+    {
+        xcmNotifier.notifyLiquidation(RELAY_DESTINATION, borrower, debtRepaid, collateralSeized, correlationId);
     }
 
     /// @notice Allow the adapter to receive PAS (may be needed for XCM fee forwarding).

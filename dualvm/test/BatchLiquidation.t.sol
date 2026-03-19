@@ -110,9 +110,9 @@ contract BatchLiquidationTest is BaseTest {
 
         vm.prank(liquidator);
         vm.expectEmit(true, true, false, false, address(lendingEngine));
-        emit LendingEngine.Liquidated(borrower1, liquidator, 0, 0, 0);
+        emit LendingEngine.Liquidated(borrower1, liquidator, 0, 0, 0, bytes32(0));
         vm.expectEmit(true, true, false, false, address(lendingEngine));
-        emit LendingEngine.Liquidated(borrower2, liquidator, 0, 0, 0);
+        emit LendingEngine.Liquidated(borrower2, liquidator, 0, 0, 0, bytes32(0));
         lendingEngine.batchLiquidate(borrowers, amounts);
     }
 
@@ -177,7 +177,7 @@ contract BatchLiquidationTest is BaseTest {
 
         vm.prank(liquidator);
         vm.expectEmit(true, true, false, false, address(lendingEngine));
-        emit LendingEngine.Liquidated(borrower1, liquidator, 0, 0, 0);
+        emit LendingEngine.Liquidated(borrower1, liquidator, 0, 0, 0, bytes32(0));
         lendingEngine.liquidate(borrower1, type(uint256).max);
 
         assertEq(lendingEngine.currentDebt(borrower1), 0, "debt should be cleared");

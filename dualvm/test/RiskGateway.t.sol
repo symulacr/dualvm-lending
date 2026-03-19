@@ -258,7 +258,7 @@ contract RiskGatewayTest is BaseTest {
         });
 
         vm.expectRevert(RiskGateway.InvalidRiskParams.selector);
-        new RiskGateway(address(testAm), address(0), badConfig);
+        new RiskGateway(address(testAm), address(0), address(0), badConfig);
     }
 
     // =========================================================================

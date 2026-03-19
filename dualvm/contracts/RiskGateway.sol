@@ -4,11 +4,18 @@ pragma solidity ^0.8.28;
 import {AccessManaged} from "@openzeppelin/contracts/access/manager/AccessManaged.sol";
 import {IRiskAdapter} from "./interfaces/IRiskAdapter.sol";
 import {IRiskEngine} from "./interfaces/IRiskEngine.sol";
+import {GovernancePolicyStore} from "./GovernancePolicyStore.sol";
 
 /// @notice Unified cross-VM risk gateway. Computes the canonical deterministic kinked-curve
 /// result inline, and optionally verifies against a PVM-deployed quoteEngine.
+/// Optionally reads governance risk policy overrides from GovernancePolicyStore.
 contract RiskGateway is IRiskAdapter, AccessManaged {
     uint256 private constant BPS = 10_000;
+
+    // --- Well-known policy keys for GovernancePolicyStore overrides ---
+    bytes32 public constant POLICY_MAX_LTV = keccak256("RISK_MAX_LTV_BPS");
+    bytes32 public constant POLICY_LIQ_THRESHOLD = keccak256("RISK_LIQ_THRESHOLD_BPS");
+    bytes32 public constant POLICY_BORROW_RATE_FLOOR = keccak256("RISK_BORROW_RATE_FLOOR_BPS");
 
     // --- Inline risk model parameters (immutable) ---
     uint256 public immutable baseRateBps;
@@ -24,6 +31,10 @@ contract RiskGateway is IRiskAdapter, AccessManaged {
 
     // --- Optional PVM cross-VM verification ---
     IRiskEngine public immutable quoteEngine;
+
+    // --- Optional governance policy overrides ---
+    /// @notice Governance-managed policy override store. address(0) disables overrides.
+    GovernancePolicyStore public immutable policyStore;
 
     mapping(bytes32 => QuoteTicket) private quoteTickets;
 
@@ -52,9 +63,14 @@ contract RiskGateway is IRiskAdapter, AccessManaged {
         uint256 stressedCollateralRatioBps;
     }
 
+    /// @param authority_    AccessManager address.
+    /// @param quoteEngine_  Optional PVM quote engine for cross-VM verification (address(0) = disabled).
+    /// @param policyStore_  Optional governance policy override store (address(0) = disabled).
+    /// @param config_       Immutable risk model parameters.
     constructor(
         address authority_,
         address quoteEngine_,
+        address policyStore_,
         RiskModelConfig memory config_
     ) AccessManaged(authority_) {
         if (
@@ -81,6 +97,9 @@ contract RiskGateway is IRiskAdapter, AccessManaged {
 
         // quoteEngine can be address(0) — means no PVM cross-VM verification
         quoteEngine = IRiskEngine(quoteEngine_);
+
+        // policyStore can be address(0) — no overrides
+        policyStore = GovernancePolicyStore(policyStore_);
     }
 
     // --- Public view: inline deterministic computation ---
@@ -143,6 +162,38 @@ contract RiskGateway is IRiskAdapter, AccessManaged {
         } else {
             output.maxLtvBps = healthyMaxLtvBps;
             output.liquidationThresholdBps = healthyLiquidationThresholdBps;
+        }
+
+        // Apply governance policy overrides if policyStore is configured
+        if (address(policyStore) != address(0)) {
+            _applyPolicyOverrides(output);
+        }
+    }
+
+    /// @dev Apply active policy overrides from GovernancePolicyStore to the quote output.
+    function _applyPolicyOverrides(QuoteOutput memory output) private view {
+        // Override maxLtvBps if policy is active and valid
+        if (policyStore.policyActive(POLICY_MAX_LTV)) {
+            uint256 overrideLtv = policyStore.getPolicy(POLICY_MAX_LTV);
+            if (overrideLtv > 0 && overrideLtv < BPS) {
+                output.maxLtvBps = overrideLtv;
+            }
+        }
+
+        // Override liquidationThresholdBps if policy is active and valid
+        if (policyStore.policyActive(POLICY_LIQ_THRESHOLD)) {
+            uint256 overrideThreshold = policyStore.getPolicy(POLICY_LIQ_THRESHOLD);
+            if (overrideThreshold > output.maxLtvBps && overrideThreshold <= BPS) {
+                output.liquidationThresholdBps = overrideThreshold;
+            }
+        }
+
+        // Apply borrow rate floor if active
+        if (policyStore.policyActive(POLICY_BORROW_RATE_FLOOR)) {
+            uint256 floor = policyStore.getPolicy(POLICY_BORROW_RATE_FLOOR);
+            if (output.borrowRateBps < floor) {
+                output.borrowRateBps = floor;
+            }
         }
     }
 

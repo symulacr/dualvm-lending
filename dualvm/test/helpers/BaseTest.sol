@@ -156,7 +156,7 @@ abstract contract BaseTest is Test {
             staleBorrowRatePenaltyBps: STALE_BORROW_RATE_PENALTY_BPS,
             stressedCollateralRatioBps: STRESSED_COLLATERAL_RATIO_BPS
         });
-        riskGateway = new RiskGateway(address(accessManager), address(quoteEngine), riskConfig);
+        riskGateway = new RiskGateway(address(accessManager), address(quoteEngine), address(0), riskConfig);
 
         // DebtPool (ERC-4626)
         debtPool = new DebtPool(usdc, address(accessManager), POOL_SUPPLY_CAP);
@@ -289,7 +289,7 @@ abstract contract BaseTest is Test {
             staleBorrowRatePenaltyBps: STALE_BORROW_RATE_PENALTY_BPS,
             stressedCollateralRatioBps: STRESSED_COLLATERAL_RATIO_BPS
         });
-        riskGateway = new RiskGateway(address(accessManager), address(quoteEngine), riskConfig);
+        riskGateway = new RiskGateway(address(accessManager), address(quoteEngine), address(0), riskConfig);
         debtPool = new DebtPool(usdc, address(accessManager), POOL_SUPPLY_CAP);
 
         LendingEngine.MarketConfig memory coreConfig = LendingEngine.MarketConfig({

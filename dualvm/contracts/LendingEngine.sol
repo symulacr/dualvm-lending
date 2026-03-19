@@ -76,6 +76,9 @@ contract LendingEngine is AccessManaged, Pausable, ReentrancyGuard, IMigratableL
     /// @notice Optional post-liquidation notifier. Set at construction; address(0) disables the hook.
     address public immutable liquidationNotifier;
 
+    /// @notice Monotonic nonce used to generate unique correlation IDs per operation.
+    uint256 private _opNonce;
+
     mapping(address => Position) public positions;
 
     error InvalidConfiguration();
@@ -92,16 +95,23 @@ contract LendingEngine is AccessManaged, Pausable, ReentrancyGuard, IMigratableL
     error ArrayLengthMismatch();
     error BatchLiquidationFailed(uint256 index, bytes reason);
 
-    event CollateralDeposited(address indexed account, uint256 amount);
-    event CollateralWithdrawn(address indexed account, uint256 amount);
-    event Borrowed(address indexed account, uint256 amount, uint256 borrowRateBps);
-    event Repaid(address indexed account, uint256 amount, uint256 principalPaid, uint256 interestPaid);
+    event CollateralDeposited(address indexed account, uint256 amount, bytes32 indexed correlationId);
+    event CollateralWithdrawn(address indexed account, uint256 amount, bytes32 indexed correlationId);
+    event Borrowed(address indexed account, uint256 amount, uint256 borrowRateBps, bytes32 indexed correlationId);
+    event Repaid(
+        address indexed account,
+        uint256 amount,
+        uint256 principalPaid,
+        uint256 interestPaid,
+        bytes32 indexed correlationId
+    );
     event Liquidated(
         address indexed borrower,
         address indexed liquidator,
         uint256 repaid,
         uint256 collateralSeized,
-        uint256 badDebtWrittenOff
+        uint256 badDebtWrittenOff,
+        bytes32 indexed correlationId
     );
     event BadDebtRealized(address indexed borrower, uint256 amount);
     event NewDebtFrozen();
@@ -171,6 +181,17 @@ contract LendingEngine is AccessManaged, Pausable, ReentrancyGuard, IMigratableL
         emit NewDebtFrozen();
     }
 
+    // -------------------------------------------------------------------------
+    // Correlation ID
+    // -------------------------------------------------------------------------
+
+    /// @notice Generate a unique correlation ID for bilateral async event tracing.
+    /// @dev Uses chain ID, block number, msg.sender, and a monotonic nonce to ensure
+    ///      uniqueness across calls. The nonce is incremented before hashing to prevent
+    ///      re-use within the same transaction.
+    function _nextCorrelationId() internal returns (bytes32) {
+        return keccak256(abi.encode(block.chainid, block.number, msg.sender, _opNonce++));
+    }
 
     function currentRiskConfigHash() public view returns (bytes32) {
         return keccak256(
@@ -333,6 +354,7 @@ contract LendingEngine is AccessManaged, Pausable, ReentrancyGuard, IMigratableL
 
     function depositCollateral(uint256 amount) external nonReentrant whenNotPaused {
         if (amount == 0) revert ZeroAmount();
+        bytes32 correlationId = _nextCorrelationId();
         Position storage position = positions[msg.sender];
         collateralAsset.safeTransferFrom(msg.sender, address(this), amount);
         position.collateralAmount += amount;
@@ -358,7 +380,7 @@ contract LendingEngine is AccessManaged, Pausable, ReentrancyGuard, IMigratableL
             }
         }
 
-        emit CollateralDeposited(msg.sender, amount);
+        emit CollateralDeposited(msg.sender, amount, correlationId);
     }
 
     /// @notice Deposit collateral on behalf of a beneficiary.
@@ -370,6 +392,7 @@ contract LendingEngine is AccessManaged, Pausable, ReentrancyGuard, IMigratableL
     function depositCollateralFor(address beneficiary, uint256 amount) external restricted nonReentrant whenNotPaused {
         if (amount == 0) revert ZeroAmount();
         if (beneficiary == address(0)) revert InvalidConfiguration();
+        bytes32 correlationId = _nextCorrelationId();
         Position storage position = positions[beneficiary];
         collateralAsset.safeTransferFrom(msg.sender, address(this), amount);
         position.collateralAmount += amount;
@@ -395,11 +418,12 @@ contract LendingEngine is AccessManaged, Pausable, ReentrancyGuard, IMigratableL
             }
         }
 
-        emit CollateralDeposited(beneficiary, amount);
+        emit CollateralDeposited(beneficiary, amount, correlationId);
     }
 
     function withdrawCollateral(uint256 amount) external nonReentrant whenNotPaused {
         if (amount == 0) revert ZeroAmount();
+        bytes32 correlationId = _nextCorrelationId();
         Position storage position = positions[msg.sender];
         if (position.collateralAmount < amount) revert InsufficientCollateral();
 
@@ -427,12 +451,13 @@ contract LendingEngine is AccessManaged, Pausable, ReentrancyGuard, IMigratableL
         }
 
         collateralAsset.safeTransfer(msg.sender, amount);
-        emit CollateralWithdrawn(msg.sender, amount);
+        emit CollateralWithdrawn(msg.sender, amount, correlationId);
     }
 
     function borrow(uint256 amount) external nonReentrant whenNotPaused {
         if (amount == 0) revert ZeroAmount();
         if (newDebtFrozen) revert NewDebtDisabled();
+        bytes32 correlationId = _nextCorrelationId();
         Position storage position = positions[msg.sender];
         if (position.collateralAmount == 0) revert InsufficientCollateral();
 
@@ -470,11 +495,12 @@ contract LendingEngine is AccessManaged, Pausable, ReentrancyGuard, IMigratableL
         _requireBorrowSafe(position.collateralAmount, projectedDebt, price, effectiveMaxLtv);
 
         debtPool.drawDebt(msg.sender, amount);
-        emit Borrowed(msg.sender, amount, quote.borrowRateBps);
+        emit Borrowed(msg.sender, amount, quote.borrowRateBps, correlationId);
     }
 
     function repay(uint256 amount) external nonReentrant {
         if (amount == 0) revert ZeroAmount();
+        bytes32 correlationId = _nextCorrelationId();
         Position storage position = positions[msg.sender];
         if (currentDebt(msg.sender) == 0) revert NoDebt();
 
@@ -509,7 +535,7 @@ contract LendingEngine is AccessManaged, Pausable, ReentrancyGuard, IMigratableL
             }
         }
 
-        emit Repaid(msg.sender, payment, principalPaid, interestPaid);
+        emit Repaid(msg.sender, payment, principalPaid, interestPaid, correlationId);
     }
 
     function liquidate(address borrower, uint256 requestedRepayAmount) external nonReentrant {
@@ -539,6 +565,7 @@ contract LendingEngine is AccessManaged, Pausable, ReentrancyGuard, IMigratableL
 
     function _liquidateOneFrom(address liquidator, address borrower, uint256 requestedRepayAmount) internal {
         if (requestedRepayAmount == 0) revert ZeroAmount();
+        bytes32 correlationId = _nextCorrelationId();
         Position storage position = positions[borrower];
 
         _accrue(position);
@@ -616,13 +643,14 @@ contract LendingEngine is AccessManaged, Pausable, ReentrancyGuard, IMigratableL
             position.borrowRateBps = postQuote.borrowRateBps;
         }
 
-        emit Liquidated(borrower, liquidator, actualRepay, collateralSeized, badDebtWrittenOff);
+        emit Liquidated(borrower, liquidator, actualRepay, collateralSeized, badDebtWrittenOff, correlationId);
 
         // Post-liquidation hook: notify external contract if configured.
         // Wrapped in try/catch so a reverting notifier never blocks the liquidation.
         if (liquidationNotifier != address(0)) {
-            try ILiquidationNotifier(liquidationNotifier).notifyLiquidation(borrower, actualRepay, collateralSeized) {}
-            catch {}
+            try ILiquidationNotifier(liquidationNotifier).notifyLiquidation(
+                borrower, actualRepay, collateralSeized, correlationId
+            ) {} catch {}
         }
     }
 
