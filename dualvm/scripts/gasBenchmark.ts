@@ -156,8 +156,6 @@ export async function main() {
 
   // Supply: deposit 10 USDC
   const SUPPLY_AMOUNT = ethers.parseUnits("10", 18);
-  let supplyRec: ReceiptGasRecord;
-
   if (usdcBalance < SUPPLY_AMOUNT) {
     throw new Error(`Insufficient USDC for supply benchmark: have ${ethers.formatUnits(usdcBalance, 18)}, need 10`);
   }
@@ -172,7 +170,7 @@ export async function main() {
   }
 
   // Benchmark supply (deposit)
-  supplyRec = await sendAndMeasure(
+  const supplyRec = await sendAndMeasure(
     "supply (DebtPool.deposit)",
     debtPoolV2.deposit(SUPPLY_AMOUNT, deployer.address),
     explorerBase,
