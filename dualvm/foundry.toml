@@ -11,6 +11,7 @@ via_ir = true
 ffi = false
 fs_permissions = [
   { access = "read", path = "./" },
+  { access = "read", path = "./deployments/" },
   { access = "write", path = "./deployments/" }
 ]
 
@@ -31,5 +32,6 @@ via_ir = false
 ffi = false
 fs_permissions = [
   { access = "read", path = "./" },
+  { access = "read", path = "./deployments/" },
   { access = "write", path = "./deployments/" }
 ]

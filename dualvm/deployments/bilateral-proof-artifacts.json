@@ -1,0 +1,36 @@
+{
+  "generatedAt": "1773936744",
+  "network": "Polkadot Hub TestNet (chain 420420417)",
+  "deployer": "0x36a83a4450744f4F9988c9Bc46cC556Ba5bFD2dF",
+  "governanceProposalId": "65748334394818902984350256264140996959607911138926057360207042591040499261456",
+  "contracts": {
+    "accessManager": "0xc7F5871c0223eE42A858b54a679364c92C8CB0E8",
+    "lendingEngine": "0x74924a4502f666023510ED21Ae6E27bC47eE6485",
+    "riskGateway": "0x01E56920355f1936c28A2EA627D027E35EccBca6",
+    "debtPool": "0x1A024F0232Bab9D6282Efbf533F11e11511d68a8",
+    "oracle": "0xF751Cca3D4dB1c4F461ed0556B394906DD2D6c4A",
+    "policyStore": "0x3471F542f66603a1899947fE5849a612f0A7f465",
+    "hookRegistry": "0xa80eAC309424FD3FA0daaF7200F5c2ab2bcb9B9A",
+    "xcmInbox": "0x6df5e3694976fd46Df67b1E6A7BdE85B39271719",
+    "xcmLiquidationNotifier": "0x051eBa834d9b8CfadEf166b441B80FC2f8bF0592"
+  },
+  "proof": {
+    "borrowCorrelationId": "0x98c582497c45526a7a90b2b415b515f5fea403c0ff5fd5c02535e510277487a9",
+    "liquidateCorrelationId": "0xca4aaead8c096b98d48fc31faba8a5022ac73bc2fc376ca98031b912384740e1",
+    "receiptCorrelationId": "0xf393acd43052b79143eaedbaf47dff7a441a3a0127ef4f2437f4e323ed30878a",
+    "hookRegistryDispatched": true,
+    "xcmLiquidationNotified": false,
+    "xcmNotifyAttemptedButFailed": true,
+    "xcmNotifyFailureReason": "XCM send failed: destination or message format may be incompatible (expected on testnet without live XCM)",
+    "xcmInboxReceiptReceived": true,
+    "xcmInboxDuplicateReverted": true,
+    "allContractsGoverned": true,
+    "transactions": {
+      "governanceExecute": "0x58da3cdfc88ed7f3c409cb2f5bdd00867043bd4213bee3a3809699d658a2746a",
+      "borrow": "0x4d6104a5661a88be0a7500870604f34c1a55577066ef1eaae2da8f5ae92192aa",
+      "liquidate": "0xa1ad2ca7c7ada4cee6daa13e11866ae56ec8bc7b57b7a302c7837c39f2083b03",
+      "xcmInboxReceiveReceipt": "0xb5eeb3530a9968a7c062e346771da5f6246128fb546daf3d8383b496ac167499"
+    },
+    "explorerBaseUrl": "https://blockscout-testnet.polkadot.io/tx/"
+  }
+}
