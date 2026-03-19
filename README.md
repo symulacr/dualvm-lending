@@ -390,6 +390,7 @@ All contracts deployed under a single canonical Governor→TimelockController→
 |-----------|---------|
 | Version Activation | [`0x3278a9ee...`](https://blockscout-testnet.polkadot.io/tx/0x3278a9ee913be2f47907ae2921f8a1be2ec0d4525ee3b58e7092b1e2801a22eb) |
 | Admin Renunciation | [`0x61c09d53...`](https://blockscout-testnet.polkadot.io/tx/0x61c09d5353c0d3c0246f818a413780517e7b7d5510022330fb822ac67c41e863) |
+| Emergency Admin Transfer to Timelock | [`0x5c0cce4e...`](https://blockscout-testnet.polkadot.io/tx/0x5c0cce4e6f49d3292741b0d9f2325e798b28ef8c0aee3cc0d2495ba2c4e3bb8b) |
 
 ### Migration Proof
 | Operation | TX Hash |

@@ -11,7 +11,7 @@
   },
   "roles": {
     "treasury": "0x519870b7b98a4FDc3D73cDb818634993cc942A86",
-    "emergencyAdmin": "0x519870b7b98a4FDc3D73cDb818634993cc942A86",
+    "emergencyAdmin": "0x65712EEFD810F077c6C11Fd7c18988d3ce569C60",
     "riskAdmin": "0xE6E56B87EB128c081c59aC5a4EF8Bfe002E86944",
     "treasuryOperator": "0x519870b7b98a4FDc3D73cDb818634993cc942A86",
     "minter": "0x26fdAba4D98899b31239C1d26a98C74872bD6976"

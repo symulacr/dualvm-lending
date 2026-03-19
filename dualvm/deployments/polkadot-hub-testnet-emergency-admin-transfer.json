@@ -1,0 +1,21 @@
+{
+  "timestamp": "2026-03-19T00:37:51.567Z",
+  "feature": "admin-transfer-timelock",
+  "validation": "VAL-ASYNC-003",
+  "network": "polkadot-hub-testnet",
+  "chainId": 420420417,
+  "accessManager": "0x32d0a9eb8F4Bd54F0610c31c277fD2E62e4ac2f0",
+  "emergencyRoleId": 1,
+  "timelockAddress": "0x65712EEFD810F077c6C11Fd7c18988d3ce569C60",
+  "deployerEOA": "0x519870b7b98a4FDc3D73cDb818634993cc942A86",
+  "renounceTxHash": "0x5c0cce4e6f49d3292741b0d9f2325e798b28ef8c0aee3cc0d2495ba2c4e3bb8b",
+  "preState": {
+    "timelockHasEmergency": true,
+    "deployerHasEmergency": true
+  },
+  "postState": {
+    "timelockHasEmergency": true,
+    "deployerHasEmergency": false
+  },
+  "result": "EMERGENCY_ADMIN transferred to governance timelock"
+}
