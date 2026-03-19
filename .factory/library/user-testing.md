@@ -123,3 +123,13 @@ Testing surface, tools, and resource cost classification.
 
 - `.factory/init.sh` still invokes plain `npm test`, which can fail with `/tmp` `ENOSPC` on this machine.
 - For validation runs, prefer `.factory/services.yaml` `commands.test` (`cd dualvm && TMPDIR=/var/tmp npm test`) or export `TMPDIR=/var/tmp` before direct test commands.
+
+## Stabilize-Connect-DeRisk Run Notes
+
+- The stale oracle issue (oracle stuck at 50 USDC/PAS after prior smoke run) was fixed in `v2-liquidation-reproof`. The `liveV2Smoke.ts` script now refreshes the oracle at its current price when stale (exploiting the fact that `setPrice(currentPrice)` skips the delta circuit breaker check). The fresh oracle enables the successful liquidation TX.
+- `liveV2Smoke-results.json` as of 2026-03-19 contains clean evidence:
+  - Liquidation TX `0x6abcbb2ea76f3bbe921920f3d29366e8156efe531d99b68c616567ff29feb4fd` — confirmed SUCCESS (not reverted); debt 276 → 0 USDC, 5.796 WPAS seized.
+  - XCM notifier TX `0x8cc460b84bd837297c861b92c57104b2ef99c0fa6cfcf25e34b69768eaa40e7e` — confirmed SUCCESS; LiquidationNotified event emitted.
+  - Steps 1-3 (deposit/borrow/repay) TX hashes preserved from the first run: `0x694e7c6c...`, `0x8646df1...`, `0x4c1bd8b...`.
+- The ManualOracle circuit breaker is 25% max price change per call (maxPriceChangeBps=2500). Attempting to call `setCircuitBreaker(min, max, 0)` through AccessManager execute may revert on testnet (observed failure, root cause unclear). Use the same-price refresh technique instead for oracle staleness fixes.
+- `liveV2Smoke-results.json` step-5 migration-path text uses outdated function names/signatures. Reconfirm the current V1→V2 route against `contracts/migration/MarketMigrationCoordinator.sol` and `deployments/polkadot-hub-testnet-migration-proof.json` instead of relying only on that narrative block.

@@ -29,7 +29,7 @@ import * as fs from "fs";
 import * as path from "path";
 import { createSmokeContext, buildManagedContext } from "../lib/runtime/smokeContext";
 import { waitForTransaction, formatWad } from "../lib/runtime/transactions";
-import { managedMintUsdc, managedSetOraclePrice } from "../lib/ops/managedAccess";
+import { managedMintUsdc, managedSetOraclePrice, managedSetOracleCircuitBreaker } from "../lib/ops/managedAccess";
 import { attachContract } from "../lib/runtime/contracts";
 import { runEntrypoint } from "../lib/runtime/entrypoint";
 
@@ -39,6 +39,13 @@ const { ethers } = hre;
 const RELAY_CHAIN_DEST = "0x050100";
 
 const WAD = ethers.parseUnits("1", 18);
+
+/** Target oracle price: 1000 USDC/PAS — clean baseline for deposit/borrow/repay steps */
+const TARGET_ORACLE_PRICE = 1000n * WAD;
+/** Oracle price for the liquidation test: 25% drop from 1000 makes admin position liquidatable */
+const LIQUIDATION_ORACLE_DROP = 750n * WAD;
+/** Intermediate restore price (750→937→1000): 750×1.2493=936.96 → 937 stays within 25% CB limit) */
+const ORACLE_RESTORE_INTERMEDIATE = 937n * WAD;
 
 /**
  * Computes the expected actualRepay for a liquidation call given current position state.
@@ -133,6 +140,30 @@ export async function main() {
     },
   };
 
+  // Load prior results to preserve valid TX hashes when steps are skipped (idempotency)
+  const priorResultsFilePath = path.join(process.cwd(), "deployments", "liveV2Smoke-results.json");
+  const priorTxHashes: Record<string, string | null> = {
+    step1_depositCollateral: null,
+    step2_borrow: null,
+    step3_repay: null,
+  };
+  try {
+    if (fs.existsSync(priorResultsFilePath)) {
+      const priorData = JSON.parse(fs.readFileSync(priorResultsFilePath, "utf-8")) as Record<string, any>;
+      for (const key of ["step1_depositCollateral", "step2_borrow", "step3_repay"] as const) {
+        const h = (priorData[key] as any)?.txHash;
+        if (typeof h === "string" && h.startsWith("0x") && h.length === 66) {
+          priorTxHashes[key] = h;
+        }
+      }
+      if (Object.values(priorTxHashes).some(Boolean)) {
+        console.log("Prior TX hashes loaded:", priorTxHashes);
+      }
+    }
+  } catch {
+    /* ignore parse errors */
+  }
+
   // Read current on-chain state for idempotency checks
   const originalOraclePrice: bigint = await oracle.priceWad();
   const oracleFresh: boolean = await oracle.isFresh();
@@ -160,12 +191,15 @@ export async function main() {
   // ═══════════════════════════════════════════════════════════════════════════
   console.log("\n═══ Step 0: Setup ═══");
 
-  // Refresh oracle if stale (setPrice with current value updates lastUpdatedAt)
+  // Refresh the oracle if stale. Since setPrice(currentPrice) when currentPrice == priceWad
+  // skips the circuit breaker delta check (previousPriceWad == nextPriceWad → return early),
+  // this always succeeds regardless of the current price value.
   if (!oracleFresh) {
-    console.log("  Oracle stale — refreshing via riskAdmin (60s delay)...");
-    await managedSetOraclePrice(riskCtx, oracle, originalOraclePrice, "refresh oracle price");
+    console.log(`  Oracle at ${formatWad(originalOraclePrice)}, stale — refreshing at same price (1 managed call, 60s delay)...`);
+    await managedSetOraclePrice(riskCtx, oracle, originalOraclePrice, "refresh oracle at current price");
+    console.log(`  Oracle refreshed at ${formatWad(originalOraclePrice)} USDC/PAS (now fresh)`);
   } else {
-    console.log("  Oracle is fresh — no refresh needed");
+    console.log(`  Oracle at ${formatWad(originalOraclePrice)} and fresh — no refresh needed`);
   }
 
   // Seed DebtPoolV2 if below threshold (5000 USDC)
@@ -190,9 +224,13 @@ export async function main() {
     console.log(`  DebtPoolV2 seeded with ${formatWad(seedNeeded)} USDC`);
   } else {
     // Still need to ensure liquidator has USDC for step 4
+    // Liquidator needs ≥4190 USDC to repay admin's full debt in the liquidation test.
+    // Ensure they have at least 5000 USDC (generous buffer).
     const liquidatorUsdc: bigint = await usdcAdmin.connect(liquidator).balanceOf(liquidator.address);
-    if (liquidatorUsdc < 1_000n * WAD) {
-      await managedMintUsdc(minterCtx, usdcAdmin, liquidator.address, 2_000n * WAD, "mint USDC for liquidator");
+    if (liquidatorUsdc < 5_000n * WAD) {
+      const mintNeeded = 5_000n * WAD - liquidatorUsdc;
+      await managedMintUsdc(minterCtx, usdcAdmin, liquidator.address, mintNeeded, "mint USDC for liquidator (need ≥4190 for admin liquidation)");
+      console.log(`  Minted ${formatWad(mintNeeded)} USDC for liquidator`);
     } else {
       console.log(`  Liquidator already has ${formatWad(liquidatorUsdc)} USDC — skipping mint`);
     }
@@ -216,7 +254,7 @@ export async function main() {
     // Already deposited (idempotent resume)
     console.log(`  Borrower already has ${formatWad(borrowerCollateralBefore)} WPAS collateral — step already done`);
     step1Result = {
-      txHash: "already_done_in_prior_run",
+      txHash: priorTxHashes.step1_depositCollateral ?? "already_done_in_prior_run",
       collateralCredited: formatWad(borrowerCollateralBefore),
       pass: true,
       note: "Borrower collateral already present from previous run",
@@ -256,7 +294,7 @@ export async function main() {
     // Already borrowed (idempotent resume — debt may be reduced by repay in prior run)
     console.log(`  Borrower already has ${formatWad(borrowerDebtBeforeBorrow)} USDC debt — step already done`);
     step2Result = {
-      txHash: "already_done_in_prior_run",
+      txHash: priorTxHashes.step2_borrow ?? "already_done_in_prior_run",
       currentDebt: formatWad(borrowerDebtBeforeBorrow),
       pass: true,
       note: "Borrow already present from previous run",
@@ -304,7 +342,7 @@ export async function main() {
     // Already repaid (debt is less than original borrow amount)
     console.log(`  Borrower debt ${formatWad(borrowerDebtBeforeRepay)} < borrow amount — repay already done`);
     step3Result = {
-      txHash: "already_done_in_prior_run",
+      txHash: priorTxHashes.step3_repay ?? "already_done_in_prior_run",
       debtBefore: formatWad(STEP2_BORROW),
       debtAfter: formatWad(borrowerDebtBeforeRepay),
       debtReduced: true,
@@ -350,12 +388,13 @@ export async function main() {
   console.log("\n═══ Step 4a: Set up admin liquidation position ═══");
 
   // Liquidation parameters:
-  // Admin deposits 6 WPAS total. At oracle=50 USDC/PAS:
-  //   colVal = 300 USDC, actualRepay = min(debt, 285.71) = debt (if debt < 285.71)
-  //   → full repayment, remaining debt = 0 (no DebtBelowMinimum error)
-  const LIQUIDATION_ORACLE_PRICE = 50n * WAD;
+  // Admin deposits 6 WPAS. Oracle is refreshed at its current value (e.g. 50 USDC/PAS from prior run).
+  // At oracle=50: colVal=300 USDC, maxBorrow=210 USDC (70% LTV), but admin may already have 276 USDC debt.
+  // 276 > colVal×liqThresh=300×0.8=240 → HF=300×0.8/276=0.87 < 1 → already liquidatable!
+  // No additional borrow or oracle drop needed when admin position already has HF < 1.
+  // If admin has no debt, borrow 276 USDC (at oracle≥100: 46% LTV, within 70% maxLTV).
   const TARGET_ADMIN_COLLATERAL = 6n * WAD;
-  const ADMIN_BORROW_AMOUNT = 276n * WAD; // 276 USDC (46% LTV at 100 USDC/PAS, 92% at 50 USDC/PAS — liquidatable)
+  const ADMIN_BORROW_AMOUNT = 276n * WAD; // safe at oracle ≥ 45 USDC/PAS (68.4% colVal/debt ratio)
   const LIQUIDATION_BONUS_BPS = 500n; // 5% liquidation bonus from manifest
 
   // Read current admin position
@@ -401,17 +440,17 @@ export async function main() {
   const adminDebtFinal: bigint = await lendingCoreV2Admin.currentDebt(admin.address);
   console.log(`  Admin position ready: collateral=${formatWad(adminCollateralFinal)} WPAS, debt=${formatWad(adminDebtFinal)}`);
 
-  // Verify the liquidation will succeed (simulate math)
-  const currentOracleForLiqSim: bigint = await oracle.priceWad();
+  // Verify the liquidation will succeed (simulate math at current oracle price)
+  const oracleForSim: bigint = await oracle.priceWad();
   const { remainingDebt: simRemainingDebt, actualRepay: simActualRepay, collateralExhausted: simExhausted } = simulateLiquidation(
     adminCollateralFinal,
     adminDebtFinal,
-    currentOracleForLiqSim < LIQUIDATION_ORACLE_PRICE ? currentOracleForLiqSim : LIQUIDATION_ORACLE_PRICE,
+    oracleForSim,
     LIQUIDATION_BONUS_BPS,
   );
   const minBorrow = 100n * WAD; // from manifest
   const liqWillSucceed = simRemainingDebt === 0n || simExhausted || simRemainingDebt >= minBorrow;
-  console.log(`  Simulation at oracle 50: actualRepay=${formatWad(simActualRepay)}, remaining=${formatWad(simRemainingDebt)}, willSucceed=${liqWillSucceed}`);
+  console.log(`  Simulation at oracle ${formatWad(oracleForSim)}: actualRepay=${formatWad(simActualRepay)}, remaining=${formatWad(simRemainingDebt)}, willSucceed=${liqWillSucceed}`);
 
   if (!liqWillSucceed) {
     throw new Error(`Liquidation would fail: remaining debt ${formatWad(simRemainingDebt)} < minBorrow 100 USDC. Adjust parameters.`);
@@ -423,14 +462,31 @@ export async function main() {
   const oraclePriceForLiq: bigint = await oracle.priceWad();
   let oracleWasDropped = false;
 
-  if (oraclePriceForLiq > LIQUIDATION_ORACLE_PRICE) {
-    console.log(`  Oracle at ${formatWad(oraclePriceForLiq)}, dropping to 50 USDC/PAS (60s delay)...`);
-    await managedSetOraclePrice(riskCtx, oracle, LIQUIDATION_ORACLE_PRICE, "drop oracle to 50 for liquidation");
+  if (oraclePriceForLiq > LIQUIDATION_ORACLE_DROP) {
+    // Need to drop oracle to make admin position liquidatable
+    console.log(`  Oracle at ${formatWad(oraclePriceForLiq)}, dropping 25% to ${formatWad(LIQUIDATION_ORACLE_DROP)} USDC/PAS (60s delay)...`);
+    await managedSetOraclePrice(riskCtx, oracle, LIQUIDATION_ORACLE_DROP, "drop oracle to 750 for liquidation (25% drop from 1000)");
     oracleWasDropped = true;
-  } else if (oraclePriceForLiq === LIQUIDATION_ORACLE_PRICE) {
-    console.log(`  Oracle already at ${formatWad(oraclePriceForLiq)} USDC/PAS — no drop needed`);
+  } else if (oraclePriceForLiq === LIQUIDATION_ORACLE_DROP) {
+    // Already at liquidation trigger price — refresh if stale
+    const isDropFresh: boolean = await oracle.isFresh();
+    if (!isDropFresh) {
+      console.log(`  Oracle already at ${formatWad(oraclePriceForLiq)} but stale — refreshing (60s delay)...`);
+      await managedSetOraclePrice(riskCtx, oracle, LIQUIDATION_ORACLE_DROP, "refresh oracle at liquidation price");
+      oracleWasDropped = true;
+    } else {
+      console.log(`  Oracle already at ${formatWad(oraclePriceForLiq)} USDC/PAS and fresh — no drop needed`);
+    }
   } else {
-    throw new Error(`Oracle at ${formatWad(oraclePriceForLiq)} — lower than expected liquidation price!`);
+    // Oracle is BELOW LIQUIDATION_ORACLE_DROP — position may already be liquidatable (e.g. oracle at 50 USDC/PAS).
+    // Freshness was already ensured in step 0. No oracle drop needed.
+    const isCurrentFresh: boolean = await oracle.isFresh();
+    if (!isCurrentFresh) {
+      console.log(`  Oracle at ${formatWad(oraclePriceForLiq)} but stale — refreshing at same price (60s delay)...`);
+      await managedSetOraclePrice(riskCtx, oracle, oraclePriceForLiq, "refresh oracle for liquidation");
+      // oracleWasDropped stays false (price unchanged, no restore needed)
+    }
+    console.log(`  Oracle at ${formatWad(oraclePriceForLiq)} USDC/PAS — admin HF check below will confirm liquidatability`);
   }
 
   const priceAtLiquidation: bigint = await oracle.priceWad();
@@ -538,28 +594,24 @@ export async function main() {
   }
 
   // ─── Restore oracle if it was changed ──────────────────────────────────
-  if (oracleWasDropped && originalOraclePrice !== LIQUIDATION_ORACLE_PRICE) {
-    console.log(`\n═══ Restoring oracle from 50 → ${formatWad(originalOraclePrice)} USDC/PAS ═══`);
-    let oracleRestored: boolean;
+  if (oracleWasDropped) {
+    console.log(`\n═══ Restoring oracle from ${formatWad(LIQUIDATION_ORACLE_DROP)} → ${formatWad(TARGET_ORACLE_PRICE)} USDC/PAS ═══`);
     try {
-      // Step 1: 50 → 99 (within 99% circuit breaker limit)
-      const intermediatePrice = 99n * WAD;
-      await managedSetOraclePrice(riskCtx, oracle, intermediatePrice, "oracle restore step 1: 50→99");
-      // Step 2: 99 → originalOraclePrice
-      await managedSetOraclePrice(riskCtx, oracle, originalOraclePrice, "oracle restore step 2: 99→original");
+      // From 750 to 1000 requires 2 steps within the 25% circuit breaker:
+      // Step 1: 750 → 937 (delta = 187/750 = 24.93% < 25% ✓)
+      await managedSetOraclePrice(riskCtx, oracle, ORACLE_RESTORE_INTERMEDIATE, "oracle restore step 1: 750→937");
+      // Step 2: 937 → 1000 (delta = 63/937 = 6.72% < 25% ✓)
+      await managedSetOraclePrice(riskCtx, oracle, TARGET_ORACLE_PRICE, "oracle restore step 2: 937→1000");
       const restoredPrice: bigint = await oracle.priceWad();
-      oracleRestored = restoredPrice === originalOraclePrice;
-      console.log(`  Oracle restored to: ${formatWad(restoredPrice)}`);
+      const oracleRestored = restoredPrice === TARGET_ORACLE_PRICE;
+      console.log(`  Oracle restored to: ${formatWad(restoredPrice)} USDC/PAS`);
       results.oracleRestored = oracleRestored;
+      results.oracleRestoreTarget = formatWad(TARGET_ORACLE_PRICE);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       console.warn(`  Oracle restore warning: ${msg.substring(0, 200)}`);
       results.oracleRestoreWarning = msg.substring(0, 200);
     }
-  } else if (originalOraclePrice === LIQUIDATION_ORACLE_PRICE) {
-    console.log(`\n  Oracle was already at 50 at start — no restore needed`);
-    results.oracleRestored = true;
-    results.oracleRestoreNote = "Oracle was already at liquidation price at script start";
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -637,8 +689,16 @@ export async function main() {
 
   console.log("\n✅ All V2 integration checks passed!");
 
+  // Build explorer links for all real TX hashes
+  const explorerLinks: Record<string, string> = {};
+  for (const [key, hash] of Object.entries(txHashes)) {
+    if (hash && typeof hash === "string" && hash.startsWith("0x") && hash.length === 66) {
+      explorerLinks[key] = `${explorerBase}tx/${hash}`;
+    }
+  }
+
   const outPath = path.join(process.cwd(), "deployments", "liveV2Smoke-results.json");
-  fs.writeFileSync(outPath, JSON.stringify({ ...results, txHashes }, null, 2) + "\n");
+  fs.writeFileSync(outPath, JSON.stringify({ ...results, txHashes, explorerLinks }, null, 2) + "\n");
   console.log(`\nResults written to: ${outPath}`);
 }
 
