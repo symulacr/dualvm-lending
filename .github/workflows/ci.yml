@@ -13,6 +13,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -21,7 +26,7 @@ jobs:
           cache: npm
           cache-dependency-path: dualvm/package-lock.json
 
-      - name: Install dependencies
+      - name: Install Node.js dependencies
         run: npm ci
 
       - name: TypeScript typecheck
@@ -30,11 +35,14 @@ jobs:
       - name: Lint
         run: npm run lint
 
-      - name: Run tests
-        run: npm test
+      - name: Run Forge tests
+        run: forge test
 
-      - name: Build app and contracts
-        run: npm run build
+      - name: Forge build (contracts)
+        run: forge build
+
+      - name: Build frontend
+        run: npm run build:app
 
       - name: Testnet smoke (read-only contract existence)
         run: node scripts/ci-smoke.mjs

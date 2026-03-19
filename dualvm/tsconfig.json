@@ -10,5 +10,5 @@
     "skipLibCheck": true,
     "types": ["node", "vite/client"]
   },
-  "include": ["hardhat.config.ts", "lib", "scripts", "test", "src", "vite.config.ts"]
+  "include": ["lib", "scripts", "src", "vite.config.ts"]
 }
