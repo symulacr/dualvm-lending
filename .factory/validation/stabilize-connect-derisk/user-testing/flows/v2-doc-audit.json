@@ -1,0 +1,48 @@
+{
+  "surface": "terminal-doc-audit",
+  "assertionResults": [
+    {
+      "id": "VAL-STAB-009",
+      "status": "pass",
+      "reason": "README.md has zero occurrences of both stale terms; full-file fixed-string searches returned no matches, which satisfies the narrower diagram/narrative cleanup requirement.",
+      "evidence": [
+        "/home/kpa/polkadot/README.md",
+        "Grep fixed-string 'PvmQuoteProbe' on README.md -> No matches found",
+        "Grep fixed-string 'quote ticket publication' on README.md -> No matches found"
+      ]
+    },
+    {
+      "id": "VAL-STAB-011",
+      "status": "pass",
+      "reason": "Frontend source under dualvm/src is reduced from the M9 baseline of 2672 LOC to 1865 LOC in the current worktree, a net reduction of 807 LOC (30.20%), which meets the >=30% requirement.",
+      "evidence": [
+        "Baseline commit: eee8d3fb0241e44d01a16c8a9ed0ce3a143c9af6 (ae01835^) 'feat: deploy fresh probe instances and collect clean stage1+stage3 results in probe-results-v2.json'",
+        "Cleanup commit: ae0183511b933f7e96c9df9788127f04a3e898d2 'feat: docs-frontend-cleanup - replace PvmQuoteProbe refs, add README summary, 30% frontend LOC reduction, V2 address wiring'",
+        "git show --stat ae01835 -- dualvm/src -> 21 files changed, 155 insertions(+), 962 deletions(-), net -807 LOC",
+        "Python git-history count for baseline dualvm/src/**/*.ts,tsx -> 31 files, 2672 LOC",
+        "Python worktree count for current dualvm/src/**/*.ts,tsx -> 27 files, 1865 LOC",
+        "Reduction calculation -> 807 / 2672 = 30.20%",
+        "Removed source files at cleanup commit: dualvm/src/components/sections/AssetPathSection.tsx, dualvm/src/components/sections/DemoFlowSection.tsx, dualvm/src/components/sections/HeroSection.tsx, dualvm/src/lib/assetRegistry.ts"
+      ]
+    },
+    {
+      "id": "VAL-STAB-012",
+      "status": "pass",
+      "reason": "README.md begins with a lowercase summary block on line 1; extracted summary text is 246 words and starts with a lowercase character, satisfying the <=250-word lowercase-summary requirement.",
+      "evidence": [
+        "/home/kpa/polkadot/README.md:1 -> <!-- summary: dualvm lending is a production-minded isolated lending market built on polkadot hub testnet (chain id 420420417).",
+        "Python summary extraction -> has_summary=True, starts_lowercase=True, word_count=246, summary_line_count=12",
+        "/home/kpa/polkadot/README.md:14 -> # DualVM Lending"
+      ]
+    }
+  ],
+  "frictions": [],
+  "blockers": [],
+  "toolsUsed": [
+    "Read",
+    "Grep",
+    "Execute",
+    "git",
+    "python3"
+  ]
+}

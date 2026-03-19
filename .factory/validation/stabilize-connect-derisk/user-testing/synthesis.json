@@ -1,0 +1,25 @@
+{
+  "milestone": "stabilize-connect-derisk",
+  "round": 2,
+  "status": "pass",
+  "assertionsSummary": {
+    "total": 2,
+    "passed": 2,
+    "failed": 0,
+    "blocked": 0
+  },
+  "passedAssertions": [
+    "VAL-STAB-005",
+    "VAL-CROSS-M9-001"
+  ],
+  "failedAssertions": [],
+  "blockedAssertions": [],
+  "appliedUpdates": [
+    {
+      "target": "user-testing.md",
+      "description": "Documented that `liveV2Smoke.ts` proves the M9 lifecycle across two scripted positions: one borrower for deposit/borrow/repay and a separate admin borrower for the dedicated liquidation segment.",
+      "source": "flow-report"
+    }
+  ],
+  "previousRound": "/home/kpa/polkadot/.factory/validation/stabilize-connect-derisk/user-testing/synthesis.round1.json"
+}
