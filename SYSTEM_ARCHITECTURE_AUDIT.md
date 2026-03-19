@@ -1,5 +1,5 @@
 # DualVM Lending - Adversarial System Architecture Audit
-### Date: 2026-03-18 | Auditor: Principal Systems Architect | Confidence: HIGH (code-verified)
+### Date: 2026-03-19 | Auditor: Principal Systems Architect | Confidence: HIGH (code-verified) | M11 bilateral-async-unified
 
 ---
 
@@ -7,29 +7,35 @@
 
 | Domain                              | Status    | Evidence                                                                                  | Confidence |
 |-------------------------------------|-----------|-------------------------------------------------------------------------------------------|------------|
-| **Canonical Lending (EVM)**         | DONE      | 12 contracts deployed to testnet, 105 tests passing, full borrow/repay/liquidate cycle    | HIGH       |
+| **Canonical Lending (EVM)**         | DONE      | All contracts deployed to testnet (M11 canonical), 291 Foundry tests passing              | HIGH       |
 | **ERC-4626 Debt Pool**              | DONE      | OZ 5.5 ERC4626 with supply cap, reserve accounting, inflation-attack mitigation via OZ    | HIGH       |
-| **AccessManager RBAC**              | DONE      | DualVMAccessManager wraps OZ AccessManager, 5+ roles wired, timelock delays configured    | HIGH       |
+| **AccessManager RBAC**              | DONE      | DualVMAccessManager wraps OZ AccessManager, 6+ roles wired, timelock holds admin          | HIGH       |
 | **Governor + Timelock**             | DONE      | DualVMGovernor + GovernorTimelockControl, voting delay/period, quorum fraction, deployed   | HIGH       |
+| **GovernancePolicyStore**           | DONE      | AccessManaged, setPolicy/getPolicy for PVM risk overrides; deployed M11                   | HIGH       |
 | **Market Version Registry**         | DONE      | registerVersion/activateVersion with cross-contract validation, tested                     | HIGH       |
 | **Market Migration Coordinator**    | DONE      | Borrower + liquidity migration across versions, tested with route open/close               | HIGH       |
-| **Oracle (Manual)**                 | DONE      | Circuit breaker (min/max/delta), staleness rejection (maxAge), epoch tracking              | HIGH       |
-| **Risk Model (Inline Math)**        | DONE      | Kinked-curve in RiskAdapter._inlineQuote(), stressed/healthy regimes, deterministic        | HIGH       |
+| **Oracle (Manual)**                 | DONE      | Circuit breaker (min/max/delta), staleness rejection (maxAge=1800s), epoch tracking        | HIGH       |
+| **Risk Model (Inline Math)**        | DONE      | Kinked-curve in RiskGateway._inlineQuote(), stressed/healthy regimes, deterministic        | HIGH       |
 | **Batch Liquidation**               | DONE      | batchLiquidate() with try/catch per position, tested                                       | HIGH       |
+| **CorrelationId in Events**         | DONE      | All LendingEngine events emit correlationId; propagated to HookRegistry and XCM            | HIGH       |
+| **LiquidationHookRegistry**         | DONE      | Governance-managed hooks, try/catch dispatch, HookFailed non-blocking, deployed M11        | HIGH       |
+| **XcmInbox**                        | DONE      | receiveReceipt with correlationId dedup (DuplicateCorrelationId revert), deployed M11      | HIGH       |
+| **XcmNotifierAdapter**              | DONE      | Bridges HookRegistry→XcmLiquidationNotifier with correlationId forwarding                  | HIGH       |
 | **XCM weighMessage**                | DONE      | Proven on-chain: TX 0xc147ac14, refTime=979880000, proofSize=10943                        | HIGH       |
 | **XCM execute**                     | DONE      | Proven on-chain: TX 0xea5ecc4b, ClearOrigin V5 message executed locally                   | HIGH       |
 | **XCM send**                        | DONE      | Proven on-chain: TX 0x26d74cf7, ClearOrigin sent to relay chain parent (0x050100)          | HIGH       |
-| **XCM Liquidation Notifier**        | DONE      | Proven on-chain: TX 0x172a6c92, V5 ClearOrigin to relay, LiquidationNotified event        | HIGH       |
+| **XCM Liquidation Notifier**        | DONE      | SetTopic(correlationId) in V5 message; LiquidationNotified event; deployed M11             | HIGH       |
 | **EVM->PVM (Stage 1: Echo+Quote)**  | DONE      | Proven: DirectSync REVM->PVM echo + deterministic quote match on testnet                   | HIGH       |
-| **PVM->EVM (Stage 2: Callback)**    | FAILED    | "execution reverted" - PVM callback to REVM receiver failed on live testnet                | HIGH       |
+| **PVM->EVM (Stage 2: Callback)**    | FAILED    | "execution reverted" - PVM callback to REVM receiver failed on live testnet (platform)     | HIGH       |
 | **Roundtrip Settlement (Stage 3)**  | PARTIAL   | settleBorrow principalDebt=2140 vs expected 1070 (state pollution from repeated runs)      | HIGH       |
-| **PVM Compilation (resolc)**        | PARTIAL   | PvmQuoteProbe deployed via resolc, but DeterministicRiskModel NOT compiled to PVM          | HIGH       |
+| **PVM Compilation (resolc)**        | DONE      | DeterministicRiskModel compiled via resolc and deployed to PVM (M9); quoteEngine wired     | HIGH       |
 | **Frontend Tabbed Layout**          | DONE      | 3 tabs (Lend&Borrow, Market Data, Protocol Info), action forms at position #1              | HIGH       |
 | **Frontend Health Display**         | DONE      | 4-tier color coding (green/yellow/orange/red), liquidation price, Max buttons              | MEDIUM     |
 | **Frontend Write Path**             | DONE      | deposit/borrow/repay/liquidate/supply/withdraw via wagmi+viem, TxStatusBanner              | MEDIUM     |
-| **LendingRouter (1-click PAS)**     | PARTIAL   | Contract deposits to ROUTER's position, not USER's - by-design for MVP but unusable        | HIGH       |
-| **Documentation**                   | DONE      | 10 Mermaid diagrams, failure modes, deployment guide, SPEC reduced to pointer              | HIGH       |
-| **Postmortem Rebuttal**             | DONE      | 74% cut, added Rebuttal citing Dec 2025 Revive, Elastic Scaling, official dual-VM docs     | HIGH       |
+| **LendingRouter (1-click PAS)**     | DONE      | depositCollateralFromPAS() credits USER position via depositCollateralFor(beneficiary)      | HIGH       |
+| **Event Correlator**                | DONE      | Off-chain correlator matches events by correlationId across LendingEngine+XcmInbox         | HIGH       |
+| **Toolchain (Foundry)**             | DONE      | forge build + forge test + forge script; 291 tests pass; Hardhat fully removed             | HIGH       |
+| **Documentation**                   | DONE      | Architecture docs, bilateral async design, Mermaid diagrams, failure modes, deploy guide   | HIGH       |
 
 ### Legend
 - **DONE**: Functional, tested, deployed where applicable
@@ -39,7 +45,9 @@
 
 ---
 
-## 2. GAP ANALYSIS
+## 2. GAP ANALYSIS (M11 Status)
+
+> **M11 note**: GAP-2 (PVM compilation), GAP-3 (LendingRouter), GAP-5 (Oracle maxAge), and GAP-7 (XCM disconnected) are all resolved. GAP-4 (XCM ClearOrigin-only) is partially resolved — SetTopic(correlationId) added. GAP-1 (PVM callback) remains a platform blocker.
 
 ### GAP-1: PVM->EVM Callback (Stage 2) is BROKEN
 - **What remains**: PVM-initiated callbacks to REVM contracts revert on live testnet
@@ -50,23 +58,12 @@
 - **Assumptions**: We assume EVM->PVM (Stage 1) continues to work. If PVM preview changes break Stage 1 too, the entire dual-VM story collapses.
 - **How to finish**: Re-deploy PvmCallbackProbe after next PVM SDK update, re-run `probe:pvm-to-revm:testnet`.
 
-### GAP-2: DeterministicRiskModel is NOT PVM-compiled
-- **What remains**: The renamed contract exists at `contracts/pvm/DeterministicRiskModel.sol` but is deployed via Hardhat to EVM, not via resolc to PVM.
-- **Why it matters**: RiskAdapter's `_verifyCrossVM()` calls `quoteEngine.quote()` expecting a PVM-deployed contract. Currently the `quoteEngine` address (0x9a78F65b00E0AeD0830063eD0ea66a0B5d8876DE) points to the PvmQuoteProbe, not DeterministicRiskModel. The canonical deployment has a stale PVM target.
-- **Root cause**: The M6 refactoring renamed PvmRiskEngine to DeterministicRiskModel but didn't recompile/redeploy it via resolc. The existing PvmQuoteProbe was left as the quoteEngine.
-- **Blockers**: resolc compilation pipeline exists (`build:pvm` script) but hasn't been run for DeterministicRiskModel specifically.
-- **Required changes**: (1) Compile DeterministicRiskModel with resolc, (2) Deploy to PVM, (3) Update canonical manifest with new quoteEngine address, (4) Redeploy RiskAdapter pointing to new PVM quoteEngine.
-- **Assumptions**: resolc can compile DeterministicRiskModel without issues. The PVM deployment slot remains stable.
-- **How to finish**: `npm run build:pvm` for DeterministicRiskModel, deploy via Hardhat PVM config, update manifest.
+### GAP-2: DeterministicRiskModel PVM compilation — ✅ RESOLVED (M9)
+- **Resolution**: DeterministicRiskModel compiled via resolc and deployed to PVM at `0xC6907B609ba4b94C9e319570BaA35DaF587252f8`. RiskGateway.quoteEngine() points to this PVM address. Verified via `revive.accountInfoOf` on substrate API (PVM code hash `0xba8fe2a6...`).
+- **M11 deployment**: RiskGateway in M11 canonical manifest also points to PVM DeterministicRiskModel address.
 
-### GAP-3: LendingRouter credits ITSELF, not the USER
-- **What remains**: `LendingRouter.depositCollateralFromPAS()` calls `lendingCore.depositCollateral(amount)` with `msg.sender = router`. The position is recorded for the router's address, not the user's.
-- **Why it matters**: Users who use the 1-click PAS deposit lose their collateral to the router contract. There is no mechanism to withdraw or borrow against it. This is documented as "by-design for hackathon MVP" but renders the feature useless for actual lending.
-- **Root cause**: `depositCollateral()` uses `msg.sender` to assign positions. A router contract becomes `msg.sender`.
-- **Blockers**: Fixing requires either: (a) adding `depositCollateralFor(address user, uint256 amount)` to LendingCore, or (b) having the router hold proxy positions.
-- **Required changes**: Add `depositCollateralFor()` to LendingCore that accepts a beneficiary address.
-- **Assumptions**: AccessManaged restrictions on new LendingCore functions would need wiring.
-- **How to finish**: Single function addition + router update + test.
+### GAP-3: LendingRouter credits ITSELF, not the USER — ✅ RESOLVED (M9/M11)
+- **Resolution**: LendingEngine (formerly LendingCoreV2) exposes `depositCollateralFor(address beneficiary, uint256 amount)`. LendingRouter.depositCollateralFromPAS() now calls `depositCollateralFor(msg.sender, amount)`, crediting the caller's position. Tested in LendingRouter.t.sol.
 
 ### GAP-4: XCM messages are ClearOrigin ONLY
 - **What remains**: All XCM demonstrations use `ClearOrigin` (opcode 0x0a) - the simplest possible instruction that carries no assets, no data, and no actionable payload.
@@ -77,14 +74,8 @@
 - **Assumptions**: The relay chain parent accepts ClearOrigin but may reject more complex messages without proper fee payment.
 - **How to finish**: Construct SCALE-encoded V5 messages with WithdrawAsset+BuyExecution+DepositAsset or Transact instructions, test on testnet.
 
-### GAP-5: Oracle is Manual with 6-hour staleness window
-- **What remains**: ManualOracle with `maxAge = 21600` seconds (6 hours). Price is set by a privileged `riskAdmin` address.
-- **Why it matters**: A 6-hour staleness window in DeFi is extremely dangerous. At PAS volatility rates, a 6-hour-old price can be 10-30% wrong, enabling theft via over-borrowing or blocking legitimate liquidations.
-- **Root cause**: Hackathon scope - no oracle network exists on Polkadot Hub TestNet.
-- **Blockers**: No Chainlink/DIA/RedStone deployment on Polkadot Hub TestNet.
-- **Required changes**: Reduce maxAge to 30-60 minutes for any non-demo deployment. Document the 6-hour window as a critical security gap.
-- **Assumptions**: The hackathon judges understand this is a demo constraint.
-- **How to finish**: Parameter change only (setMaxAge call via governance).
+### GAP-5: Oracle maxAge=6h — ✅ RESOLVED (M9)
+- **Resolution**: ManualOracle `maxAge` reduced to 1800 seconds (30 minutes) in M9 deployment. M11 canonical deployment also uses maxAge=1800s.
 
 ### GAP-6: Roundtrip Settlement state pollution
 - **What remains**: Stage 3 probe shows principalDebt=2140 vs expected 1070 because the test was run multiple times on the same testnet state without resetting.
@@ -94,13 +85,9 @@
 - **Required changes**: Redeploy probes from scratch, run exactly once, capture results.
 - **How to finish**: Fresh probe deployment + single clean run.
 
-### GAP-7: No integration between XCM contracts and lending protocol
-- **What remains**: CrossChainQuoteEstimator and XcmLiquidationNotifier are standalone contracts with no connection to LendingCore. LendingCore never calls them.
-- **Why it matters**: XCM is presented as a feature but is architecturally disconnected from the lending protocol. There's no automated cross-chain notification on liquidation events.
-- **Root cause**: Scope decision - XCM was MVP-excluded per CLAUDE.md ("XCM is out of the MVP critical path").
-- **Blockers**: Would require modifying liquidate() in LendingCore to call XcmLiquidationNotifier.
-- **Required changes**: Add optional XCM notification hook to liquidation flow.
-- **How to finish**: Add post-liquidation callback, wire XcmLiquidationNotifier address.
+### GAP-7: No integration between XCM contracts and lending protocol — ✅ RESOLVED (M10/M11)
+- **Resolution**: LendingEngine.liquidate() calls `liquidationNotifier.notifyLiquidation()` via try/catch. The notifier is `LiquidationHookRegistry`, which dispatches to `XcmNotifierAdapter`, which forwards to `XcmLiquidationNotifier`, which sends XCM with `SetTopic(correlationId)`. The correlationId from the Liquidated event is propagated through the full chain. XcmInbox.receiveReceipt() enables correlation of on-chain receipts to the originating liquidation event.
+- **Proof**: bilateral-proof-artifacts.json records hookRegistryDispatched=true; liquidate TX `0xa1ad2ca7` on M11 canonical deployment.
 
 ### GAP-8: Frontend Max buttons parse formatted strings
 - **What remains**: Max buttons on Borrow/Repay forms auto-fill from observer state but may parse locale-formatted strings (with commas) instead of raw numeric values.
@@ -111,28 +98,34 @@
 
 ## 3. CURRENT-STATE ARCHITECTURE
 
-### 3.1 Contract Inventory (30 .sol files, 2739 total LOC)
+### 3.1 Contract Inventory (M11 Canonical Names — Foundry, forge build)
 
-| Contract                       | LOC | OZ Inheritance                                          | Deployed | Role       |
-|--------------------------------|-----|---------------------------------------------------------|----------|------------|
-| LendingCore                    | 772 | AccessManaged, Pausable, ReentrancyGuard                | YES      | Core       |
-| RiskAdapter                    | 253 | AccessManaged, IRiskAdapter                              | YES      | Risk       |
-| DebtPool                       | 204 | ERC4626, AccessManaged, Pausable, ReentrancyGuard       | YES      | Pool       |
-| ManualOracle                   | 163 | AccessManaged, Pausable                                  | YES      | Oracle     |
-| MarketMigrationCoordinator     | 110 | AccessManaged                                            | YES      | Migration  |
-| DualVMGovernor                 | 100 | Governor, Counting, Votes, Quorum, TimelockControl       | YES      | Governance |
-| MarketVersionRegistry          | 97  | AccessManaged                                            | YES      | Registry   |
-| DeterministicRiskModel         | 87  | IRiskEngine (stateless)                                  | YES(EVM) | PVM Target |
-| CrossChainQuoteEstimator       | 87  | None (uses IXcm precompile)                              | YES      | XCM Demo   |
-| XcmLiquidationNotifier         | 82  | None (uses IXcm precompile)                              | YES      | XCM Demo   |
-| LendingRouter                  | 64  | ReentrancyGuard                                          | YES      | UX Helper  |
-| WPAS                           | 41  | (custom WETH-style)                                      | YES      | Wrapper    |
-| USDCMock                       | 17  | (ERC20 mock)                                             | YES      | Mock Asset |
-| DualVMAccessManager            | 8   | AccessManager                                            | YES      | RBAC       |
-| GovernanceToken                | 39  | ERC20, ERC20Permit, ERC20Votes                           | YES      | Governance |
-| + 6 Probe contracts            | ~350| Various                                                  | YES      | Probe/Test |
-| + 4 Interface files            | ~130| N/A                                                      | N/A      | Interface  |
-| + 2 Test helper contracts      | ~97 | N/A                                                      | N/A      | Test Only  |
+| Contract                       | LOC  | OZ Inheritance                                          | Deployed      | Role           |
+|--------------------------------|------|---------------------------------------------------------|---------------|----------------|
+| LendingEngine                  | ~870 | AccessManaged, Pausable, ReentrancyGuard                | YES (M11)     | Core           |
+| RiskGateway                    | ~310 | AccessManaged, IRiskGateway                              | YES (M11)     | Risk           |
+| DebtPool                       | 204  | ERC4626, AccessManaged, Pausable, ReentrancyGuard       | YES (M11)     | Pool           |
+| ManualOracle                   | 163  | AccessManaged, Pausable                                  | YES (M11)     | Oracle         |
+| GovernancePolicyStore          | ~110 | AccessManaged                                            | YES (M11)     | Policy Override|
+| LiquidationHookRegistry        | ~150 | AccessManaged                                            | YES (M11)     | Hook Dispatch  |
+| XcmInbox                       | ~120 | AccessManaged                                            | YES (M11)     | Receipt Dedup  |
+| XcmNotifierAdapter             | ~80  | None                                                     | YES (M11)     | Hook Adapter   |
+| XcmLiquidationNotifier         | ~90  | None (uses IXcm precompile)                              | YES (M11)     | XCM Notifier   |
+| LendingRouter                  | ~67  | ReentrancyGuard                                          | YES (M11)     | UX Helper      |
+| MarketMigrationCoordinator     | 110  | AccessManaged                                            | YES (M11)     | Migration      |
+| DualVMGovernor                 | 100  | Governor, Counting, Votes, Quorum, TimelockControl       | YES (M11)     | Governance     |
+| MarketVersionRegistry          | 97   | AccessManaged                                            | YES (M11)     | Registry       |
+| DeterministicRiskModel         | 87   | IRiskEngine (stateless)                                  | YES (PVM, M9) | PVM Target     |
+| CrossChainQuoteEstimator       | 87   | None (uses IXcm precompile)                              | YES           | XCM Demo       |
+| WPAS                           | 41   | (custom WETH-style)                                      | YES (M11)     | Wrapper        |
+| USDCMock                       | 17   | (ERC20 mock)                                             | YES (M11)     | Mock Asset     |
+| DualVMAccessManager            | 8    | AccessManager                                            | YES (M11)     | RBAC           |
+| GovernanceToken                | 39   | ERC20, ERC20Permit, ERC20Votes                           | YES (M11)     | Governance     |
+| + 4 Probe contracts            | ~300 | Various                                                  | YES           | Probe/Test     |
+| + 4 Interface files            | ~130 | N/A                                                      | N/A           | Interface      |
+| + 2 Test helper contracts      | ~97  | N/A                                                      | N/A           | Test Only      |
+
+**Toolchain**: Foundry (forge build, forge test, forge script). Hardhat removed in M11. 291 Foundry tests pass.
 
 ### 3.2 OpenZeppelin Usage Inventory (v5.5.0)
 
@@ -149,66 +142,84 @@
 | SafeERC20                            | LendingCore, DebtPool, MarketMigrationCoordinator | Safe token transfers   |
 | Math                                 | DebtPool                            | Min calculations for liquidity       |
 
-### 3.3 Access Control Role Graph
+### 3.3 Access Control Role Graph (M11 Canonical Deployment)
 
 ```
-DualVMAccessManager (0x32d0...c2f0)
+DualVMAccessManager (0xc7F5871c0223eE42A858b54a679364c92C8CB0E8)
 ├── ADMIN_ROLE
-│   └── governanceTimelock (0x6571...) — 3600s admin delay
+│   └── governanceTimelock (0x9e1a91042bAd90b73D4d35e798D140C83e0D45D5) — admin
+│   └── deployer has NO residual admin role (renounced M11)
 ├── EMERGENCY_ADMIN_ROLE  
-│   └── deployer (0x5198...) — 0s delay
-│   └── Targets: LendingCore.pause(), DebtPool.pause(), ManualOracle.pause()
+│   └── governanceTimelock (0x9e1a91...) — 0s delay (timelock holds emergency via M10 transfer)
+│   └── Targets: LendingEngine.pause(), DebtPool.pause(), ManualOracle.pause()
 ├── RISK_ADMIN_ROLE
-│   └── riskAdmin (0xE6E5...) — 60s delay
-│   └── Targets: ManualOracle.setPrice/setMaxAge/setCircuitBreaker
+│   └── riskAdmin — 60s delay
+│   └── Targets: ManualOracle.setPrice/setMaxAge/setCircuitBreaker, GovernancePolicyStore.setPolicy
 ├── TREASURY_ROLE
-│   └── treasury (0x5198...) — 60s delay
+│   └── treasury — 60s delay
 │   └── Targets: DebtPool.claimReserves()
 ├── MINTER_ROLE
-│   └── minter (0x26fd...) — 60s delay  
+│   └── minter — 60s delay  
 │   └── Targets: USDCMock.mint()
-├── LENDING_CORE_ROLE (ID 7)
-│   └── LendingCore (0x9faC...) 
-│   └── Targets: RiskAdapter.quoteViaTicket()
-└── VERSION_MANAGER_ROLE
-    └── governanceTimelock
-    └── Targets: MarketVersionRegistry.registerVersion/activateVersion
+├── LENDING_CORE_ROLE
+│   └── LendingEngine (0x74924a4502f666023510ED21Ae6E27bC47eE6485)
+│   └── Targets: RiskGateway.quoteViaTicket(), DebtPool.drawDebt/recordRepayment
+├── ROUTER_ROLE
+│   └── LendingRouter (0xC6dC173de67FF347c864d4F26a96c5e725099394)
+│   └── Targets: LendingEngine.depositCollateralFor()
+├── GOVERNANCE_ROLE
+│   └── governanceTimelock
+│   └── Targets: LiquidationHookRegistry.registerHook/deregisterHook, MarketVersionRegistry.registerVersion/activateVersion
+└── RELAY_CALLER_ROLE
+    └── authorized relay caller
+    └── Targets: XcmInbox.receiveReceipt()
 ```
 
-### 3.4 Inter-Contract Call Graph
+### 3.4 Inter-Contract Call Graph (M11 — correlationId flows)
 
 ```
 User TX
   │
-  ├──► LendingCore.borrow()
+  ├──► LendingEngine.borrow()
   │      ├──► ManualOracle.latestPriceWad()     [view]
   │      ├──► ManualOracle.isFresh()             [view]
   │      ├──► ManualOracle.lastUpdatedAt()       [view]
   │      ├──► ManualOracle.oracleEpoch()         [view]
   │      ├──► ManualOracle.currentStateHash()    [view]
-  │      ├──► RiskAdapter.quoteViaTicket()       [restricted, state-changing]
-  │      │      ├──► _inlineQuote() [internal, pure math]
-  │      │      └──► quoteEngine.quote() [optional PVM cross-VM, try/catch]
+  │      ├──► RiskGateway.quoteViaTicket()       [LENDING_CORE restricted, state-changing]
+  │      │      ├──► _inlineQuote() [internal, pure math — CANONICAL PATH]
+  │      │      ├──► GovernancePolicyStore.getPolicy() [optional override, view]
+  │      │      └──► quoteEngine.quote() [optional PVM DeterministicRiskModel, try/catch]
+  │      │             (divergence: emit CrossVMDivergence)
   │      ├──► DebtPool.outstandingPrincipal()    [view]
   │      ├──► DebtPool.totalAssets()             [view]
-  │      └──► DebtPool.drawDebt()               [state-changing]
+  │      ├──► DebtPool.drawDebt()               [state-changing]
+  │      └──► emit Borrowed(correlationId, borrower, amount, ...)
   │
-  ├──► LendingCore.liquidate()
+  ├──► LendingEngine.liquidate()
   │      ├──► [same oracle/risk reads as borrow]
   │      ├──► IERC20.safeTransferFrom(liquidator) [debt repayment]
   │      ├──► DebtPool.recordRepayment()
   │      ├──► IERC20.safeTransfer(liquidator)     [collateral seizure]
-  │      └──► DebtPool.recordLoss()              [bad debt case]
-  │      └──► [NO call to XcmLiquidationNotifier] ◄── GAP-7
+  │      ├──► DebtPool.recordLoss()              [bad debt case]
+  │      ├──► emit Liquidated(correlationId, borrower, liquidator, ...)
+  │      └──► LiquidationHookRegistry.notifyLiquidation(borrower, debt, collateral, correlationId) [try/catch]
+  │             └──► XcmNotifierAdapter.notifyLiquidation(borrower, debt, collateral, correlationId) [try/catch]
+  │                    └──► XcmLiquidationNotifier.notifyLiquidation(...)
+  │                           └──► IXcm.send(relay, ClearOrigin+SetTopic(correlationId))
+  │                                  └──► emit LiquidationNotified(borrower, repaid, seized)
+  │
+  ├──► XcmInbox.receiveReceipt(correlationId, data)  [RELAY_CALLER restricted]
+  │      ├──► check: !processed[correlationId] (else DuplicateCorrelationId revert)
+  │      ├──► processed[correlationId] = true
+  │      └──► emit ReceiptReceived(correlationId, sender, data)
   │
   └──► LendingRouter.depositCollateralFromPAS()
          ├──► WPAS.deposit{value}()
-         ├──► WPAS.forceApprove(lendingCore)
-         └──► LendingCore.depositCollateral()    [position = router, NOT user] ◄── GAP-3
+         ├──► WPAS.forceApprove(lendingEngine)
+         └──► LendingEngine.depositCollateralFor(msg.sender, amount)  [credits USER, ROUTER restricted]
 
-STANDALONE (not connected to lending):
-  CrossChainQuoteEstimator ──► IXcm.weighMessage/execute/send
-  XcmLiquidationNotifier   ──► IXcm.send
+CrossChainQuoteEstimator ──► IXcm.weighMessage/execute/send  [standalone XCM demo]
 ```
 
 ### 3.5 External Call Count Per Core Function
@@ -368,21 +379,22 @@ Polkadot Hub TestNet (chain ID 420420417)
 ║  │   └─────────────────────────────────────────────────────────────────────────────────────┘      │     ║
 ║  └────────────────────────────────────────────────────────────────────────────────────────────────┘     ║
 ║                                                                                                        ║
-║  ┌──────────── DEPLOYMENT STATE ──────────────────────────────────────────────────────────────────┐    ║
-║  │  12 core contracts + 2 XCM contracts + 5 probe contracts = 19 deployed                         │    ║
-║  │  Canonical manifest: polkadot-hub-testnet-canonical.json                                       │    ║
-║  │  XCM manifest: polkadot-hub-testnet-xcm-full-integration.json                                  │    ║
-║  │  Probe results: polkadot-hub-testnet-probe-results.json                                        │    ║
-║  │  Deployment scripts: deploy.ts (~25-40 TXs), deployGoverned.ts, deployXcmFullIntegration.ts    │    ║
-║  │  ⚠ Non-idempotent: no resume capability, hardcoded deployment order                           │    ║
+║  ┌──────────── DEPLOYMENT STATE (M11) ─────────────────────────────────────────────────────────────┐    ║
+║  │  19 core contracts freshly deployed with canonical names (Foundry forge script)                  │    ║
+║  │  Canonical manifest: deployments/polkadot-hub-testnet-m11-canonical.json                        │    ║
+║  │  Bilateral proof artifacts: deployments/bilateral-proof-artifacts.json                          │    ║
+║  │  Deployment script: script/Deploy.s.sol (Foundry), run via forge script                         │    ║
+║  │  Canonical names: LendingEngine, RiskGateway, LendingRouter, GovernancePolicyStore              │    ║
+║  │  Governance chain: DualVMGovernor→TimelockController→AccessManager→all contracts                │    ║
+║  │  Deployer has NO residual admin roles (renounced)                                               │    ║
 ║  └────────────────────────────────────────────────────────────────────────────────────────────────┘    ║
 ║                                                                                                        ║
-║  ┌──────────── TEST SUITE ────────────────────────────────────────────────────────────────────────┐    ║
-║  │  21 test files | 105 tests passing | 3947 total LOC in tests                                   │    ║
-║  │  Coverage: LendingCore ✓, RiskAdapter ✓, DebtPool ✓, Governor ✓, Migration ✓                  │    ║
-║  │  XCM tests: mock-only (precompile not present in Hardhat)                                      │    ║
-║  │  Probe tests: mock-only (cross-VM not available locally)                                       │    ║
-║  │  ⚠ No fork tests, no integration tests against live RPC                                       │    ║
+║  ┌──────────── TEST SUITE (M11) ──────────────────────────────────────────────────────────────────┐    ║
+║  │  18 Foundry test files (*.t.sol) | 291 tests passing | forge test                               │    ║
+║  │  Coverage: LendingEngine ✓, RiskGateway ✓, DebtPool ✓, Governor ✓, Migration ✓                │    ║
+║  │  New tests: CorrelationId, GovernancePolicyStore, XcmSetTopic, BilateralFlow                   │    ║
+║  │  XCM tests: vm.mockCall for precompile (Foundry), verified in XcmLiquidationNotifier.t.sol     │    ║
+║  │  Toolchain: Foundry exclusively (Hardhat fully removed in M11)                                  │    ║
 ║  └────────────────────────────────────────────────────────────────────────────────────────────────┘    ║
 ║                                                                                                        ║
 ║  ┌──────────── DOCUMENTATION ─────────────────────────────────────────────────────────────────────┐    ║

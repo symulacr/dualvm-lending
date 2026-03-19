@@ -1,13 +1,13 @@
 <!-- summary: dualvm lending is a production-minded isolated lending market built on polkadot hub testnet (chain id 420420417).
 it combines solidity-based custody and accounting on the evm (revm) with a pvm-compiled deterministic risk engine, openzeppelin governor-based governance, and a full browser-based lending ui using wagmi and rainbowkit.
 
-the protocol supports one collateral asset (wpas, wrapped native pas) and one debt asset (usdc-test, a team-controlled mock erc-20). lenders deposit usdc-test into an erc-4626 vault (debtpool). borrowers wrap pas into wpas, deposit as collateral into lendingcore, and draw usdc-test debt. repayment, liquidation, and collateral withdrawal are all available from the browser.
+the protocol supports one collateral asset (wpas, wrapped native pas) and one debt asset (usdc-test, a team-controlled mock erc-20). lenders deposit usdc-test into an erc-4626 vault (debtpool). borrowers wrap pas into wpas, deposit as collateral into lendingengine, and draw usdc-test debt. repayment, liquidation, and collateral withdrawal are all available from the browser.
 
-risk parameters (borrow rate, max ltv, liquidation threshold) are computed by riskadapterv2, which runs inline deterministic kinked-curve math as the canonical path and optionally cross-checks against deterministicriskmodel, a resolc-compiled pvm contract deployed on the polkadot hub testnet. the pvm contract is not decorative: it is the registered quote engine in riskadapterv2 and its results are verified on every borrow.
+risk parameters (borrow rate, max ltv, liquidation threshold) are computed by riskgateway, which runs inline deterministic kinked-curve math as the canonical path and optionally cross-checks against deterministicriskmodel, a resolc-compiled pvm contract deployed on the polkadot hub testnet. the pvm contract is not decorative: it is the registered quote engine in riskgateway and its results are verified on every borrow.
 
 governance follows the openzeppelin governor→timelockcontroller→accessmanager chain. the timelock holds accessmanager admin. the deployer has no residual roles. role execution delays are non-zero for risk, treasury, and minter operations. market versions are registered and activated via governance proposals.
 
-v2 contracts (lendingcorev2, riskadapterv2, debtpoolv2, lendingrouterv2) are the active market version. the one-click lendingrouterv2.depositcollateralfrompas() wraps native pas and credits the caller's collateral position in a single transaction.
+m11 bilateral-async-unified: all contracts freshly deployed with canonical names (lendingengine, riskgateway, lendingrouter, governancepolicystore). correlationid flows through all lending events into the xcm liquidation hook chain. xcminbox enables receipt correlation. foundry is the sole build/test/deploy toolchain (291 tests pass).
 
 all contracts are deployed on polkadot hub testnet and most are verified on blockscout. this is a hackathon mvp, not a production system. -->
 
@@ -39,7 +39,7 @@ Connect your wallet (MetaMask or any injected wallet) to Polkadot Hub TestNet (c
 
 ## Architecture
 
-The system spans EVM (REVM) and PVM (PolkaVM) execution environments with OpenZeppelin Governor governance.
+The system spans EVM (REVM) and PVM (PolkaVM) execution environments with OpenZeppelin Governor governance. M11 introduces canonical contract names, correlationId-driven event flows, bilateral XCM adapter chain, and Foundry as the sole toolchain.
 
 ### System Overview
 
@@ -51,30 +51,35 @@ flowchart TB
     TL --> AM["AccessManager"]
   end
 
-  subgraph Market["Lending Market (Immutable Version)"]
-    LC["LendingCore\n(collateral, debt, liquidation)"]
+  subgraph Policy
+    GPS["GovernancePolicyStore\n(RISK_ADMIN governed)"]
+  end
+
+  subgraph Market["Lending Market"]
+    LE["LendingEngine\n(collateral, debt, liquidation\ncorrelationId in all events)"]
     DP["DebtPool\n(ERC-4626 LP vault)"]
-    MO["ManualOracle\n(price feed + circuit breaker)"]
-    RA["RiskAdapter\n(inline deterministic math + optional PVM verification)"]
-    LC <--> DP
-    MO --> LC
-    RA --> LC
+    MO["ManualOracle\n(price feed + circuit breaker\nmaxAge=1800s)"]
+    RG["RiskGateway\n(inline deterministic math = canonical\n+ optional PVM verification\nreads GovernancePolicyStore)"]
+    LE <--> DP
+    MO --> LE
+    RG --> LE
   end
 
   subgraph PVM["PVM Risk Engine (Live Cross-VM)"]
     QE["DeterministicRiskModel\n(resolc-compiled, PolkaVM)"]
   end
 
-  subgraph Probes["Interop Proof Package"]
-    RQC["RevmQuoteCallerProbe"]
-    RRTS["RevmRoundTripSettlement"]
-    PCB["PvmCallbackProbe"]
-    RCR["RevmCallbackReceiver"]
+  subgraph Hooks["Liquidation Hook Chain"]
+    HR["LiquidationHookRegistry\n(try/catch dispatch)"]
+    XNA["XcmNotifierAdapter"]
+    XLN["XcmLiquidationNotifier\n(ClearOrigin+SetTopic(correlationId))"]
+    XI["XcmInbox\n(receiveReceipt dedup)"]
   end
 
   subgraph Assets
     WPAS["WPAS\n(wrapped PAS)"]
     USDC["USDCMock\n(test stablecoin)"]
+    LR["LendingRouter\n(PAS→WPAS→depositCollateralFor)"]
   end
 
   subgraph Registry
@@ -82,17 +87,17 @@ flowchart TB
     MMC["MarketMigrationCoordinator"]
   end
 
-  AM --> LC & DP & MO & MVR
-  RA --> QE
-  RQC --> QE
-  RRTS --> QE
-  PCB --> RCR
-  WPAS --> LC
+  AM --> LE & DP & MO & MVR & HR & XI & GPS
+  RG --> GPS
+  RG --> QE
+  LE --> HR
+  HR --> XNA --> XLN
+  LR --> LE
+  WPAS --> LE
   USDC --> DP
-  MVR --> LC
-  MMC --> LC
+  MVR --> MMC
 
-  FE["Browser Frontend\n(wagmi + RainbowKit)"] --> LC & DP & MO & MVR
+  FE["Browser Frontend\n(wagmi + RainbowKit)"] --> LE & DP & MO & MVR
 ```
 
 ### Borrow Call Flow
@@ -100,20 +105,26 @@ flowchart TB
 ```mermaid
 sequenceDiagram
     participant U as User
-    participant LC as LendingCore
+    participant LE as LendingEngine
     participant MO as ManualOracle
-    participant RA as RiskAdapter
+    participant RG as RiskGateway
+    participant GPS as GovernancePolicyStore
+    participant DRM as DeterministicRiskModel (PVM)
     participant DP as DebtPool
-    U->>LC: 1. borrow(amount)
-    LC->>MO: 2. getPrice()
-    MO-->>LC: price, timestamp
-    LC->>RA: 3. quoteViaTicket(context, input)
-    Note over RA: 4. inline kinked-curve math (canonical path)
-    Note over RA: optional: cross-VM verify via DeterministicRiskModel on PVM
-    RA-->>LC: QuoteTicket (inline result)
-    LC->>LC: 5. healthFactor >= threshold?
-    LC->>DP: 6. drawPrincipal(amount)
+    U->>LE: 1. borrow(amount)
+    LE->>LE: correlationId = keccak256(chainid, block, sender, nonce++)
+    LE->>MO: 2. getPrice()
+    MO-->>LE: price, timestamp
+    LE->>RG: 3. quoteViaTicket(context, input)
+    Note over RG: 4. _inlineQuote() — canonical deterministic path
+    RG->>GPS: 4a. getPolicy() [optional override, view]
+    RG->>DRM: 4b. quoteEngine.quote() [optional PVM verify, try/catch]
+    DRM-->>RG: QuoteOutput (or divergence event)
+    RG-->>LE: QuoteTicket (inline result is authoritative)
+    LE->>LE: 5. healthFactor >= threshold?
+    LE->>DP: 6. drawDebt(amount)
     DP-->>U: 7. USDC-test tokens
+    LE->>LE: emit Borrowed(correlationId, borrower, amount, rate)
 ```
 
 ### Contract Dependency Graph
@@ -122,17 +133,26 @@ sequenceDiagram
 graph TD
     GOV[DualVMGovernor] --> TL[TimelockController]
     TL --> AM[AccessManager]
-    AM -->|controls| LC[LendingCore]
+    AM -->|controls| LE[LendingEngine]
+    AM -->|controls| RG[RiskGateway]
     AM -->|controls| DP[DebtPool]
     AM -->|controls| MO[ManualOracle]
+    AM -->|controls| GPS[GovernancePolicyStore]
+    AM -->|controls| HR[LiquidationHookRegistry]
+    AM -->|controls| XI[XcmInbox]
     AM -->|controls| MVR[MarketVersionRegistry]
-    LC --> MO
-    LC --> RA[RiskAdapter]
-    LC <--> DP
-    RA -.->|optional cross-VM verify| QE[DeterministicRiskModel]
-    LC --- WPAS[WPAS Collateral]
+    LE --> MO
+    LE --> RG
+    LE <--> DP
+    LE -->|notifyLiquidation correlationId| HR
+    RG -->|getPolicy| GPS
+    RG -.->|optional cross-VM verify| QE[DeterministicRiskModel PVM]
+    HR --> XNA[XcmNotifierAdapter]
+    XNA --> XLN[XcmLiquidationNotifier]
+    LE --- WPAS[WPAS Collateral]
     DP --- USDC[USDCMock Debt]
     MVR --> MMC[MarketMigrationCoordinator]
+    LR[LendingRouter] -->|depositCollateralFor| LE
 ```
 
 ### Governance Lifecycle
@@ -154,18 +174,21 @@ stateDiagram-v2
 ```mermaid
 graph LR
     subgraph EVM["EVM (REVM) — product contracts"]
-        LC[LendingCore]
+        LE[LendingEngine]
         DP[DebtPool]
         MO[ManualOracle]
-        RA["RiskAdapter (inline math: canonical path)"]
+        RG["RiskGateway (inline math: canonical path)"]
+        GPS[GovernancePolicyStore]
+        HR[LiquidationHookRegistry]
         GV[Governor stack]
     end
     subgraph PVM["PVM (PolkaVM) — optional verification"]
         QE["DeterministicRiskModel (resolc-compiled)"]
     end
-    RA -->|canonical inline result| LC
-    RA -.->|optional cross-VM verify| QE
-    QE -.->|risk params for comparison| RA
+    RG -->|canonical inline result| LE
+    RG -.->|optional cross-VM verify| QE
+    QE -.->|risk params for comparison| RG
+    GPS -.->|policy params readable by| QE
 ```
 
 ### Migration State Machine
@@ -225,10 +248,18 @@ graph TD
     AM --> TREAS["TREASURY delay:60s"]
     AM --> MINT["MINTER delay:60s"]
     AM --> EMRG["EMERGENCY delay:0s"]
-    RISK --> fn1["RiskAdapter.setQuoteEngine\nManualOracle.setParams"]
-    TREAS --> fn2[DebtPool.setReserveFactor]
-    MINT --> fn3[USDCMock.mint]
+    AM --> LC_ROLE["LENDING_CORE (LendingEngine)"]
+    AM --> RTR_ROLE["ROUTER (LendingRouter)"]
+    AM --> GOV_ROLE["GOVERNANCE (TimelockController)"]
+    AM --> RELAY_ROLE["RELAY_CALLER"]
+    RISK --> fn1["ManualOracle.setPrice\nGovernancePolicyStore.setPolicy"]
+    TREAS --> fn2["DebtPool.claimReserves"]
+    MINT --> fn3["USDCMock.mint"]
     EMRG --> fn4["*.pause / freezeNewDebt"]
+    LC_ROLE --> fn5["RiskGateway.quoteViaTicket\nDebtPool.drawDebt"]
+    RTR_ROLE --> fn6["LendingEngine.depositCollateralFor"]
+    GOV_ROLE --> fn7["MarketVersionRegistry.registerVersion\nLiquidationHookRegistry.registerHook"]
+    RELAY_ROLE --> fn8["XcmInbox.receiveReceipt"]
 ```
 
 ### Liquidation Flow
@@ -260,7 +291,7 @@ sequenceDiagram
 The PVM risk engine is **live, not decorative**. Here is the proof chain:
 
 1. **DeterministicRiskModel** is compiled via `resolc` (Polkadot's Solidity-to-PolkaVM compiler) and deployed on-chain with PVM code hash `0xba8fe2a621062a30bba558a3846d0a18bfb2e9a09bfaed656b123e698b59af5b`.
-2. **RiskAdapterV2** in the product-path LendingCoreV2 calls this PVM contract as its quote engine for risk parameters (borrow rate, max LTV, liquidation threshold).
+2. **RiskGateway** in the product-path LendingEngine calls this PVM contract as its quote engine for risk parameters (borrow rate, max LTV, liquidation threshold). GovernancePolicyStore provides governance-controlled overrides.
 3. **Probe stages** independently verify the cross-VM capability on the public testnet:
    - **Stage 0 (Capability gate)**: ✅ All REVM and PVM probe contracts exist on-chain with recorded deploy TXs
    - **Stage 1A (Echo)**: ✅ REVM sends bytes32 to PVM, receives identical bytes back (data integrity proven)
@@ -329,48 +360,43 @@ Non-trivial composition of OZ 5.x contracts:
 - **Pausable** — Emergency pause on core, pool, and oracle
 - **ReentrancyGuard** — All state-changing fund flows
 
-## Canonical Deployment (Governor-Governed)
+## Canonical Deployment (M11 — Bilateral Async Unified)
 
-All contracts deployed under a single canonical Governor→TimelockController→AccessManager governance root.
+All contracts freshly deployed via `forge script` with canonical names under a single Governor→TimelockController→AccessManager governance root. Canonical manifest: `dualvm/deployments/polkadot-hub-testnet-m11-canonical.json`.
 
-### Core Contracts
+### Core Lending Contracts
 
 | Contract | Address | Explorer |
 |----------|---------|----------|
-| AccessManager | `0x32d0a9eb8F4Bd54F0610c31c277fD2E62e4ac2f0` | [Blockscout](https://blockscout-testnet.polkadot.io/address/0x32d0a9eb8F4Bd54F0610c31c277fD2E62e4ac2f0) |
-| WPAS (Collateral) | `0x9b9e0c534E0Bfc938674238aFA44bCD1690F10F1` | [Blockscout](https://blockscout-testnet.polkadot.io/address/0x9b9e0c534E0Bfc938674238aFA44bCD1690F10F1) |
-| USDCMock (Debt) | `0x75d47bd99ECd7188FB63e00cD07035CDBBf7Ef06` | [Blockscout](https://blockscout-testnet.polkadot.io/address/0x75d47bd99ECd7188FB63e00cD07035CDBBf7Ef06) |
-| ManualOracle | `0x1CCE5059dc39A7cf8f064f6DA6Be9da09279Ee04` | [Blockscout](https://blockscout-testnet.polkadot.io/address/0x1CCE5059dc39A7cf8f064f6DA6Be9da09279Ee04) |
-| RiskAdapter | `0x67D0B226b5aE56A29E206840Ecd389670718Af66` | [Blockscout](https://blockscout-testnet.polkadot.io/address/0x67D0B226b5aE56A29E206840Ecd389670718Af66) |
+| AccessManager | `0xc7F5871c0223eE42A858b54a679364c92C8CB0E8` | [Blockscout](https://blockscout-testnet.polkadot.io/address/0xc7F5871c0223eE42A858b54a679364c92C8CB0E8) |
+| WPAS (Collateral) | `0x88197981ba747F3f3e5615302c9E94d6d8c570e9` | [Blockscout](https://blockscout-testnet.polkadot.io/address/0x88197981ba747F3f3e5615302c9E94d6d8c570e9) |
+| USDCMock (Debt) | `0xd3945174aEDE4C70B4e7B4830e2043ad6c578feB` | [Blockscout](https://blockscout-testnet.polkadot.io/address/0xd3945174aEDE4C70B4e7B4830e2043ad6c578feB) |
+| ManualOracle | `0xF751Cca3D4dB1c4F461ed0556B394906DD2D6c4A` | [Blockscout](https://blockscout-testnet.polkadot.io/address/0xF751Cca3D4dB1c4F461ed0556B394906DD2D6c4A) |
+| GovernancePolicyStore | `0x3471F542f66603a1899947fE5849a612f0A7f465` | [Blockscout](https://blockscout-testnet.polkadot.io/address/0x3471F542f66603a1899947fE5849a612f0A7f465) |
+| RiskGateway | `0x01E56920355f1936c28A2EA627D027E35EccBca6` | [Blockscout](https://blockscout-testnet.polkadot.io/address/0x01E56920355f1936c28A2EA627D027E35EccBca6) |
 | DeterministicRiskModel (PVM Risk Engine) | `0xC6907B609ba4b94C9e319570BaA35DaF587252f8` | [Blockscout](https://blockscout-testnet.polkadot.io/address/0xC6907B609ba4b94C9e319570BaA35DaF587252f8) |
-| MarketVersionRegistry | `0x47AE8aE7423bD8643Be8a86d4C0Df7fdcC57987d` | [Blockscout](https://blockscout-testnet.polkadot.io/address/0x47AE8aE7423bD8643Be8a86d4C0Df7fdcC57987d) |
-| DebtPool (ERC-4626) | `0xeEdA5d44810E09D8F881Fca537456E2a5eD437bB` | [Blockscout](https://blockscout-testnet.polkadot.io/address/0xeEdA5d44810E09D8F881Fca537456E2a5eD437bB) |
-| LendingCore | `0x9faC289188229f40aBfaa4F8d720C14b8B448CF9` | [Blockscout](https://blockscout-testnet.polkadot.io/address/0x9faC289188229f40aBfaa4F8d720C14b8B448CF9) |
+| DebtPool (ERC-4626) | `0x1A024F0232Bab9D6282Efbf533F11e11511d68a8` | [Blockscout](https://blockscout-testnet.polkadot.io/address/0x1A024F0232Bab9D6282Efbf533F11e11511d68a8) |
+| LendingEngine | `0x74924a4502f666023510ED21Ae6E27bC47eE6485` | [Blockscout](https://blockscout-testnet.polkadot.io/address/0x74924a4502f666023510ED21Ae6E27bC47eE6485) |
+| LendingRouter | `0xC6dC173de67FF347c864d4F26a96c5e725099394` | [Blockscout](https://blockscout-testnet.polkadot.io/address/0xC6dC173de67FF347c864d4F26a96c5e725099394) |
+| MarketVersionRegistry | `0x685B2c14666f6710778F7a4acDB7e0C36C407ADB` | [Blockscout](https://blockscout-testnet.polkadot.io/address/0x685B2c14666f6710778F7a4acDB7e0C36C407ADB) |
+| MarketMigrationCoordinator | `0x7d8F639bFe6276ea2d21C4cc59Bc3AE66B788d20` | [Blockscout](https://blockscout-testnet.polkadot.io/address/0x7d8F639bFe6276ea2d21C4cc59Bc3AE66B788d20) |
 
-### V2 Contracts (Active Market Version)
-
-| Contract | Address | Explorer |
-|----------|---------|----------|
-| RiskAdapterV2 | `0x0b7C5Dd3e9Bc5B23347b0850332117219a2b170E` | [Blockscout](https://blockscout-testnet.polkadot.io/address/0x0b7C5Dd3e9Bc5B23347b0850332117219a2b170E) |
-| DebtPoolV2 | `0xF55D74C74CFDb81194337D82181d48233C8a6426` | [Blockscout](https://blockscout-testnet.polkadot.io/address/0xF55D74C74CFDb81194337D82181d48233C8a6426) |
-| LendingCoreV2 | `0xab2620577Aaf2BDB0Fdb582DaEB16dbc0f07213f` | [Blockscout](https://blockscout-testnet.polkadot.io/address/0xab2620577Aaf2BDB0Fdb582DaEB16dbc0f07213f) |
-| LendingRouterV2 | `0x08aace96441Cb320BC68b072D110169fbf38eb08` | [Blockscout](https://blockscout-testnet.polkadot.io/address/0x08aace96441Cb320BC68b072D110169fbf38eb08) |
-
-### Async/Permissionless Contracts (M10)
+### Bilateral Async Contracts (M11)
 
 | Contract | Address | Explorer |
 |----------|---------|----------|
-| XcmInbox | Deployed locally (Hardhat) | — |
-| LiquidationHookRegistry | Deployed locally (Hardhat) | — |
-| XcmNotifierAdapter | Deployed locally (Hardhat) | — |
+| LiquidationHookRegistry | `0xa80eAC309424FD3FA0daaF7200F5c2ab2bcb9B9A` | [Blockscout](https://blockscout-testnet.polkadot.io/address/0xa80eAC309424FD3FA0daaF7200F5c2ab2bcb9B9A) |
+| XcmNotifierAdapter | `0x3027259a3F1372DA4DbCE8b17BAC525dc0bB9Faa` | [Blockscout](https://blockscout-testnet.polkadot.io/address/0x3027259a3F1372DA4DbCE8b17BAC525dc0bB9Faa) |
+| XcmLiquidationNotifier | `0x051eBa834d9b8CfadEf166b441B80FC2f8bF0592` | [Blockscout](https://blockscout-testnet.polkadot.io/address/0x051eBa834d9b8CfadEf166b441B80FC2f8bF0592) |
+| XcmInbox | `0x6df5e3694976fd46Df67b1E6A7BdE85B39271719` | [Blockscout](https://blockscout-testnet.polkadot.io/address/0x6df5e3694976fd46Df67b1E6A7BdE85B39271719) |
 
-### Governance Contracts
+### Governance Contracts (M11)
 
 | Contract | Address | Explorer |
 |----------|---------|----------|
-| GovernanceToken (ERC20Votes) | `0x5C0201E6db2D4f1a97efeed09f4620A242116Bd1` | [Blockscout](https://blockscout-testnet.polkadot.io/address/0x5C0201E6db2D4f1a97efeed09f4620A242116Bd1) |
-| DualVMGovernor | `0xa6d2c210f8A11F2D87b08efA8F832B4e64e521b3` | [Blockscout](https://blockscout-testnet.polkadot.io/address/0xa6d2c210f8A11F2D87b08efA8F832B4e64e521b3) |
-| TimelockController | `0x65712EEFD810F077c6C11Fd7c18988d3ce569C60` | [Blockscout](https://blockscout-testnet.polkadot.io/address/0x65712EEFD810F077c6C11Fd7c18988d3ce569C60) |
+| GovernanceToken (ERC20Votes) | `0x9D6d874413c72284514d5511A810DCeeDaB75a11` | [Blockscout](https://blockscout-testnet.polkadot.io/address/0x9D6d874413c72284514d5511A810DCeeDaB75a11) |
+| DualVMGovernor | `0xD8bA49b5d6e3DF55B7a4424E1F6D0b3C22625220` | [Blockscout](https://blockscout-testnet.polkadot.io/address/0xD8bA49b5d6e3DF55B7a4424E1F6D0b3C22625220) |
+| TimelockController | `0x9e1a91042bAd90b73D4d35e798D140C83e0D45D5` | [Blockscout](https://blockscout-testnet.polkadot.io/address/0x9e1a91042bAd90b73D4d35e798D140C83e0D45D5) |
 
 ### Probe Contracts (PVM Interop Proof)
 
@@ -409,11 +435,13 @@ All contracts deployed under a single canonical Governor→TimelockController→
 | Admin Renunciation | [`0x61c09d53...`](https://blockscout-testnet.polkadot.io/tx/0x61c09d5353c0d3c0246f818a413780517e7b7d5510022330fb822ac67c41e863) |
 | Emergency Admin Transfer to Timelock | [`0x5c0cce4e...`](https://blockscout-testnet.polkadot.io/tx/0x5c0cce4e6f49d3292741b0d9f2325e798b28ef8c0aee3cc0d2495ba2c4e3bb8b) |
 
-### V2 Lending Operations
+### M11 Canonical Operations (Bilateral Async Proof)
 | Operation | TX Hash |
 |-----------|---------|
-| V2 Liquidation | [`0x6abcbb2e...`](https://blockscout-testnet.polkadot.io/tx/0x6abcbb2e) |
-| V2 XCM Notifier | [`0x8cc460b8...`](https://blockscout-testnet.polkadot.io/tx/0x8cc460b8) |
+| Governance Execute (policy) | [`0x58da3cdf...`](https://blockscout-testnet.polkadot.io/tx/0x58da3cdfc88ed7f3c409cb2f5bdd00867043bd4213bee3a3809699d658a2746a) |
+| Borrow (correlationId: 0x98c582...) | [`0x4d6104a5...`](https://blockscout-testnet.polkadot.io/tx/0x4d6104a5661a88be0a7500870604f34c1a55577066ef1eaae2da8f5ae92192aa) |
+| Liquidate (correlationId: 0xca4aae...) | [`0xa1ad2ca7...`](https://blockscout-testnet.polkadot.io/tx/0xa1ad2ca7c7ada4cee6daa13e11866ae56ec8bc7b57b7a302c7837c39f2083b03) |
+| XcmInbox.receiveReceipt (correlationId match) | [`0xb5eeb353...`](https://blockscout-testnet.polkadot.io/tx/0xb5eeb3530a9968a7c062e346771da5f6246128fb546daf3d8383b496ac167499) |
 
 ### Migration Proof
 | Operation | TX Hash |
@@ -432,10 +460,11 @@ All contracts deployed under a single canonical Governor→TimelockController→
 cd dualvm
 cp .env.example .env
 # Fill PRIVATE_KEY for deploy/smoke commands (not needed for tests)
-npm ci
-npm test          # 186 local Hardhat tests
-npx tsc --noEmit  # TypeScript typecheck
-npm run build     # Compile contracts + PVM artifacts + frontend
+npm ci                # Install Node.js deps (frontend + TypeScript scripts)
+forge build           # Compile contracts (Foundry)
+forge test            # Run 291 Foundry Solidity tests
+npx tsc --noEmit      # TypeScript typecheck (frontend + scripts)
+npm run build:app     # Build frontend only
 ```
 
 ## Demo Path
@@ -455,14 +484,14 @@ From `dualvm/`:
 
 | Command | Description |
 |---------|-------------|
-| `npm test` | Run 186 Hardhat tests |
-| `npm run build` | Compile contracts + PVM + frontend |
-| `npx tsc --noEmit` | TypeScript typecheck |
-| `npm run deploy:testnet` | Deploy to testnet |
-| `npm run deploy:governed:testnet` | Deploy governed system |
-| `npm run verify:testnet` | Explorer-verify contracts |
-| `npm run build:pvm:probes` | Build PVM probe artifacts |
-| `npm run deploy:pvm:probes:testnet` | Deploy PVM probes |
+| `forge test` | Run 291 Foundry Solidity tests |
+| `forge build` | Compile all contracts |
+| `forge test -vvv` | Verbose test output with traces |
+| `npx tsc --noEmit` | TypeScript typecheck (frontend + scripts) |
+| `npm run build:app` | Build frontend only (Vite) |
+| `npm run lint` | Forge format check (`forge fmt --check`) |
+| `forge script script/Deploy.s.sol --rpc-url $RPC_URL --broadcast --private-key $PRIVATE_KEY` | Deploy to testnet |
+| `node scripts/ci-smoke.mjs` | Read-only testnet contract existence check |
 
 ## Deployment Guide
 
@@ -475,38 +504,50 @@ From `dualvm/`:
 | `ADMIN_DELAY_SECONDS` | Optional | `3600` | AccessManager execution delay for admin operations |
 | `RISK_QUOTE_ENGINE_ADDRESS` | Optional | — | Address of deployed PVM quote engine (omit for inline-only mode) |
 
-### Deployment Order
+### Deployment Order (Foundry)
 
-The governed system deploys in order (~25 TXs ungoverned, ~40 TXs governed):
+The governed system deploys via `script/Deploy.s.sol` (~30 TXs):
 
 1. **AccessManager** — governance root, role manager
 2. **Assets** — WPAS collateral token, USDCMock debt token
-3. **Market Version** — ManualOracle, RiskAdapter, DebtPool, LendingCore
-4. **Registry** — MarketVersionRegistry, MarketMigrationCoordinator
-5. **Governance** — GovernanceToken, TimelockController, DualVMGovernor
-6. **Role Setup** — bind roles, transfer AccessManager admin to TimelockController, renounce deployer admin
+3. **Oracle + Policy** — ManualOracle (maxAge=1800s), GovernancePolicyStore
+4. **Risk System** — RiskGateway (with policyStore + quoteEngine)
+5. **Market** — DebtPool, LendingEngine
+6. **UX + Hooks** — LendingRouter, LiquidationHookRegistry, XcmNotifierAdapter, XcmLiquidationNotifier
+7. **Async** — XcmInbox
+8. **Registry** — MarketVersionRegistry, MarketMigrationCoordinator
+9. **Governance** — GovernanceToken, TimelockController, DualVMGovernor
+10. **Role Setup** — bind all roles, transfer AccessManager admin to TimelockController, renounce deployer admin
 
 ```bash
 cp .env.example .env  # fill PRIVATE_KEY and RPC_URL
-npm run deploy:governed:testnet
+forge script script/Deploy.s.sol \
+  --rpc-url $RPC_URL \
+  --broadcast \
+  --private-key $PRIVATE_KEY \
+  --legacy \
+  --gas-estimate-multiplier 500 \
+  --slow
 ```
 
 ### PVM Compilation
 
-The PVM risk engine (`DeterministicRiskModel`) is compiled via `resolc` (Polkadot's Solidity-to-PolkaVM compiler):
+The PVM risk engine (`DeterministicRiskModel`) is compiled via `resolc` (Polkadot's Solidity-to-PolkaVM compiler). The M11 deployment reuses the M9 PVM deployment at `0xC6907B609ba4b94C9e319570BaA35DaF587252f8`.
 
+To recompile from scratch:
 ```bash
-npx hardhat compile --config hardhat.pvm.config.ts
+bash script/DeployPVM.sh  # Uses resolc + sets RISK_QUOTE_ENGINE_ADDRESS env var
 ```
 
-Artifacts are produced in `artifacts-pvm/`. PVM contracts cannot be Blockscout-verified via standard Solidity verification — confirm the PVM code hash via `revive.accountInfoOf(address)` on the Substrate API.
+PVM contracts cannot be Blockscout-verified via standard Solidity verification — confirm the PVM code hash via `revive.accountInfoOf(address)` on the Substrate API (`wss://asset-hub-paseo-rpc.n.dwellir.com`).
 
 ### Post-Deployment Checklist
 
-- [ ] Verify bytecode on Blockscout: `npm run verify:testnet`
-- [ ] Run probe suite to confirm cross-VM interop: `npm run deploy:revm:probes:testnet`
-- [ ] Check AccessManager roles: confirm riskAdmin, treasury, and minter delays are non-zero
-- [ ] Confirm deployer renunciation: `accessManager.hasRole(0, deployer)` returns `false`
+- [ ] All contracts have non-zero bytecode: `node scripts/ci-smoke.mjs`
+- [ ] AccessManager admin is timelock (not deployer): `readContract accessManager.hasRole(0, deployer) == false`
+- [ ] RiskGateway.quoteEngine() returns PVM DeterministicRiskModel address
+- [ ] LendingEngine.liquidationNotifier() returns LiquidationHookRegistry address
+- [ ] HookRegistry default hook returns XcmNotifierAdapter address
 
 ## Performance
 
@@ -514,10 +555,10 @@ Gas usage measured from on-chain tx receipts on Polkadot Hub TestNet (chain 4204
 
 | Operation | Contract | Gas Used |
 |-----------|----------|----------|
-| `depositCollateral` | LendingRouterV2 | 66,103 |
-| `borrow` | LendingCoreV2 | 297,214 |
-| `repay` | LendingCoreV2 | 257,839 |
-| `liquidate` | LendingCoreV2 | 196,260 |
+| `depositCollateralFromPAS` | LendingRouter | 66,103 |
+| `borrow` | LendingEngine | 297,214 |
+| `repay` | LendingEngine | 257,839 |
+| `liquidate` | LendingEngine | 196,260 |
 | `supply` | DebtPool (ERC-4626) | 4,123 |
 | `withdraw` | DebtPool (ERC-4626) | 5,023 |
 
@@ -529,20 +570,21 @@ New markets (new asset pairs or upgraded risk parameters) are deployed, register
 
 ### 1. Deploy New Market Contracts
 
-Use `deployMarketVersion` from `lib/deployment/deployMarketVersion.ts` directly in a custom script:
+Create a Foundry script that deploys a new market set:
 
-```typescript
-import { deployMarketVersion } from "./lib/deployment/deployMarketVersion";
-
-const result = await deployMarketVersion({
-  deployer,
-  authority: EXISTING_ACCESS_MANAGER_ADDRESS,
-  collateralAsset: WPAS_ADDRESS,
-  debtAsset: USDC_ADDRESS,
-});
+```solidity
+// Deploy fresh ManualOracle, RiskGateway, DebtPool, LendingEngine
+// wired under the existing AccessManager
+ManualOracle oracle = new ManualOracle(accessManagerAddress, initialPrice, maxAge);
+RiskGateway riskGateway = new RiskGateway(accessManagerAddress, pvmQuoteEngine, policyStore);
+DebtPool debtPool = new DebtPool(accessManagerAddress, usdcAddress, "DebtPool", "dUSDC");
+LendingEngine lendingEngine = new LendingEngine(
+    accessManagerAddress, address(oracle), address(riskGateway),
+    address(debtPool), wpasAddress, usdcAddress, hookRegistryAddress
+);
 ```
 
-This deploys a fresh `ManualOracle`, `RiskAdapter`, `DebtPool`, and `LendingCore` wired together under the existing `AccessManager`. Do **not** use `npm run deploy:governed:testnet` — that script creates a brand-new governed system (fresh AccessManager, WPAS, USDC) rather than adding a market to the existing registry.
+This deploys a fresh `ManualOracle`, `RiskGateway`, `DebtPool`, and `LendingEngine` wired together under the existing `AccessManager`. Do **not** re-run `Deploy.s.sol` — that script creates a brand-new governed system (fresh AccessManager, WPAS, USDC) rather than adding a market to the existing registry.
 
 ### 2. Register via MarketVersionRegistry
 
@@ -580,48 +622,70 @@ To let borrowers move from an old version, call `MarketMigrationCoordinator.open
 ## Repository Structure
 
 ```
-dualvm/                          # Application root
-├── contracts/                   # Solidity contracts
-│   ├── LendingCore.sol         # V1 market (collateral, debt, liquidation)
-│   ├── LendingCoreV2.sol      # V2 market (+depositCollateralFor, +liquidation hooks)
-│   ├── LendingRouterV2.sol    # V2 router (credits caller, not router)
-│   ├── XcmInbox.sol           # XCM receipt inbox with correlation ID dedup
-│   ├── LiquidationHookRegistry.sol  # Hook dispatch per liquidation type
+dualvm/                          # Application root (Foundry project)
+├── contracts/                   # Solidity contracts (canonical M11 names)
+│   ├── LendingEngine.sol       # Core market (collateral, debt, liquidation, correlationId)
+│   ├── LendingRouter.sol       # UX helper (PAS→WPAS→depositCollateralFor)
+│   ├── RiskGateway.sol         # Unified risk gateway (inline math + optional PVM)
+│   ├── GovernancePolicyStore.sol # Risk policy overrides (AccessManaged)
+│   ├── XcmInbox.sol            # XCM receipt inbox with correlationId dedup
+│   ├── LiquidationHookRegistry.sol  # Hook dispatch with correlationId
+│   ├── XcmNotifierAdapter.sol  # Bridges HookRegistry→XcmLiquidationNotifier
 │   ├── DebtPool.sol            # ERC-4626 LP vault
-│   ├── ManualOracle.sol        # Price feed with circuit breaker
-│   ├── RiskAdapter.sol         # Quote ticket adapter
-│   ├── governance/             # Governor + GovernanceToken
+│   ├── ManualOracle.sol        # Price feed with circuit breaker (maxAge=1800s)
+│   ├── governance/             # DualVMGovernor + GovernanceToken
 │   ├── precompiles/            # CrossChainQuoteEstimator (XCM)
+│   ├── pvm/                    # DeterministicRiskModel (EVM version; PVM via resolc)
 │   └── probes/                 # PVM interop probe contracts
+├── test/                       # Foundry Solidity tests (*.t.sol — 291 tests)
+│   ├── helpers/                # BaseTest.sol, mock contracts
+│   ├── LendingEngine.t.sol     # Core lending tests
+│   ├── RiskGateway.t.sol       # Risk gateway tests
+│   ├── CorrelationId.t.sol     # correlationId propagation tests
+│   ├── GovernancePolicyStore.t.sol  # Policy store tests
+│   ├── BilateralFlow.t.sol     # End-to-end bilateral flow tests
+│   └── ...                     # (18 test files total)
+├── script/                     # Foundry deployment scripts
+│   ├── Deploy.s.sol            # Full canonical system deployment
+│   └── DeployPVM.sh            # PVM compilation via resolc
 ├── deployments/                # Canonical deployment manifests and results
-├── lib/                        # TypeScript deployment and runtime helpers
-├── scripts/                    # Operator and smoke-test scripts
+│   ├── polkadot-hub-testnet-m11-canonical.json  # M11 canonical addresses
+│   └── bilateral-proof-artifacts.json           # M11 bilateral proof TX hashes
+├── scripts/                    # Operator and smoke-test scripts (TypeScript/viem)
+│   ├── ci-smoke.mjs            # Read-only testnet contract existence check
+│   └── event-correlator.ts     # Off-chain event correlator (correlationId matching)
 ├── src/                        # React frontend (wagmi + RainbowKit)
-├── test/                       # Hardhat test suite (186 tests)
+├── foundry.toml                # Foundry configuration
 └── SPEC.md                     # Current system specification
 docs/dualvm/                    # Proof artifacts and evidence
 ├── dualvm_vm_interop_proof.md  # PVM interop probe results with TX hashes
 ├── dualvm_migration_format_proof.md  # Migration format local proof
 ├── dualvm_submission_final.md  # DoraHacks submission document
-├── screenshots/                # Visual evidence
-└── submission_evidence/        # Submission artifacts
+└── screenshots/                # Visual evidence
 ```
 
 ## Proof Artifacts
 
 | Artifact | Location |
 |----------|----------|
-| Canonical manifest | `dualvm/deployments/polkadot-hub-testnet-canonical.json` |
-| Deployment results | `dualvm/deployments/polkadot-hub-testnet-canonical-results.json` |
+| **M11 canonical manifest** | `dualvm/deployments/polkadot-hub-testnet-m11-canonical.json` |
+| **Bilateral proof artifacts** | `dualvm/deployments/bilateral-proof-artifacts.json` |
 | Probe results | `dualvm/deployments/polkadot-hub-testnet-probe-results.json` |
 | Explorer verification | `dualvm/deployments/polkadot-hub-testnet-canonical-verification.json` |
 | Migration proof | `dualvm/deployments/polkadot-hub-testnet-migration-proof.json` |
 | XCM proof | `dualvm/deployments/polkadot-hub-testnet-xcm-proof.json` |
 | Gas benchmarks | `dualvm/deployments/gas-benchmarks.json` |
-| V2 probe results | `dualvm/deployments/probe-results-v2.json` |
-| Idempotent deploy | `dualvm/scripts/deploy-idempotent.ts` |
+| Event correlator | `dualvm/scripts/event-correlator.ts` |
 | VM interop narrative | `docs/dualvm/dualvm_vm_interop_proof.md` |
 
 ## CI
 
-`.github/workflows/ci.yml` runs `npm ci`, `npm test`, and `npm run build` in `dualvm/` on every push and pull request.
+`.github/workflows/ci.yml` runs on every push and pull request with these steps in `dualvm/`:
+1. **Install Foundry** — `foundry-rs/foundry-toolchain@v1`
+2. **Install Node.js deps** — `npm ci` (frontend + TypeScript scripts)
+3. **TypeScript typecheck** — `npx tsc --noEmit`
+4. **Lint** — `npm run lint` (`forge fmt --check`)
+5. **Forge tests** — `forge test`
+6. **Forge build** — `forge build`
+7. **Frontend build** — `npm run build:app`
+8. **Testnet smoke** — `node scripts/ci-smoke.mjs` (read-only, continue-on-error)
