@@ -132,14 +132,14 @@
 | OZ Module                            | Used By                            | Purpose                              |
 |--------------------------------------|-------------------------------------|--------------------------------------|
 | AccessManager                        | DualVMAccessManager                 | Central RBAC authority                |
-| AccessManaged                        | LendingCore, RiskAdapter, DebtPool, ManualOracle, MarketVersionRegistry, MarketMigrationCoordinator | Role-gated function calls |
+| AccessManaged                        | LendingEngine, RiskGateway, DebtPool, ManualOracle, MarketVersionRegistry, MarketMigrationCoordinator | Role-gated function calls |
 | ERC4626                              | DebtPool                            | Tokenized lending pool               |
 | ERC20, ERC20Permit, ERC20Votes       | GovernanceToken                     | Governance token with delegation     |
 | Governor + extensions                | DualVMGovernor                      | On-chain governance                  |
 | TimelockController                   | Via GovernorTimelockControl          | Execution delay                      |
-| Pausable                             | LendingCore, DebtPool, ManualOracle | Emergency pause                      |
-| ReentrancyGuard                      | LendingCore, DebtPool, LendingRouter| Reentrancy protection               |
-| SafeERC20                            | LendingCore, DebtPool, MarketMigrationCoordinator | Safe token transfers   |
+| Pausable                             | LendingEngine, DebtPool, ManualOracle | Emergency pause                      |
+| ReentrancyGuard                      | LendingEngine, DebtPool, LendingRouter| Reentrancy protection               |
+| SafeERC20                            | LendingEngine, DebtPool, MarketMigrationCoordinator | Safe token transfers   |
 | Math                                 | DebtPool                            | Min calculations for liquidity       |
 
 ### 3.3 Access Control Role Graph (M11 Canonical Deployment)
@@ -320,10 +320,10 @@ Polkadot Hub TestNet (chain ID 420420417)
 ║  │   │          │                           │                 ║ DualVMGovernor   ║          │      │     ║
 ║  │   │          ▼                           │                 ║ + TimelockCtrl   ║          │      │     ║
 ║  │   │  ╔═══════════════════╗               │                 ╚══════════════════╝          │      │     ║
-║  │   │  ║   LendingCore     ║◄──────────────┘                                              │      │     ║
+║  │   │  ║   LendingEngine   ║◄──────────────┘                                              │      │     ║
 ║  │   │  ║ borrow/repay/liq  ║                                                               │      │     ║
 ║  │   │  ║ batch liquidate   ║──────────────────────►╔══════════════════╗                    │      │     ║
-║  │   │  ║ AccessManaged     ║                       ║   RiskAdapter     ║                    │      │     ║
+║  │   │  ║ AccessManaged     ║                       ║   RiskGateway     ║                    │      │     ║
 ║  │   │  ║ Pausable, ReGuard ║                       ║ INLINE kinked    ║                    │      │     ║
 ║  │   │  ╚═══════╤═══════════╝                       ║ curve = CANONICAL║                    │      │     ║
 ║  │   │          │                                    ║ + optional PVM   ║───┐                │      │     ║
@@ -349,7 +349,7 @@ Polkadot Hub TestNet (chain ID 420420417)
 ║  │   │  │ CrossChainQuoteEstimator ──► IXcm @ 0x...A0000                │  │                │      │     ║
 ║  │   │  │   weighMessage ✓  execute ✓  send ✓  (all ClearOrigin only)   │  │                │      │     ║
 ║  │   │  │ XcmLiquidationNotifier ──► IXcm.send (ClearOrigin to relay)   │  │                │      │     ║
-║  │   │  │   ⚠ NO integration with LendingCore.liquidate()              │  │                │      │     ║
+║  │   │  │   ⚠ NO integration with LendingEngine.liquidate()             │  │                │      │     ║
 ║  │   │  └───────────────────────────────────────────────────────────────┘  │                │      │     ║
 ║  │   └─────────────────────────────────────────────────────────────────────┘                │      │     ║
 ║  │                                                                          │                │      │     ║

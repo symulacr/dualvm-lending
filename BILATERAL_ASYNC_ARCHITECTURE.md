@@ -41,7 +41,7 @@
 |---|---|---|
 | PVM → REVM | Platform blocker (PVM callbacks revert) | REVM initiates; PVM is passive callee |
 | PVM → XCM | XCM precompile in REVM address space | REVM adapter reads PVM result, forwards to XCM |
-| XCM inbound → LendingCore | XCM receipts arrive asynchronously | XcmInbox receives, HookRegistry dispatches |
+| XCM inbound → LendingEngine | XCM receipts arrive asynchronously | XcmInbox receives, HookRegistry dispatches |
 | AccessManager → PVM | AccessManager is EVM-only | GovernanceAdapter stores PVM policy params; PVM reads them |
 | AccessManager → XCM destinations | AccessManager cannot send XCM | GovernanceAdapter wraps policy changes into XCM messages |
 

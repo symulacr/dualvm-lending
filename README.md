@@ -227,7 +227,7 @@ sequenceDiagram
 sequenceDiagram
     participant LP
     participant DP as DebtPool
-    participant LC as LendingCore
+    participant LC as LendingEngine
     LP->>DP: deposit(usdc)
     DP->>DP: mint shares proportional
     DP-->>LP: ERC-4626 shares
@@ -267,7 +267,7 @@ graph TD
 ```mermaid
 sequenceDiagram
     participant Liq as Liquidator
-    participant LC as LendingCore
+    participant LC as LendingEngine
     participant MO as ManualOracle
     participant DP as DebtPool
     Liq->>LC: liquidate(borrower, amount)
@@ -356,7 +356,7 @@ Non-trivial composition of OZ 5.x contracts:
 - **TimelockController** — Governance timelock; holds AccessManager admin
 - **ERC20Votes + ERC20Permit** — Governance token with on-chain delegation
 - **ERC4626** — DebtPool LP vault with virtual-offset inflation-attack protection
-- **SafeERC20** — All token transfers in LendingCore
+- **SafeERC20** — All token transfers in LendingEngine
 - **Pausable** — Emergency pause on core, pool, and oracle
 - **ReentrancyGuard** — All state-changing fund flows
 
