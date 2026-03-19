@@ -318,10 +318,10 @@ Demo-friendly parameters: voting delay ~1s, voting period ~300s, timelock ~60s, 
 | Failure Mode | Impact | Recovery |
 |---|---|---|
 | **Oracle Stale (>maxAge)** | Borrows revert with `OraclePriceStale`. Liquidations still work (last known price used for health factor). Repayments work. | Operator calls `setPrice()`. |
-| **PVM Unavailable** | RiskAdapter continues on the inline deterministic path (PVM is an optional verification layer, not the canonical computation path). Zero impact on lending operations. `CrossVMDivergence` event may be emitted if PVM recovers with a different result. | No action needed — inline math is the canonical path. |
+| **PVM Unavailable** | RiskGateway continues on the inline deterministic path (PVM is an optional verification layer, not the canonical computation path). Zero impact on lending operations. `CrossVMDivergence` event may be emitted if PVM recovers with a different result. | No action needed — inline math is the canonical path. |
 | **Liquidity Exhausted** | Borrows fail with `InsufficientLiquidity`. LP withdrawals may fail if pool is dry. Repayments always work. Liquidations work (reduce debt without drawing new liquidity). | More LP deposits or borrowers repay. |
 | **Circuit Breaker** | `setPrice()` reverts if price is outside `[minPriceWad, maxPriceWad]` or delta exceeds `maxChangeBps`. Protocol continues on last accepted price. | Operator adjusts circuit breaker params via governance proposal, then updates price. |
-| **Emergency Procedures** | `EMERGENCY` role (delay=0) can call `pause()` on `LendingCore`, `DebtPool`, and `ManualOracle`. `freezeNewDebt()` blocks new borrows while preserving repay/liquidate. | Resume via `unpause()` after root cause is resolved. |
+| **Emergency Procedures** | `EMERGENCY` role (delay=0) can call `pause()` on `LendingEngine`, `DebtPool`, and `ManualOracle`. `freezeNewDebt()` blocks new borrows while preserving repay/liquidate. | Resume via `unpause()` after root cause is resolved. |
 
 ## Market Configuration
 
@@ -472,10 +472,10 @@ npm run build:app     # Build frontend only
 1. **Fund wallet**: Get PAS from the [faucet](https://faucet.polkadot.io/) (Network: Polkadot testnet Paseo, Chain: Hub smart contracts)
 2. **Connect wallet**: Open the frontend, connect via RainbowKit to chain 420420417
 3. **Supply liquidity**: Mint USDC-test (if minter) → approve → deposit to DebtPool
-4. **Deposit collateral**: Wrap PAS → WPAS → approve → depositCollateral to LendingCore
-5. **Borrow**: Enter amount → LendingCore.borrow() → receive USDC-test
-6. **Repay**: Approve USDC-test → LendingCore.repay() → debt decreases
-7. **Liquidate**: (If position is underwater) Enter borrower + amount → LendingCore.liquidate()
+4. **Deposit collateral**: Wrap PAS → WPAS → approve → depositCollateral to LendingEngine
+5. **Borrow**: Enter amount → LendingEngine.borrow() → receive USDC-test
+6. **Repay**: Approve USDC-test → LendingEngine.repay() → debt decreases
+7. **Liquidate**: (If position is underwater) Enter borrower + amount → LendingEngine.liquidate()
 8. **Verify**: Check all transactions on [Blockscout](https://blockscout-testnet.polkadot.io/)
 
 ## Developer Commands
@@ -598,7 +598,7 @@ After registration, submit a second proposal (or batch both calls) targeting `Ma
 
 To let borrowers move from an old version, call `MarketMigrationCoordinator.openMigrationRoute(fromVersionId, toVersionId, borrowerEnabled, liquidityEnabled)` — also governance-restricted. Then each borrower (or a migration operator) calls `migrateBorrower(fromVersionId, toVersionId)` per position.
 
-> **Permission note:** Before migration can execute, the `MarketMigrationCoordinator` address must be granted the role that authorises it to call `exportPositionForMigration` on the old `LendingCore` and `importMigratedPosition` on the new one. Wire these via an `AccessManager.setTargetFunctionRole` governance proposal before opening the route.
+> **Permission note:** Before migration can execute, the `MarketMigrationCoordinator` address must be granted the role that authorises it to call `exportPositionForMigration` on the old `LendingEngine` and `importMigratedPosition` on the new one. Wire these via an `AccessManager.setTargetFunctionRole` governance proposal before opening the route.
 
 ## Known Limitations
 

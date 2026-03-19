@@ -14,10 +14,10 @@
 | OZ AccessManager | Cross-VM reach | EVM-ONLY | Cannot directly govern PVM contracts |
 | OZ Defender | Monitoring | SUNSET | blog.openzeppelin.com (Aug 2025) |
 | Elastic Scaling | 2s blocks | ENABLED | Revive status update Dec 2025 |
-| Hardhat | 2.22.19 | STABLE | Installed |
-| @parity/hardhat-polkadot | 0.2.7 | STABLE | Installed |
+| Foundry | forge 0.3.x | STABLE | book.getfoundry.sh |
+| @parity/resolc | 1.0.x | STABLE | Installed (PVM compilation) |
 
-**NOT upgrading**: OZ 5.5.0 stays (no breaking changes needed). Hardhat stays. resolc stays.
+**NOT upgrading**: OZ 5.5.0 stays (no breaking changes needed). Foundry exclusively (Hardhat fully removed in M11). resolc stays.
 
 ---
 
@@ -28,7 +28,7 @@
 | Contradiction | Resolution |
 |---|---|
 | Audit says DeterministicRiskModel NOT PVM-compiled | STALE — M9 deployed PVM version at 0xC6907B609... |
-| Audit says LendingRouter credits self | STALE — M9 deployed LendingRouterV2 with depositCollateralFor |
+| Audit says LendingRouter credits self | RESOLVED — M9 deployed LendingRouter (canonical) with depositCollateralFor |
 | Audit says oracle maxAge=21600s | STALE — M9 reduced to 1800s |
 | Audit says 105 tests | STALE — now 186 tests |
 | Request: bilateral PVM↔REVM | PVM→REVM callbacks broken at platform level. Design: REVM→PVM sync (works), results bridged via adapters |
@@ -49,7 +49,7 @@
 
 ## 3. Communication Matrix
 
-### LendingEngine (renamed from LendingCoreV2)
+### LendingEngine
 
 | Direction | Peer | Sync/Async | Trigger | Payload | Auth | Failure | Dedup | Confidence |
 |---|---|---|---|---|---|---|---|---|
@@ -61,7 +61,7 @@
 | IN← | User EOA | SYNC | all user ops | varies | none | revert | N/A | HIGH |
 | EMIT→ | OpsOutbox (PROPOSED) | SYNC event | all state changes | structured event | none | N/A (events) | correlationId | PROPOSED |
 
-### RiskGateway (renamed from RiskAdapter)
+### RiskGateway
 
 | Direction | Peer | Sync/Async | Trigger | Payload | Auth | Failure | Dedup | Confidence |
 |---|---|---|---|---|---|---|---|---|
@@ -137,9 +137,9 @@
 
 | Component | Type | Purpose |
 |---|---|---|
-| **LendingEngine** (rename LendingCoreV2) | RENAME | Canonical lending core with correlationId in all events |
-| **RiskGateway** (rename RiskAdapter) | RENAME | Unified cross-VM risk gateway |
-| **LendingRouter** (rename LendingRouterV2) | RENAME | PAS→WPAS→deposit convenience |
+| **LendingEngine** | DONE | Canonical lending core with correlationId in all events |
+| **RiskGateway** | DONE | Unified cross-VM risk gateway with inline math + PVM verify |
+| **LendingRouter** | DONE | PAS→WPAS→deposit convenience |
 | **AsyncSettlementEngine** (PROPOSED) | NEW | Manages async XCM settlement lifecycle: request→pending→settled/expired |
 | **GovernancePolicyStore** (PROPOSED) | NEW | On-chain registry of PVM policy params; PVM reads via REVM→PVM call |
 | **OpsOutbox** (PROPOSED, off-chain) | DESIGN-ONLY | Normalized event schema + off-chain correlator (no new contract, just event standards) |
@@ -215,7 +215,7 @@ User EOA
 ║                                    BEFORE (M10)                                     ║
 ╠══════════════════════════════════════════════════════════════════════════════════════╣
 ║                                                                                      ║
-║  LendingCoreV2 ──► RiskAdapter ──► DeterministicRiskModel(PVM)                      ║
+║  LendingEngine ──► RiskGateway ──► DeterministicRiskModel(PVM)                      ║
 ║       │                                  [sync call, one-way]                        ║
 ║       │                                                                              ║
 ║       └──► LiquidationHookRegistry ──► XcmNotifierAdapter ──► XcmLiquidationNotifier ║
@@ -275,11 +275,11 @@ graph TB
     end
 
     subgraph REVM["REVM Contracts"]
-        LE["LendingEngine<br/>(renamed LendingCoreV2)<br/>correlationId in events"]
-        RG["RiskGateway<br/>(renamed RiskAdapter)<br/>inline math + PVM verify"]
+        LE["LendingEngine<br/>correlationId in events"]
+        RG["RiskGateway<br/>inline math + PVM verify"]
         DP["DebtPool<br/>ERC-4626 vault"]
         MO["ManualOracle<br/>maxAge=1800s"]
-        LR["LendingRouter<br/>(renamed LendingRouterV2)"]
+        LR["LendingRouter<br/>PAS→WPAS→deposit"]
         HR["LiquidationHookRegistry<br/>dispatch + correlationId"]
         XNA["XcmNotifierAdapter<br/>3-arg to 4-arg bridge"]
         XLN["XcmLiquidationNotifier<br/>ClearOrigin+SetTopic"]
@@ -387,14 +387,13 @@ correlationId = keccak256(abi.encode(
 
 ## 7. Implementation Plan (Grouped by Workstream)
 
-### Batch 1: Source Renames + Event Schema (parallel-safe, no runtime changes)
-- Rename LendingCoreV2.sol → LendingEngine.sol (update all imports)
-- Rename RiskAdapter.sol → RiskGateway.sol (update all imports) 
-- Rename LendingRouterV2.sol → LendingRouter.sol (update all imports)
-- Add correlationId parameter/field to key events in LendingEngine
-- Add correlationId to LiquidationHookRegistry dispatch
-- Add OpsEvent standard event interface
-- **Can edit**: All .sol renames in parallel, then all import updates
+### Batch 1: Source Renames + Event Schema ✅ DONE
+- LendingEngine.sol (canonical, was LendingCoreV2) — all imports updated
+- RiskGateway.sol (canonical, was RiskAdapter) — all imports updated
+- LendingRouter.sol (canonical, was LendingRouterV2) — all imports updated
+- correlationId parameter/field added to all key events in LendingEngine
+- correlationId propagated through LiquidationHookRegistry dispatch
+- Toolchain: Foundry exclusively (forge build, forge test, forge script)
 
 ### Batch 2: GovernancePolicyStore + Wiring (depends on Batch 1)
 - Create GovernancePolicyStore.sol (AccessManaged, setPolicy restricted)

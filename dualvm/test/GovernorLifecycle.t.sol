@@ -9,6 +9,8 @@ import {TimelockController} from "@openzeppelin/contracts/governance/TimelockCon
 import {GovernorCountingSimple} from "@openzeppelin/contracts/governance/extensions/GovernorCountingSimple.sol";
 import {IVotes} from "@openzeppelin/contracts/governance/utils/IVotes.sol";
 import {IGovernor} from "@openzeppelin/contracts/governance/IGovernor.sol";
+import {BaseTest} from "./helpers/BaseTest.sol";
+import {MarketVersionRegistry} from "../contracts/MarketVersionRegistry.sol";
 
 /// @notice Tests for the full Governor proposal lifecycle: mint, delegate, propose, vote, queue, execute.
 contract GovernorLifecycleTest is Test {
@@ -263,5 +265,157 @@ contract GovernorLifecycleTest is Test {
 
     function test_ChainOfTrust_GovernorHoldsTokenReference() public view {
         assertEq(address(governor.token()), address(govToken));
+    }
+
+    // -------------------------------------------------------------------------
+    // Full lifecycle: propose → vote → queue → execute (VAL-GOV-007)
+    // -------------------------------------------------------------------------
+
+    function test_ProposalLifecycle_ExecuteAfterTimelock() public {
+        (address[] memory targets, uint256[] memory values, bytes[] memory calldatas, string memory description) =
+            _buildNoOpProposal();
+
+        // Propose
+        uint256 proposalId = governor.propose(targets, values, calldatas, description);
+        vm.warp(block.timestamp + VOTING_DELAY + 1);
+
+        // Vote FOR (admin has 60% of supply)
+        governor.castVote(proposalId, uint8(GovernorCountingSimple.VoteType.For));
+        vm.warp(block.timestamp + VOTING_PERIOD + 1);
+
+        assertEq(uint256(governor.state(proposalId)), uint256(IGovernor.ProposalState.Succeeded));
+
+        // Queue to timelock
+        bytes32 descriptionHash = keccak256(bytes(description));
+        governor.queue(targets, values, calldatas, descriptionHash);
+        assertEq(uint256(governor.state(proposalId)), uint256(IGovernor.ProposalState.Queued));
+
+        // Warp past timelock delay
+        vm.warp(block.timestamp + TIMELOCK_DELAY + 1);
+
+        // Execute — state should transition to Executed (7)
+        governor.execute(targets, values, calldatas, descriptionHash);
+        assertEq(uint256(governor.state(proposalId)), uint256(IGovernor.ProposalState.Executed));
+    }
+}
+
+// ---------------------------------------------------------------------------
+// GovernorActivatesMarketVersionTest
+// ---------------------------------------------------------------------------
+// Tests that a governance proposal can activate a MarketVersionRegistry version
+// through the full Governor → TimelockController → AccessManager chain.
+// Uses BaseTest for the full lending system deployment.
+
+contract GovernorActivatesMarketVersionTest is BaseTest {
+    uint48 internal constant GOV_VOTING_DELAY = 1; // 1 second
+    uint32 internal constant GOV_VOTING_PERIOD = 300; // 5 minutes
+    uint256 internal constant GOV_TIMELOCK_DELAY = 60; // 60 seconds
+    uint256 internal constant GOV_QUORUM_NUMERATOR = 4; // 4%
+    uint256 internal constant GOV_INITIAL_SUPPLY = 1_000_000 * 1e18;
+
+    GovernanceToken internal govToken;
+    TimelockController internal timelock;
+    DualVMGovernor internal governor;
+    MarketVersionRegistry internal marketRegistry;
+
+    function setUp() public override {
+        super.setUp(); // deploys the full lending system (accessManager, lendingEngine, etc.)
+
+        // Deploy governance token (initial supply to deployer = address(this))
+        govToken = new GovernanceToken(address(accessManager), deployer, GOV_INITIAL_SUPPLY);
+
+        // Deploy TimelockController (deployer is initial admin so we can wire roles)
+        address[] memory proposers = new address[](0);
+        address[] memory executors = new address[](1);
+        executors[0] = address(0); // anyone can execute
+        timelock = new TimelockController(GOV_TIMELOCK_DELAY, proposers, executors, deployer);
+
+        // Deploy Governor
+        governor = new DualVMGovernor(
+            IVotes(address(govToken)), timelock, GOV_VOTING_DELAY, GOV_VOTING_PERIOD, GOV_QUORUM_NUMERATOR
+        );
+
+        // Wire: governor gets PROPOSER_ROLE + CANCELLER_ROLE on timelock
+        timelock.grantRole(timelock.PROPOSER_ROLE(), address(governor));
+        timelock.grantRole(timelock.CANCELLER_ROLE(), address(governor));
+
+        // Deploy MarketVersionRegistry governed by the same AccessManager
+        marketRegistry = new MarketVersionRegistry(address(accessManager));
+
+        // Grant GOVERNANCE_ROLE to deployer AND timelock for registry operations
+        bytes4[] memory registrySelectors = new bytes4[](2);
+        registrySelectors[0] = marketRegistry.registerVersion.selector;
+        registrySelectors[1] = marketRegistry.activateVersion.selector;
+        accessManager.setTargetFunctionRole(address(marketRegistry), registrySelectors, ROLE_GOVERNANCE);
+        accessManager.grantRole(ROLE_GOVERNANCE, deployer, 0);
+        accessManager.grantRole(ROLE_GOVERNANCE, address(timelock), 0);
+
+        // Delegate voting power to self
+        govToken.delegate(deployer);
+
+        // Register two identical versions (same contracts — valid for testing activation)
+        marketRegistry.registerVersion(address(lendingEngine), address(debtPool), address(oracle), address(riskGateway));
+        marketRegistry.registerVersion(address(lendingEngine), address(debtPool), address(oracle), address(riskGateway));
+
+        // Activate version 1 manually (from deployer, who has the role)
+        marketRegistry.activateVersion(1);
+    }
+
+    // -------------------------------------------------------------------------
+    // Direct call from unauthorized address reverts (VAL-GOV-009)
+    // -------------------------------------------------------------------------
+
+    function test_DirectActivateVersionReverts() public {
+        // Revoke deployer's GOVERNANCE_ROLE so only the timelock can call activateVersion
+        accessManager.revokeRole(ROLE_GOVERNANCE, deployer);
+
+        // Direct EOA call must revert with AccessManagedUnauthorized
+        vm.expectRevert();
+        marketRegistry.activateVersion(2);
+    }
+
+    // -------------------------------------------------------------------------
+    // Governance proposal activates version (VAL-GOV-009)
+    // -------------------------------------------------------------------------
+
+    function test_Governance_ActivatesMarketVersion() public {
+        assertEq(marketRegistry.activeVersionId(), 1, "version 1 should be active before governance");
+
+        // Build proposal: activateVersion(2)
+        address[] memory targets = new address[](1);
+        targets[0] = address(marketRegistry);
+        uint256[] memory values = new uint256[](1);
+        values[0] = 0;
+        bytes[] memory calldatas = new bytes[](1);
+        calldatas[0] = abi.encodeWithSelector(marketRegistry.activateVersion.selector, uint256(2));
+        string memory description = "Activate market version 2";
+
+        // Propose
+        uint256 proposalId = governor.propose(targets, values, calldatas, description);
+        assertEq(uint256(governor.state(proposalId)), uint256(IGovernor.ProposalState.Pending));
+
+        vm.warp(block.timestamp + GOV_VOTING_DELAY + 1);
+        assertEq(uint256(governor.state(proposalId)), uint256(IGovernor.ProposalState.Active));
+
+        // Vote FOR (deployer has 100% of supply)
+        governor.castVote(proposalId, uint8(GovernorCountingSimple.VoteType.For));
+        vm.warp(block.timestamp + GOV_VOTING_PERIOD + 1);
+
+        assertEq(uint256(governor.state(proposalId)), uint256(IGovernor.ProposalState.Succeeded));
+
+        // Queue
+        bytes32 descriptionHash = keccak256(bytes(description));
+        governor.queue(targets, values, calldatas, descriptionHash);
+        assertEq(uint256(governor.state(proposalId)), uint256(IGovernor.ProposalState.Queued));
+
+        // Warp past timelock delay
+        vm.warp(block.timestamp + GOV_TIMELOCK_DELAY + 1);
+
+        // Execute — timelock calls marketRegistry.activateVersion(2)
+        governor.execute(targets, values, calldatas, descriptionHash);
+        assertEq(uint256(governor.state(proposalId)), uint256(IGovernor.ProposalState.Executed));
+
+        // Verify: version 2 is now the active market version
+        assertEq(marketRegistry.activeVersionId(), 2, "version 2 should be active after governance execution");
     }
 }
