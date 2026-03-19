@@ -1,0 +1,33 @@
+{
+  "featureId": "gas-benchmarks",
+  "reviewedAt": "2026-03-19T01:05:33Z",
+  "commitId": "a06d41cbf1fbd70b15dfaed370bb0d75c424c92c",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "pass",
+  "codeReview": {
+    "summary": "The feature delivers the requested artifacts: a benchmark script, a checked-in gas benchmark JSON file, and a short README Performance section covering all six operations with gas values sourced from live testnet receipts. I did not find a blocking coverage gap, but the latency helper slightly understates its own \"submission → receipt\" metric because the timer starts after the transaction promise has already been created.",
+    "issues": [
+      {
+        "file": "dualvm/scripts/gasBenchmark.ts",
+        "line": 62,
+        "severity": "non_blocking",
+        "description": "`sendAndMeasure` accepts a pre-created transaction promise, and the call sites pass `debtPoolV2.deposit(...)` / `debtPoolV2.withdraw(...)` directly (`dualvm/scripts/gasBenchmark.ts:173-191`). Because that promise is created before `submitTime` is recorded, the reported `inclusionMs` starts slightly after transaction submission has already begun. The current numbers are still useful, but they are not a precise measurement of the documented `submission → receipt` interval."
+      }
+    ]
+  },
+  "sharedStateObservations": [
+    {
+      "area": "skills",
+      "observation": "The `deployment-worker` skill's balance-check command is incomplete. It tells workers to run `node scripts/check-testnet-balance.mjs` with no address, but the script requires an explicit EVM address argument. In this feature transcript the worker hit the usage error first and only then reran it with the deployer address.",
+      "evidence": "/home/kpa/polkadot/.factory/skills/deployment-worker/SKILL.md:26 vs transcript skeleton for worker session `b4971837-a316-48ee-a390-900d0d9d41c7`, which shows `node scripts/check-testnet-balance.mjs` returning `Usage: node scripts/check-testnet-balance.mjs 0xYourEvmAddress` before the corrected `node scripts/check-testnet-balance.mjs 0x36a83a4450744f4F9988c9Bc46cC556Ba5bFD2dF` run."
+    },
+    {
+      "area": "knowledge",
+      "observation": "The reusable smoke-results schema has an undocumented inconsistency: step 4 stores the liquidation transaction under `liquidationTxHash` instead of the `txHash` field used by steps 1-3. The gas-benchmarks worker had to discover that ad hoc after the first benchmark run reported liquidate gas as `N/A` and then patch in a fallback. Capturing that quirk in shared library notes (or normalizing the schema) would avoid future reverse engineering.",
+      "evidence": "`dualvm/deployments/liveV2Smoke-results.json:35-42` stores `step4_liquidation.liquidationTxHash`; the transcript skeleton shows the first benchmark run reporting `The liquidate hash came back as N/A`, then running `jq '.step4_liquidation | keys'` and editing `scripts/gasBenchmark.ts` to read `liquidationTxHash` first."
+    }
+  ],
+  "addressesFailureFrom": null,
+  "summary": "Reviewed the gas-benchmarks handoff, transcript skeleton, commit `a06d41c`, and the touched README / deployment artifacts. The feature satisfies the requested benchmark deliverables and should pass, with one non-blocking accuracy note on how the inclusion timer is started plus two shared-state observations for the deployment skill and smoke-results schema."
+}

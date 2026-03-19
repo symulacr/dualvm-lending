@@ -22,10 +22,18 @@ MarketVersionRegistry
 MarketMigrationCoordinator
   └── migrateBorrower() / migrateLiquidity()
 
+- `migrateBorrower(uint256 fromVersionId, uint256 toVersionId)` migrates `msg.sender`; there is no `migrateBorrower(account)` admin entrypoint.
+- Borrower/liquidity migration only works between versions that share the same collateral asset and debt asset; mismatched pairs revert with `UnsupportedAssetPair`.
+- The coordinator must be authorized to call the restricted migration import/export functions on the involved lending cores; opening the route alone is not sufficient.
+
 ## Migration constraint on canonical deployment
 - The live canonical deployment currently has a long target-admin delay posture on existing market targets, so quick function-role remapping is not practical during time-sensitive migration proofs.
 - The recorded live migration proof therefore used a temporary broader AccessManager grant to the `MarketMigrationCoordinator` rather than a fast narrow remap on the already-deployed v1 market.
 - Future migration work should assume governed migration scripts must be restart-safe and explicit about any temporary privilege escalation/cleanup.
+
+## Async XCM receipt handling
+- Any inbox that de-duplicates async receipts by `correlationId` must authenticate the relay/caller allowed to deliver the receipt.
+- A permissionless `receiveReceipt(correlationId, data)` shape lets arbitrary callers consume IDs first and spoof payloads before the legitimate XCM delivery arrives.
 ```
 
 ## Governance Chain
@@ -48,6 +56,8 @@ MarketMigrationCoordinator
 - Canonical deployment: `dualvm/deployments/polkadot-hub-testnet-canonical.json`
 - Governance root: `Governor -> TimelockController -> AccessManager`
 - Frontend manifest import points directly at the canonical manifest.
+- The canonical manifest does not currently expose `lendingCoreV2.liquidationNotifier`; scripts that need the notifier address must use explicit env vars or the V2 contracts manifest.
+- `dualvm/deployments/liveV2Smoke-results.json` is not fully normalized: `step4_liquidation` stores `liquidationTxHash` instead of the `txHash` field used by earlier steps.
 - Older baseline/versioned/governed manifests are historical and superseded by the canonical deployment path.
 
 ## Frontend Architecture

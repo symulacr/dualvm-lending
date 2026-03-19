@@ -19,12 +19,14 @@ Environment variables, external dependencies, and setup notes.
 - Funded wallet file: `dualvm/wallets/polkadot-hub-testnet-wallet-2026-03-16T04-46-12-085Z.txt`
 - Address: `0x36a83a4450744f4F9988c9Bc46cC556Ba5bFD2dF`
 - Additional wallets may be needed for Governor owners — generate via `npm run wallet:generate` in dualvm/
+- `node scripts/check-testnet-balance.mjs` requires an explicit EVM address argument; invoking it with no address only prints usage.
 
 ## Environment Variables (.env)
 - `.env` is gitignored, `.env.example` is the template
 - Key variables: PRIVATE_KEY, POLKADOT_HUB_TESTNET_RPC_URL, role-specific keys
 - DEPLOYMENT_MANIFEST_PATH controls which manifest scripts use (default: `dualvm/deployments/polkadot-hub-testnet-canonical.json`)
 - Frontend does NOT use DEPLOYMENT_MANIFEST_PATH — it statically imports from `src/lib/manifest.ts`
+- Role-specific keys can diverge from the deployer signer. If `EMERGENCY_PRIVATE_KEY` is a different account, governed-role cleanup must explicitly revoke/renounce EMERGENCY from that holder; revoking only the deployer is insufficient.
 
 ## Dependencies
 - Node.js 18+, npm
