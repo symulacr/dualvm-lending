@@ -500,6 +500,33 @@ Gas usage measured from on-chain tx receipts on Polkadot Hub TestNet (chain 4204
 
 Full benchmark data: `dualvm/deployments/gas-benchmarks.json`.
 
+## Market Creation
+
+New markets (new asset pairs or upgraded risk parameters) are deployed, registered, and activated via governance without disrupting existing positions.
+
+### 1. Deploy New Market Contracts
+
+Use `deployMarketVersion` from `lib/deployment/deployMarketVersion.ts`:
+
+```bash
+# Set collateral + debt token addresses in .env, then:
+npm run deploy:governed:testnet
+```
+
+This deploys a fresh `ManualOracle`, `RiskAdapter`, `DebtPool`, and `LendingCore` wired together under the existing `AccessManager`.
+
+### 2. Register via MarketVersionRegistry
+
+Call `MarketVersionRegistry.registerVersion(lendingCore, debtPool, oracle, riskEngine)`. This is a governance-restricted function — submit a Governor proposal via `DualVMGovernor.propose()` targeting the registry.
+
+### 3. Activate via Governance Proposal
+
+After registration, submit a second proposal (or batch both calls) targeting `MarketVersionRegistry.activateVersion(newVersionId)`. After the voting period and timelock delay, call `execute()` to activate.
+
+### 4. Open Migration Routes
+
+To let borrowers move from an old version, call `MarketMigrationCoordinator.openMigrationRoute(fromVersionId, toVersionId, borrowerEnabled, liquidityEnabled)` — also governance-restricted. Then call `migrateBorrower(account)` per position.
+
 ## Known Limitations
 
 - **Single isolated market only** — no multi-market support
