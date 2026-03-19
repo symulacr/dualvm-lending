@@ -50,13 +50,8 @@ contract GovernorLifecycleTest is Test {
         timelock = new TimelockController(TIMELOCK_DELAY, proposers, executors, admin);
 
         // Deploy Governor
-        governor = new DualVMGovernor(
-            IVotes(address(govToken)),
-            timelock,
-            VOTING_DELAY,
-            VOTING_PERIOD,
-            QUORUM_NUMERATOR
-        );
+        governor =
+            new DualVMGovernor(IVotes(address(govToken)), timelock, VOTING_DELAY, VOTING_PERIOD, QUORUM_NUMERATOR);
 
         // Wire: grant governor PROPOSER_ROLE + CANCELLER_ROLE on timelock
         timelock.grantRole(timelock.PROPOSER_ROLE(), address(governor));
@@ -158,16 +153,11 @@ contract GovernorLifecycleTest is Test {
     function _buildNoOpProposal()
         internal
         view
-        returns (
-            address[] memory targets,
-            uint256[] memory values,
-            bytes[] memory calldatas,
-            string memory description
-        )
+        returns (address[] memory targets, uint256[] memory values, bytes[] memory calldatas, string memory description)
     {
         // A proposal targeting the timelock with empty calldata — passes without side effects
         targets = new address[](1);
-        targets[0] = address(govToken);  // target govToken
+        targets[0] = address(govToken); // target govToken
         values = new uint256[](1);
         values[0] = 0;
         calldatas = new bytes[](1);

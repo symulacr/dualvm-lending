@@ -32,10 +32,14 @@ contract MarketMigrationCoordinator is AccessManaged {
     error MigrationRouteClosed(uint256 fromVersionId, uint256 toVersionId);
     error UnsupportedAssetPair();
 
-    event MigrationRouteOpened(uint256 indexed fromVersionId, uint256 indexed toVersionId, bool borrowerEnabled, bool liquidityEnabled);
+    event MigrationRouteOpened(
+        uint256 indexed fromVersionId, uint256 indexed toVersionId, bool borrowerEnabled, bool liquidityEnabled
+    );
     event MigrationRouteClosedEvent(uint256 indexed fromVersionId, uint256 indexed toVersionId);
     event BorrowerMigrated(uint256 indexed fromVersionId, uint256 indexed toVersionId, address indexed borrower);
-    event LiquidityMigrated(uint256 indexed fromVersionId, uint256 indexed toVersionId, address indexed account, uint256 shares);
+    event LiquidityMigrated(
+        uint256 indexed fromVersionId, uint256 indexed toVersionId, address indexed account, uint256 shares
+    );
 
     constructor(address authority, IMarketVersionRegistry marketRegistry_) AccessManaged(authority) {
         marketRegistry = marketRegistry_;
@@ -46,10 +50,8 @@ contract MarketMigrationCoordinator is AccessManaged {
         restricted
     {
         if (fromVersionId == 0 || toVersionId == 0 || fromVersionId == toVersionId) revert InvalidMigrationRoute();
-        migrationRoutes[fromVersionId][toVersionId] = MigrationRoute({
-            borrowerEnabled: borrowerEnabled,
-            liquidityEnabled: liquidityEnabled
-        });
+        migrationRoutes[fromVersionId][toVersionId] =
+            MigrationRoute({borrowerEnabled: borrowerEnabled, liquidityEnabled: liquidityEnabled});
         emit MigrationRouteOpened(fromVersionId, toVersionId, borrowerEnabled, liquidityEnabled);
     }
 
@@ -99,10 +101,10 @@ contract MarketMigrationCoordinator is AccessManaged {
         emit LiquidityMigrated(fromVersionId, toVersionId, msg.sender, shares);
     }
 
-    function _validateAssetPair(IMarketVersionRegistry.MarketVersion memory fromVersion, IMarketVersionRegistry.MarketVersion memory toVersion)
-        private
-        pure
-    {
+    function _validateAssetPair(
+        IMarketVersionRegistry.MarketVersion memory fromVersion,
+        IMarketVersionRegistry.MarketVersion memory toVersion
+    ) private pure {
         if (fromVersion.collateralAsset != toVersion.collateralAsset || fromVersion.debtAsset != toVersion.debtAsset) {
             revert UnsupportedAssetPair();
         }

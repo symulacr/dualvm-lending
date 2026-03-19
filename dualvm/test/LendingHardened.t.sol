@@ -16,7 +16,6 @@ import {ReentrantCollateral} from "../contracts/test/ReentrantCollateral.sol";
 /// @title LendingHardenedTest
 /// @notice Edge cases, reentrancy, pause, bad debt — migrated from LendingHardened.ts
 contract LendingHardenedTest is BaseTest {
-
     // =========================================================================
     // VAL-LEND-016: ERC4626 share exchange rate increases after interest repayment
     // =========================================================================
@@ -291,8 +290,12 @@ contract LendingHardenedTest is BaseTest {
 
         // Deploy risk infrastructure
         RiskGateway.RiskModelConfig memory cfg = RiskGateway.RiskModelConfig({
-            baseRateBps: BASE_RATE_BPS, slope1Bps: SLOPE1_BPS, slope2Bps: SLOPE2_BPS, kinkBps: KINK_BPS,
-            healthyMaxLtvBps: HEALTHY_MAX_LTV_BPS, stressedMaxLtvBps: STRESSED_MAX_LTV_BPS,
+            baseRateBps: BASE_RATE_BPS,
+            slope1Bps: SLOPE1_BPS,
+            slope2Bps: SLOPE2_BPS,
+            kinkBps: KINK_BPS,
+            healthyMaxLtvBps: HEALTHY_MAX_LTV_BPS,
+            stressedMaxLtvBps: STRESSED_MAX_LTV_BPS,
             healthyLiquidationThresholdBps: HEALTHY_LIQ_THRESHOLD_BPS,
             stressedLiquidationThresholdBps: STRESSED_LIQ_THRESHOLD_BPS,
             staleBorrowRatePenaltyBps: STALE_BORROW_RATE_PENALTY_BPS,
@@ -302,8 +305,11 @@ contract LendingHardenedTest is BaseTest {
         DebtPool testPool = new DebtPool(testUsdc, address(testAm), POOL_SUPPLY_CAP);
 
         LendingEngine.MarketConfig memory coreCfg = LendingEngine.MarketConfig({
-            borrowCap: BORROW_CAP, minBorrowAmount: MIN_BORROW_AMOUNT, reserveFactorBps: RESERVE_FACTOR_BPS,
-            maxLtvBps: MAX_LTV_BPS, liquidationThresholdBps: LIQUIDATION_THRESHOLD_BPS,
+            borrowCap: BORROW_CAP,
+            minBorrowAmount: MIN_BORROW_AMOUNT,
+            reserveFactorBps: RESERVE_FACTOR_BPS,
+            maxLtvBps: MAX_LTV_BPS,
+            liquidationThresholdBps: LIQUIDATION_THRESHOLD_BPS,
             liquidationBonusBps: LIQUIDATION_BONUS_BPS
         });
         LendingEngine testCore = new LendingEngine(

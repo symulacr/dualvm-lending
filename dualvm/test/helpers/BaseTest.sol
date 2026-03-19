@@ -67,7 +67,7 @@ abstract contract BaseTest is Test {
     // Accounts
     // -------------------------------------------------------------------------
 
-    address internal deployer;   // == address(this), AccessManager admin
+    address internal deployer; // == address(this), AccessManager admin
     address internal lender;
     address internal borrower;
     address internal liquidator;
@@ -172,13 +172,13 @@ abstract contract BaseTest is Test {
         });
         lendingEngine = new LendingEngine(
             address(accessManager),
-            wpas,          // collateralAsset
-            usdc,          // debtAsset
+            wpas, // collateralAsset
+            usdc, // debtAsset
             debtPool,
             oracle,
             riskGateway,
             coreConfig,
-            address(0)     // no liquidation notifier by default
+            address(0) // no liquidation notifier by default
         );
     }
 
@@ -272,10 +272,16 @@ abstract contract BaseTest is Test {
             ORACLE_MAX_PRICE_CHANGE_BPS
         );
         quoteEngine = new DeterministicRiskModel(
-            BASE_RATE_BPS, SLOPE1_BPS, SLOPE2_BPS, KINK_BPS,
-            HEALTHY_MAX_LTV_BPS, STRESSED_MAX_LTV_BPS,
-            HEALTHY_LIQ_THRESHOLD_BPS, STRESSED_LIQ_THRESHOLD_BPS,
-            STALE_BORROW_RATE_PENALTY_BPS, STRESSED_COLLATERAL_RATIO_BPS
+            BASE_RATE_BPS,
+            SLOPE1_BPS,
+            SLOPE2_BPS,
+            KINK_BPS,
+            HEALTHY_MAX_LTV_BPS,
+            STRESSED_MAX_LTV_BPS,
+            HEALTHY_LIQ_THRESHOLD_BPS,
+            STRESSED_LIQ_THRESHOLD_BPS,
+            STALE_BORROW_RATE_PENALTY_BPS,
+            STRESSED_COLLATERAL_RATIO_BPS
         );
         RiskGateway.RiskModelConfig memory riskConfig = RiskGateway.RiskModelConfig({
             baseRateBps: BASE_RATE_BPS,
@@ -300,16 +306,8 @@ abstract contract BaseTest is Test {
             liquidationThresholdBps: LIQUIDATION_THRESHOLD_BPS,
             liquidationBonusBps: LIQUIDATION_BONUS_BPS
         });
-        lendingEngine = new LendingEngine(
-            address(accessManager),
-            wpas,
-            usdc,
-            debtPool,
-            oracle,
-            riskGateway,
-            coreConfig,
-            notifier
-        );
+        lendingEngine =
+            new LendingEngine(address(accessManager), wpas, usdc, debtPool, oracle, riskGateway, coreConfig, notifier);
         _wireRoles();
         _seedLiquidity();
     }

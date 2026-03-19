@@ -16,7 +16,9 @@ contract MockLiquidationNotifier is ILiquidationNotifier {
     bytes32 public lastCorrelationId;
     uint256 public callCount;
 
-    event NotificationReceived(address indexed borrower, uint256 debtRepaid, uint256 collateralSeized, bytes32 correlationId);
+    event NotificationReceived(
+        address indexed borrower, uint256 debtRepaid, uint256 collateralSeized, bytes32 correlationId
+    );
 
     constructor(bool shouldRevert_) {
         shouldRevert = shouldRevert_;

@@ -38,9 +38,7 @@ contract XcmLiquidationNotifierTest is Test {
 
     function test_NotifyLiquidation_ZeroBorrowerReverts() public {
         vm.expectRevert(XcmLiquidationNotifier.ZeroBorrower.selector);
-        notifier.notifyLiquidation(
-            RELAY_DESTINATION, address(0), SAMPLE_DEBT, SAMPLE_COLLATERAL, SAMPLE_CORRELATION_ID
-        );
+        notifier.notifyLiquidation(RELAY_DESTINATION, address(0), SAMPLE_DEBT, SAMPLE_COLLATERAL, SAMPLE_CORRELATION_ID);
     }
 
     // -------------------------------------------------------------------------
@@ -109,10 +107,8 @@ contract XcmLiquidationNotifierTest is Test {
         bytes32 correlationId1 = keccak256("flow-1");
         bytes32 correlationId2 = keccak256("flow-2");
 
-        bytes memory msg1 =
-            abi.encodePacked(bytes1(0x05), bytes1(0x08), bytes1(0x0a), bytes1(0x2c), correlationId1);
-        bytes memory msg2 =
-            abi.encodePacked(bytes1(0x05), bytes1(0x08), bytes1(0x0a), bytes1(0x2c), correlationId2);
+        bytes memory msg1 = abi.encodePacked(bytes1(0x05), bytes1(0x08), bytes1(0x0a), bytes1(0x2c), correlationId1);
+        bytes memory msg2 = abi.encodePacked(bytes1(0x05), bytes1(0x08), bytes1(0x0a), bytes1(0x2c), correlationId2);
 
         // Distinct correlation IDs should produce distinct XCM messages
         assert(keccak256(msg1) != keccak256(msg2));

@@ -32,10 +32,7 @@ contract XcmLiquidationNotifier {
     /// @param collateralSeized The amount of collateral seized.
     /// @param correlationId The bilateral async correlation ID embedded in the XCM topic.
     event LiquidationNotified(
-        address indexed borrower,
-        uint256 debtRepaid,
-        uint256 collateralSeized,
-        bytes32 indexed correlationId
+        address indexed borrower, uint256 debtRepaid, uint256 collateralSeized, bytes32 indexed correlationId
     );
 
     /// @notice The destination was empty.
@@ -84,8 +81,7 @@ contract XcmLiquidationNotifier {
         //   0x0a = ClearOrigin (no arguments, passes XCM barriers without assets)
         //   0x2c = SetTopic instruction
         //   [32 bytes] = correlationId as the XCM topic
-        bytes memory message =
-            abi.encodePacked(bytes1(0x05), bytes1(0x08), bytes1(0x0a), bytes1(0x2c), correlationId);
+        bytes memory message = abi.encodePacked(bytes1(0x05), bytes1(0x08), bytes1(0x0a), bytes1(0x2c), correlationId);
 
         IXcm(XCM_PRECOMPILE_ADDRESS).send(destination, message);
 

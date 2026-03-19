@@ -17,5 +17,4 @@ interface IMigratableLendingCore {
     function importMigratedPosition(address borrower, MigratedPosition calldata position) external;
 
     function currentDebt(address borrower) external view returns (uint256);
-
 }

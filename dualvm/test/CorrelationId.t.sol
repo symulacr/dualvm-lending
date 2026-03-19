@@ -105,9 +105,7 @@ contract CorrelationIdTest is BaseTest {
         Vm.Log[] memory logs = vm.getRecordedLogs();
         bool foundBorrowed = false;
         for (uint256 i = 0; i < logs.length; i++) {
-            if (logs[i].emitter == address(lendingEngine)
-                && logs[i].topics[0] == LendingEngine.Borrowed.selector)
-            {
+            if (logs[i].emitter == address(lendingEngine) && logs[i].topics[0] == LendingEngine.Borrowed.selector) {
                 bytes32 correlationId = logs[i].topics[2]; // 2nd indexed param
                 assertNotEq(correlationId, bytes32(0), "correlationId should be non-zero");
                 foundBorrowed = true;
@@ -211,16 +209,16 @@ contract CorrelationIdTest is BaseTest {
         // topics[0]=selector, topics[1]=borrower, topics[2]=liquidator, topics[3]=correlationId
         bytes32 eventCorrelationId;
         for (uint256 i = 0; i < logs.length; i++) {
-            if (logs[i].emitter == address(lendingEngine)
-                && logs[i].topics[0] == LendingEngine.Liquidated.selector)
-            {
+            if (logs[i].emitter == address(lendingEngine) && logs[i].topics[0] == LendingEngine.Liquidated.selector) {
                 eventCorrelationId = logs[i].topics[3]; // 3rd indexed = correlationId
             }
         }
 
         // The correlationId in the event should match what the notifier received
         assertNotEq(eventCorrelationId, bytes32(0));
-        assertEq(mockNotifier.lastCorrelationId(), eventCorrelationId, "correlationId must match between event and notifier");
+        assertEq(
+            mockNotifier.lastCorrelationId(), eventCorrelationId, "correlationId must match between event and notifier"
+        );
     }
 
     function test_CorrelationId_InHookRegistryForwardedToHandler() public {
@@ -240,16 +238,17 @@ contract CorrelationIdTest is BaseTest {
         // topics[0]=selector, topics[1]=borrower, topics[2]=liquidator, topics[3]=correlationId
         bytes32 eventCorrelationId;
         for (uint256 i = 0; i < logs.length; i++) {
-            if (logs[i].emitter == address(lendingEngine)
-                && logs[i].topics[0] == LendingEngine.Liquidated.selector)
-            {
+            if (logs[i].emitter == address(lendingEngine) && logs[i].topics[0] == LendingEngine.Liquidated.selector) {
                 eventCorrelationId = logs[i].topics[3];
             }
         }
 
         // mockNotifier should have received the same correlationId through hookRegistry
         assertEq(mockNotifier.callCount(), 1);
-        assertEq(mockNotifier.lastCorrelationId(), eventCorrelationId,
-            "correlationId forwarded through hookRegistry to handler");
+        assertEq(
+            mockNotifier.lastCorrelationId(),
+            eventCorrelationId,
+            "correlationId forwarded through hookRegistry to handler"
+        );
     }
 }

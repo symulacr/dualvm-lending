@@ -13,11 +13,7 @@ contract RevmCallbackReceiver is IRevmCallbackReceiver {
     error DuplicateCallId(bytes32 callId);
 
     event CallbackReceived(
-        address indexed caller,
-        bytes32 indexed callId,
-        bytes32 indexed resultHash,
-        uint256 a,
-        uint256 b
+        address indexed caller, bytes32 indexed callId, bytes32 indexed resultHash, uint256 a, uint256 b
     );
 
     function receivePvmResult(bytes32 callId, bytes32 resultHash, uint256 a, uint256 b) external {

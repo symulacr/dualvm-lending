@@ -41,12 +41,7 @@ contract MarketMigrationCoordinatorTest is BaseTest {
         accessManager.setTargetFunctionRole(address(riskGateway), quoteSelectors, ROLE_LENDING_CORE);
 
         // Register v1
-        marketRegistry.registerVersion(
-            address(lendingEngine),
-            address(debtPool),
-            address(oracle),
-            address(riskGateway)
-        );
+        marketRegistry.registerVersion(address(lendingEngine), address(debtPool), address(oracle), address(riskGateway));
         marketRegistry.activateVersion(1);
 
         // Deploy v2
@@ -192,16 +187,8 @@ contract MarketMigrationCoordinatorTest is BaseTest {
             liquidationBonusBps: LIQUIDATION_BONUS_BPS
         });
 
-        LendingEngine newEngine = new LendingEngine(
-            address(accessManager),
-            wpas,
-            usdc,
-            newPool,
-            oracle,
-            riskGateway,
-            coreConfig,
-            address(0)
-        );
+        LendingEngine newEngine =
+            new LendingEngine(address(accessManager), wpas, usdc, newPool, oracle, riskGateway, coreConfig, address(0));
 
         newPool.setLendingCore(address(newEngine));
 

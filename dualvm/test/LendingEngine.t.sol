@@ -9,7 +9,6 @@ import {MockLiquidationNotifier} from "../contracts/test/MockLiquidationNotifier
 /// @title LendingEngineTest
 /// @notice Foundry tests for LendingEngine — migrated from LendingCore.ts and LendingCoreV2.ts
 contract LendingEngineTest is BaseTest {
-
     // =========================================================================
     // Basic deposit / borrow / repay / withdraw / liquidate
     // =========================================================================
@@ -217,9 +216,7 @@ contract LendingEngineTest is BaseTest {
 
         vm.prank(liquidator);
         // After partial repay of 60 WAD: remaining = ~90 WAD < minBorrowAmount (100 WAD)
-        vm.expectRevert(
-            abi.encodeWithSelector(LendingEngine.DebtBelowMinimum.selector, 90 * WAD, MIN_BORROW_AMOUNT)
-        );
+        vm.expectRevert(abi.encodeWithSelector(LendingEngine.DebtBelowMinimum.selector, 90 * WAD, MIN_BORROW_AMOUNT));
         lendingEngine.liquidate(borrower, 60 * WAD);
     }
 
@@ -412,7 +409,9 @@ contract LendingEngineTest is BaseTest {
         uint256 debtBefore = lendingEngine.currentDebt(borrower);
         vm.prank(liquidator);
         lendingEngine.liquidate(borrower, type(uint256).max);
-        assertLt(lendingEngine.currentDebt(borrower), debtBefore, "liquidation should succeed even when notifier reverts");
+        assertLt(
+            lendingEngine.currentDebt(borrower), debtBefore, "liquidation should succeed even when notifier reverts"
+        );
     }
 
     function test_LiquidationHook_ZeroAddressNotifierSucceeds() public {

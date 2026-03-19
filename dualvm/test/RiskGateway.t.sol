@@ -12,17 +12,13 @@ import {IRiskAdapter} from "../contracts/interfaces/IRiskAdapter.sol";
 /// @title RiskGatewayTest
 /// @notice Forge tests for RiskGateway — migrated from UnifiedRiskGateway.ts
 contract RiskGatewayTest is BaseTest {
-
     // =========================================================================
     // VAL-ARCH-001: Inline math matches DeterministicRiskModel for multiple utilizations
     // =========================================================================
 
     function test_InlineQuote_MatchesDeterministicModel_At0Percent() public view {
         IRiskEngine.QuoteInput memory input = IRiskEngine.QuoteInput({
-            utilizationBps: 0,
-            collateralRatioBps: 20_000,
-            oracleAgeSeconds: 60,
-            oracleFresh: true
+            utilizationBps: 0, collateralRatioBps: 20_000, oracleAgeSeconds: 60, oracleFresh: true
         });
         IRiskEngine.QuoteOutput memory inlineResult = riskGateway.quote(input);
         IRiskEngine.QuoteOutput memory pvmResult = quoteEngine.quote(input);
@@ -34,25 +30,21 @@ contract RiskGatewayTest is BaseTest {
 
     function test_InlineQuote_MatchesDeterministicModel_At50Percent() public view {
         IRiskEngine.QuoteInput memory input = IRiskEngine.QuoteInput({
-            utilizationBps: 5_000,
-            collateralRatioBps: 20_000,
-            oracleAgeSeconds: 60,
-            oracleFresh: true
+            utilizationBps: 5_000, collateralRatioBps: 20_000, oracleAgeSeconds: 60, oracleFresh: true
         });
         IRiskEngine.QuoteOutput memory inlineResult = riskGateway.quote(input);
         IRiskEngine.QuoteOutput memory pvmResult = quoteEngine.quote(input);
 
         assertEq(inlineResult.borrowRateBps, pvmResult.borrowRateBps, "borrowRateBps mismatch at 50%");
         assertEq(inlineResult.maxLtvBps, pvmResult.maxLtvBps, "maxLtvBps mismatch at 50%");
-        assertEq(inlineResult.liquidationThresholdBps, pvmResult.liquidationThresholdBps, "liqThreshold mismatch at 50%");
+        assertEq(
+            inlineResult.liquidationThresholdBps, pvmResult.liquidationThresholdBps, "liqThreshold mismatch at 50%"
+        );
     }
 
     function test_InlineQuote_MatchesDeterministicModel_AtKink80Percent() public view {
         IRiskEngine.QuoteInput memory input = IRiskEngine.QuoteInput({
-            utilizationBps: 8_000,
-            collateralRatioBps: 20_000,
-            oracleAgeSeconds: 60,
-            oracleFresh: true
+            utilizationBps: 8_000, collateralRatioBps: 20_000, oracleAgeSeconds: 60, oracleFresh: true
         });
         IRiskEngine.QuoteOutput memory inlineResult = riskGateway.quote(input);
         IRiskEngine.QuoteOutput memory pvmResult = quoteEngine.quote(input);
@@ -63,10 +55,7 @@ contract RiskGatewayTest is BaseTest {
 
     function test_InlineQuote_MatchesDeterministicModel_At95Percent() public view {
         IRiskEngine.QuoteInput memory input = IRiskEngine.QuoteInput({
-            utilizationBps: 9_500,
-            collateralRatioBps: 20_000,
-            oracleAgeSeconds: 60,
-            oracleFresh: true
+            utilizationBps: 9_500, collateralRatioBps: 20_000, oracleAgeSeconds: 60, oracleFresh: true
         });
         IRiskEngine.QuoteOutput memory inlineResult = riskGateway.quote(input);
         IRiskEngine.QuoteOutput memory pvmResult = quoteEngine.quote(input);
@@ -77,10 +66,7 @@ contract RiskGatewayTest is BaseTest {
 
     function test_InlineQuote_MatchesDeterministicModel_At100Percent() public view {
         IRiskEngine.QuoteInput memory input = IRiskEngine.QuoteInput({
-            utilizationBps: 10_000,
-            collateralRatioBps: 20_000,
-            oracleAgeSeconds: 60,
-            oracleFresh: true
+            utilizationBps: 10_000, collateralRatioBps: 20_000, oracleAgeSeconds: 60, oracleFresh: true
         });
         IRiskEngine.QuoteOutput memory inlineResult = riskGateway.quote(input);
         IRiskEngine.QuoteOutput memory pvmResult = quoteEngine.quote(input);
@@ -95,10 +81,7 @@ contract RiskGatewayTest is BaseTest {
 
     function test_BorrowRate_At0Percent_EqualsBaseRate() public view {
         IRiskEngine.QuoteInput memory input = IRiskEngine.QuoteInput({
-            utilizationBps: 0,
-            collateralRatioBps: 20_000,
-            oracleAgeSeconds: 0,
-            oracleFresh: true
+            utilizationBps: 0, collateralRatioBps: 20_000, oracleAgeSeconds: 0, oracleFresh: true
         });
         IRiskEngine.QuoteOutput memory result = riskGateway.quote(input);
         assertEq(result.borrowRateBps, BASE_RATE_BPS, "at 0%, rate = baseRate = 200");
@@ -106,10 +89,7 @@ contract RiskGatewayTest is BaseTest {
 
     function test_BorrowRate_AtKink_EqualsBaseRatePlusSlope1() public view {
         IRiskEngine.QuoteInput memory input = IRiskEngine.QuoteInput({
-            utilizationBps: KINK_BPS,
-            collateralRatioBps: 20_000,
-            oracleAgeSeconds: 0,
-            oracleFresh: true
+            utilizationBps: KINK_BPS, collateralRatioBps: 20_000, oracleAgeSeconds: 0, oracleFresh: true
         });
         IRiskEngine.QuoteOutput memory result = riskGateway.quote(input);
         assertEq(result.borrowRateBps, BASE_RATE_BPS + SLOPE1_BPS, "at kink, rate = base + slope1 = 1000");
@@ -117,13 +97,12 @@ contract RiskGatewayTest is BaseTest {
 
     function test_BorrowRate_At100Percent_EqualsBaseRatePlusSlope1PlusSlope2() public view {
         IRiskEngine.QuoteInput memory input = IRiskEngine.QuoteInput({
-            utilizationBps: 10_000,
-            collateralRatioBps: 20_000,
-            oracleAgeSeconds: 0,
-            oracleFresh: true
+            utilizationBps: 10_000, collateralRatioBps: 20_000, oracleAgeSeconds: 0, oracleFresh: true
         });
         IRiskEngine.QuoteOutput memory result = riskGateway.quote(input);
-        assertEq(result.borrowRateBps, BASE_RATE_BPS + SLOPE1_BPS + SLOPE2_BPS, "at 100%, rate = base+slope1+slope2 = 4000");
+        assertEq(
+            result.borrowRateBps, BASE_RATE_BPS + SLOPE1_BPS + SLOPE2_BPS, "at 100%, rate = base+slope1+slope2 = 4000"
+        );
     }
 
     function test_HealthyMode_ReturnsHealthyMaxLtv() public view {
@@ -164,10 +143,7 @@ contract RiskGatewayTest is BaseTest {
 
     function test_StaleOracle_AddsPenaltyToBorrowRate() public view {
         IRiskEngine.QuoteInput memory input = IRiskEngine.QuoteInput({
-            utilizationBps: 0,
-            collateralRatioBps: 20_000,
-            oracleAgeSeconds: 0,
-            oracleFresh: false
+            utilizationBps: 0, collateralRatioBps: 20_000, oracleAgeSeconds: 0, oracleFresh: false
         });
         IRiskEngine.QuoteOutput memory result = riskGateway.quote(input);
         assertEq(
@@ -183,16 +159,10 @@ contract RiskGatewayTest is BaseTest {
 
     function test_QuoteViaTicket_UnauthorizedReverts() public {
         IRiskAdapter.QuoteContext memory context = IRiskAdapter.QuoteContext({
-            oracleEpoch: 1,
-            configEpoch: 1,
-            oracleStateHash: bytes32(0),
-            configHash: bytes32(0)
+            oracleEpoch: 1, configEpoch: 1, oracleStateHash: bytes32(0), configHash: bytes32(0)
         });
         IRiskEngine.QuoteInput memory input = IRiskEngine.QuoteInput({
-            utilizationBps: 5_000,
-            collateralRatioBps: 20_000,
-            oracleAgeSeconds: 60,
-            oracleFresh: true
+            utilizationBps: 5_000, collateralRatioBps: 20_000, oracleAgeSeconds: 60, oracleFresh: true
         });
 
         vm.prank(outsider);
@@ -205,16 +175,10 @@ contract RiskGatewayTest is BaseTest {
         // Actually deployer has no LENDING_CORE role granted in BaseTest
         // (LENDING_CORE is only granted to lendingEngine address)
         IRiskAdapter.QuoteContext memory context = IRiskAdapter.QuoteContext({
-            oracleEpoch: 1,
-            configEpoch: 1,
-            oracleStateHash: bytes32(0),
-            configHash: bytes32(0)
+            oracleEpoch: 1, configEpoch: 1, oracleStateHash: bytes32(0), configHash: bytes32(0)
         });
         IRiskEngine.QuoteInput memory input = IRiskEngine.QuoteInput({
-            utilizationBps: 5_000,
-            collateralRatioBps: 20_000,
-            oracleAgeSeconds: 60,
-            oracleFresh: true
+            utilizationBps: 5_000, collateralRatioBps: 20_000, oracleAgeSeconds: 60, oracleFresh: true
         });
 
         // deployer doesn't have LENDING_CORE role → should revert

@@ -48,7 +48,9 @@ contract RevmRoundTripSettlementProbe {
         _recordSettlement(keccak256("LIQUIDATION_CHECK"), output, 0);
     }
 
-    function _recordSettlement(bytes32 action, IRiskEngine.QuoteOutput memory output, uint256 debtDeltaApplied) private {
+    function _recordSettlement(bytes32 action, IRiskEngine.QuoteOutput memory output, uint256 debtDeltaApplied)
+        private
+    {
         lastBorrowRateBps = output.borrowRateBps;
         lastMaxLtvBps = output.maxLtvBps;
         lastLiquidationThresholdBps = output.liquidationThresholdBps;

@@ -12,7 +12,6 @@ import {LendingEngine} from "../contracts/LendingEngine.sol";
 /// The new LendingRouter uses LendingEngine.depositCollateralFor so position is credited
 /// to the CALLER (msg.sender), not the router address. This is the correct production behavior.
 contract LendingRouterTest is BaseTest {
-
     LendingRouter internal router;
     address internal user;
     address internal secondUser;

@@ -150,8 +150,8 @@ contract GovernancePolicyStoreTest is BaseTest {
             slope1Bps: SLOPE1_BPS,
             slope2Bps: SLOPE2_BPS,
             kinkBps: KINK_BPS,
-            healthyMaxLtvBps: HEALTHY_MAX_LTV_BPS,    // 75%
-            stressedMaxLtvBps: STRESSED_MAX_LTV_BPS,  // 65%
+            healthyMaxLtvBps: HEALTHY_MAX_LTV_BPS, // 75%
+            stressedMaxLtvBps: STRESSED_MAX_LTV_BPS, // 65%
             healthyLiquidationThresholdBps: HEALTHY_LIQ_THRESHOLD_BPS,
             stressedLiquidationThresholdBps: STRESSED_LIQ_THRESHOLD_BPS,
             staleBorrowRatePenaltyBps: STALE_BORROW_RATE_PENALTY_BPS,
@@ -162,8 +162,8 @@ contract GovernancePolicyStoreTest is BaseTest {
 
         // Without override: should return healthyMaxLtvBps (75%)
         IRiskEngine.QuoteInput memory input = IRiskEngine.QuoteInput({
-            utilizationBps: 5_000,       // 50% utilization
-            collateralRatioBps: 20_000,   // healthy
+            utilizationBps: 5_000, // 50% utilization
+            collateralRatioBps: 20_000, // healthy
             oracleAgeSeconds: 0,
             oracleFresh: true
         });
@@ -186,7 +186,7 @@ contract GovernancePolicyStoreTest is BaseTest {
             kinkBps: KINK_BPS,
             healthyMaxLtvBps: HEALTHY_MAX_LTV_BPS,
             stressedMaxLtvBps: STRESSED_MAX_LTV_BPS,
-            healthyLiquidationThresholdBps: HEALTHY_LIQ_THRESHOLD_BPS,  // 85%
+            healthyLiquidationThresholdBps: HEALTHY_LIQ_THRESHOLD_BPS, // 85%
             stressedLiquidationThresholdBps: STRESSED_LIQ_THRESHOLD_BPS,
             staleBorrowRatePenaltyBps: STALE_BORROW_RATE_PENALTY_BPS,
             stressedCollateralRatioBps: STRESSED_COLLATERAL_RATIO_BPS
@@ -195,10 +195,7 @@ contract GovernancePolicyStoreTest is BaseTest {
             new RiskGateway(address(accessManager), address(quoteEngine), address(policyStore), riskConfig);
 
         IRiskEngine.QuoteInput memory input = IRiskEngine.QuoteInput({
-            utilizationBps: 5_000,
-            collateralRatioBps: 20_000,
-            oracleAgeSeconds: 0,
-            oracleFresh: true
+            utilizationBps: 5_000, collateralRatioBps: 20_000, oracleAgeSeconds: 0, oracleFresh: true
         });
 
         // Set policy override: maxLtv=60%, liqThreshold=82% (must be > maxLtv)
@@ -212,7 +209,7 @@ contract GovernancePolicyStoreTest is BaseTest {
 
     function test_RiskGateway_WithPolicyStore_OverridesBorrowRateFloor() public {
         RiskGateway.RiskModelConfig memory riskConfig = RiskGateway.RiskModelConfig({
-            baseRateBps: BASE_RATE_BPS,      // 200 bps = 2%
+            baseRateBps: BASE_RATE_BPS, // 200 bps = 2%
             slope1Bps: SLOPE1_BPS,
             slope2Bps: SLOPE2_BPS,
             kinkBps: KINK_BPS,
@@ -228,7 +225,7 @@ contract GovernancePolicyStoreTest is BaseTest {
 
         // Very low utilization → very low borrow rate
         IRiskEngine.QuoteInput memory input = IRiskEngine.QuoteInput({
-            utilizationBps: 0,  // 0% utilization → baseRate = 200bps
+            utilizationBps: 0, // 0% utilization → baseRate = 200bps
             collateralRatioBps: 20_000,
             oracleAgeSeconds: 0,
             oracleFresh: true
@@ -262,10 +259,7 @@ contract GovernancePolicyStoreTest is BaseTest {
             new RiskGateway(address(accessManager), address(quoteEngine), address(policyStore), riskConfig);
 
         IRiskEngine.QuoteInput memory input = IRiskEngine.QuoteInput({
-            utilizationBps: 5_000,
-            collateralRatioBps: 20_000,
-            oracleAgeSeconds: 0,
-            oracleFresh: true
+            utilizationBps: 5_000, collateralRatioBps: 20_000, oracleAgeSeconds: 0, oracleFresh: true
         });
 
         // Set override

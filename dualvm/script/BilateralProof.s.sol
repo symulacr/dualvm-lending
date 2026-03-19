@@ -5,22 +5,22 @@ import "forge-std/Script.sol";
 import "forge-std/console.sol";
 import {Vm} from "forge-std/Vm.sol";
 
-import {DualVMAccessManager}     from "../contracts/DualVMAccessManager.sol";
-import {WPAS}                    from "../contracts/WPAS.sol";
-import {USDCMock}                from "../contracts/USDCMock.sol";
-import {ManualOracle}            from "../contracts/ManualOracle.sol";
-import {GovernancePolicyStore}   from "../contracts/GovernancePolicyStore.sol";
-import {RiskGateway}             from "../contracts/RiskGateway.sol";
-import {DebtPool}                from "../contracts/DebtPool.sol";
-import {LendingEngine}           from "../contracts/LendingEngine.sol";
-import {LendingRouter}           from "../contracts/LendingRouter.sol";
-import {XcmInbox}                from "../contracts/XcmInbox.sol";
+import {DualVMAccessManager} from "../contracts/DualVMAccessManager.sol";
+import {WPAS} from "../contracts/WPAS.sol";
+import {USDCMock} from "../contracts/USDCMock.sol";
+import {ManualOracle} from "../contracts/ManualOracle.sol";
+import {GovernancePolicyStore} from "../contracts/GovernancePolicyStore.sol";
+import {RiskGateway} from "../contracts/RiskGateway.sol";
+import {DebtPool} from "../contracts/DebtPool.sol";
+import {LendingEngine} from "../contracts/LendingEngine.sol";
+import {LendingRouter} from "../contracts/LendingRouter.sol";
+import {XcmInbox} from "../contracts/XcmInbox.sol";
 import {LiquidationHookRegistry} from "../contracts/LiquidationHookRegistry.sol";
-import {MarketVersionRegistry}   from "../contracts/MarketVersionRegistry.sol";
-import {GovernanceToken}         from "../contracts/governance/GovernanceToken.sol";
-import {DualVMGovernor}          from "../contracts/governance/DualVMGovernor.sol";
-import {TimelockController}      from "@openzeppelin/contracts/governance/TimelockController.sol";
-import {IERC20}                  from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {MarketVersionRegistry} from "../contracts/MarketVersionRegistry.sol";
+import {GovernanceToken} from "../contracts/governance/GovernanceToken.sol";
+import {DualVMGovernor} from "../contracts/governance/DualVMGovernor.sol";
+import {TimelockController} from "@openzeppelin/contracts/governance/TimelockController.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 /// @title BilateralProof
 /// @notice Master validation forge script for the M11 bilateral async system.
@@ -61,22 +61,22 @@ contract BilateralProof is Script {
     // -------------------------------------------------------------------------
     // Role IDs (match Deploy.s.sol)
     // -------------------------------------------------------------------------
-    uint64 internal constant ROLE_EMERGENCY    = 1;
-    uint64 internal constant ROLE_RISK_ADMIN   = 2;
-    uint64 internal constant ROLE_TREASURY     = 3;
-    uint64 internal constant ROLE_MINTER       = 4;
-    uint64 internal constant ROLE_GOVERNANCE   = 5;
-    uint64 internal constant ROLE_MIGRATION    = 6;
+    uint64 internal constant ROLE_EMERGENCY = 1;
+    uint64 internal constant ROLE_RISK_ADMIN = 2;
+    uint64 internal constant ROLE_TREASURY = 3;
+    uint64 internal constant ROLE_MINTER = 4;
+    uint64 internal constant ROLE_GOVERNANCE = 5;
+    uint64 internal constant ROLE_MIGRATION = 6;
     uint64 internal constant ROLE_LENDING_CORE = 7;
-    uint64 internal constant ROLE_ROUTER       = 8;
+    uint64 internal constant ROLE_ROUTER = 8;
     uint64 internal constant ROLE_RELAY_CALLER = 9;
 
     // -------------------------------------------------------------------------
     // Paths
     // -------------------------------------------------------------------------
-    string internal constant MANIFEST_PATH        = "./deployments/deploy-manifest.json";
-    string internal constant STATE_PATH           = "./deployments/bilateral-proof-state.json";
-    string internal constant ARTIFACTS_PATH       = "./deployments/bilateral-proof-artifacts.json";
+    string internal constant MANIFEST_PATH = "./deployments/deploy-manifest.json";
+    string internal constant STATE_PATH = "./deployments/bilateral-proof-state.json";
+    string internal constant ARTIFACTS_PATH = "./deployments/bilateral-proof-artifacts.json";
 
     // -------------------------------------------------------------------------
     // Governance proposal description (must be identical across all 3 stages)
@@ -87,14 +87,14 @@ contract BilateralProof is Script {
     // -------------------------------------------------------------------------
     // Proof parameters
     // -------------------------------------------------------------------------
-    uint256 internal constant DEPOSIT_AMOUNT    = 2 * 1e18;      // 2 WPAS
-    uint256 internal constant BORROW_AMOUNT     = 1_000 * 1e18;  // 1000 USDC (~50% LTV at 1000/WPAS)
-    uint256 internal constant POOL_SEED_AMOUNT  = 50_000 * 1e18; // 50k USDC for pool
+    uint256 internal constant DEPOSIT_AMOUNT = 2 * 1e18; // 2 WPAS
+    uint256 internal constant BORROW_AMOUNT = 1_000 * 1e18; // 1000 USDC (~50% LTV at 1000/WPAS)
+    uint256 internal constant POOL_SEED_AMOUNT = 50_000 * 1e18; // 50k USDC for pool
     // Liquidation price: 550 USDC/WPAS.
     //   Collateral value = 2 * 550 = 1100 USDC
     //   Liq threshold 85%: health factor = 1100*0.85/1000 = 0.935 < 1 → liquidatable
     //   Collateral > debt * (1+5%bonus) = 1050 → 1100 > 1050 → no bad debt path
-    uint256 internal constant LIQ_PRICE_WAD     = 550 * 1e18;    // 550 USDC/WPAS → HF < 1 but no bad debt
+    uint256 internal constant LIQ_PRICE_WAD = 550 * 1e18; // 550 USDC/WPAS → HF < 1 but no bad debt
 
     // -------------------------------------------------------------------------
     // Structs
@@ -160,9 +160,9 @@ contract BilateralProof is Script {
         console.log("--- Stage 1: Deposit + Governance Proposal + Vote ---");
 
         GovernanceToken govToken = GovernanceToken(m.govToken);
-        DualVMGovernor  governor = DualVMGovernor(payable(m.governor));
-        LendingRouter   router   = LendingRouter(payable(m.lendingRouter));
-        LendingEngine   engine   = LendingEngine(m.lendingEngine);
+        DualVMGovernor governor = DualVMGovernor(payable(m.governor));
+        LendingRouter router = LendingRouter(payable(m.lendingRouter));
+        LendingEngine engine = LendingEngine(m.lendingEngine);
 
         // ── Single broadcast block: all 4 transactions ───────────────────────
         // On live testnet (--slow), each tx is mined separately. By the time
@@ -183,11 +183,8 @@ contract BilateralProof is Script {
         require(collateral > 0, "BilateralProof: deposit failed, no collateral");
 
         // 1c. Create governance proposal (grant MINTER+RISK_ADMIN+RELAY_CALLER)
-        (
-            address[] memory targets,
-            uint256[] memory values,
-            bytes[]   memory calldatas
-        ) = _buildGrantProposal(m.accessManager, deployer);
+        (address[] memory targets, uint256[] memory values, bytes[] memory calldatas) =
+            _buildGrantProposal(m.accessManager, deployer);
 
         uint256 proposalId = governor.propose(targets, values, calldatas, GOV_DESCRIPTION);
         console.log("Governance proposal created:", proposalId);
@@ -217,11 +214,8 @@ contract BilateralProof is Script {
         console.log("Current proposal state:", proposalState);
         // States: 0=Pending, 1=Active, 2=Canceled, 3=Defeated, 4=Succeeded, 5=Queued, 7=Executed
 
-        (
-            address[] memory targets,
-            uint256[] memory values,
-            bytes[]   memory calldatas
-        ) = _buildGrantProposal(m.accessManager, deployer);
+        (address[] memory targets, uint256[] memory values, bytes[] memory calldatas) =
+            _buildGrantProposal(m.accessManager, deployer);
 
         bytes32 descHash = keccak256(bytes(GOV_DESCRIPTION));
 
@@ -261,33 +255,30 @@ contract BilateralProof is Script {
     function _runStage3(address deployer, Manifest memory m, uint256 proposalId) internal {
         console.log("--- Stage 3: Execute Governance + Bilateral Proof ---");
 
-        DualVMGovernor       governor    = DualVMGovernor(payable(m.governor));
-        DualVMAccessManager  accessMgr   = DualVMAccessManager(m.accessManager);
-        ManualOracle         oracle      = ManualOracle(m.oracle);
+        DualVMGovernor governor = DualVMGovernor(payable(m.governor));
+        DualVMAccessManager accessMgr = DualVMAccessManager(m.accessManager);
+        ManualOracle oracle = ManualOracle(m.oracle);
         GovernancePolicyStore policyStore = GovernancePolicyStore(m.policyStore);
-        RiskGateway          riskGateway = RiskGateway(m.riskGateway);
-        LendingEngine        engine      = LendingEngine(m.lendingEngine);
-        LendingRouter        router      = LendingRouter(payable(m.lendingRouter));
-        DebtPool             pool        = DebtPool(m.debtPool);
-        USDCMock             usdc        = USDCMock(m.usdc);
-        XcmInbox             xcmInbox    = XcmInbox(m.xcmInbox);
+        RiskGateway riskGateway = RiskGateway(m.riskGateway);
+        LendingEngine engine = LendingEngine(m.lendingEngine);
+        LendingRouter router = LendingRouter(payable(m.lendingRouter));
+        DebtPool pool = DebtPool(m.debtPool);
+        USDCMock usdc = USDCMock(m.usdc);
+        XcmInbox xcmInbox = XcmInbox(m.xcmInbox);
 
         uint8 proposalState = uint8(governor.state(proposalId));
         console.log("Current proposal state:", proposalState);
 
-        (
-            address[] memory targets,
-            uint256[] memory values,
-            bytes[]   memory calldatas
-        ) = _buildGrantProposal(m.accessManager, deployer);
+        (address[] memory targets, uint256[] memory values, bytes[] memory calldatas) =
+            _buildGrantProposal(m.accessManager, deployer);
 
         bytes32 descHash = keccak256(bytes(GOV_DESCRIPTION));
 
         // Artifact tracking
-        string memory borrowTxHash     = "";
-        string memory liquidateTxHash  = "";
-        string memory receiptTxHash    = "";
-        bytes32 liquidateCorrId        = bytes32(0);
+        string memory borrowTxHash = "";
+        string memory liquidateTxHash = "";
+        string memory receiptTxHash = "";
+        bytes32 liquidateCorrId = bytes32(0);
 
         vm.startBroadcast();
 
@@ -343,10 +334,10 @@ contract BilateralProof is Script {
         console.log("QuoteVerified event:", quoteVerified);
 
         // ── 3e. GovernancePolicyStore.setPolicy via authorized caller ─────────
-        bytes32 policyKey  = riskGateway.POLICY_MAX_LTV();
-        uint256 policyVal  = 6_000; // 60% override
+        bytes32 policyKey = riskGateway.POLICY_MAX_LTV();
+        uint256 policyVal = 6_000; // 60% override
         policyStore.setPolicy(policyKey, policyVal);
-        uint256 storedVal  = policyStore.getPolicy(policyKey);
+        uint256 storedVal = policyStore.getPolicy(policyKey);
         console.log("Policy set. getPolicy returns:", storedVal);
         require(storedVal == policyVal, "BilateralProof: setPolicy verification failed");
 
@@ -401,7 +392,17 @@ contract BilateralProof is Script {
         require(duplicateReverted, "BilateralProof: receipt should be marked processed");
 
         // ── 3k. Save proof artifacts ─────────────────────────────────────────
-        _saveArtifacts(m, deployer, proposalId, liquidateCorrId, borrowCorrId, hookExecuted, xcmSent, duplicateReverted, allGoverned);
+        _saveArtifacts(
+            m,
+            deployer,
+            proposalId,
+            liquidateCorrId,
+            borrowCorrId,
+            hookExecuted,
+            xcmSent,
+            duplicateReverted,
+            allGoverned
+        );
         console.log("=== BilateralProof Stage 3 COMPLETE ===");
         console.log("Artifacts saved to:", ARTIFACTS_PATH);
         console.log("");
@@ -418,21 +419,23 @@ contract BilateralProof is Script {
     // =========================================================================
 
     function _buildGrantProposal(address accessManager, address deployer)
-        internal pure
+        internal
+        pure
         returns (address[] memory targets, uint256[] memory values, bytes[] memory calldatas)
     {
-        targets    = new address[](3);
-        values     = new uint256[](3);
-        calldatas  = new bytes[](3);
+        targets = new address[](3);
+        values = new uint256[](3);
+        calldatas = new bytes[](3);
 
-        targets[0]   = accessManager;
-        targets[1]   = accessManager;
-        targets[2]   = accessManager;
+        targets[0] = accessManager;
+        targets[1] = accessManager;
+        targets[2] = accessManager;
 
         // grantRole(uint64 roleId, address account, uint32 executionDelay)
-        calldatas[0] = abi.encodeWithSignature("grantRole(uint64,address,uint32)", ROLE_MINTER,       deployer, uint32(0));
-        calldatas[1] = abi.encodeWithSignature("grantRole(uint64,address,uint32)", ROLE_RISK_ADMIN,   deployer, uint32(0));
-        calldatas[2] = abi.encodeWithSignature("grantRole(uint64,address,uint32)", ROLE_RELAY_CALLER, deployer, uint32(0));
+        calldatas[0] = abi.encodeWithSignature("grantRole(uint64,address,uint32)", ROLE_MINTER, deployer, uint32(0));
+        calldatas[1] = abi.encodeWithSignature("grantRole(uint64,address,uint32)", ROLE_RISK_ADMIN, deployer, uint32(0));
+        calldatas[2] =
+            abi.encodeWithSignature("grantRole(uint64,address,uint32)", ROLE_RELAY_CALLER, deployer, uint32(0));
     }
 
     // =========================================================================
@@ -440,7 +443,9 @@ contract BilateralProof is Script {
     // =========================================================================
 
     function _extractCorrId(Vm.Log[] memory logs, address emitter, bytes32 selector_, uint256 topicIdx)
-        internal pure returns (bytes32)
+        internal
+        pure
+        returns (bytes32)
     {
         for (uint256 i = 0; i < logs.length; i++) {
             if (logs[i].emitter == emitter && logs[i].topics[0] == selector_) {
@@ -450,9 +455,7 @@ contract BilateralProof is Script {
         return bytes32(0);
     }
 
-    function _hasLog(Vm.Log[] memory logs, address emitter, bytes32 selector_)
-        internal pure returns (bool)
-    {
+    function _hasLog(Vm.Log[] memory logs, address emitter, bytes32 selector_) internal pure returns (bool) {
         for (uint256 i = 0; i < logs.length; i++) {
             if (logs[i].emitter == emitter && logs[i].topics[0] == selector_) return true;
         }
@@ -482,7 +485,9 @@ contract BilateralProof is Script {
     }
 
     function _checkAuthority(address target, address expectedAuthority, string memory name)
-        internal view returns (bool)
+        internal
+        view
+        returns (bool)
     {
         (bool ok, bytes memory data) = target.staticcall(abi.encodeWithSignature("authority()"));
         if (!ok || data.length == 0) {
@@ -504,9 +509,7 @@ contract BilateralProof is Script {
 
     function _saveState(uint256 proposalId, uint256 blockNumber) internal {
         string memory json = string.concat(
-            '{"proposalId":"', vm.toString(proposalId),
-            '","stage1Block":"', vm.toString(blockNumber),
-            '"}'
+            '{"proposalId":"', vm.toString(proposalId), '","stage1Block":"', vm.toString(blockNumber), '"}'
         );
         vm.writeFile(STATE_PATH, json);
         console.log("State saved to:", STATE_PATH);
@@ -526,7 +529,8 @@ contract BilateralProof is Script {
         for (uint256 i = 0; i + keyLen <= data.length; i++) {
             bool found = true;
             for (uint256 j = 0; j < keyLen; j++) {
-                if (data[i + j] != keyBytes[j]) { found = false; break; }
+                if (data[i + j] != keyBytes[j]) found = false;
+                break;
             }
             if (found) {
                 // Found key, read value until '"'
@@ -534,7 +538,9 @@ contract BilateralProof is Script {
                 uint256 end = start;
                 while (end < data.length && data[end] != '"') end++;
                 bytes memory numBytes = new bytes(end - start);
-                for (uint256 k = 0; k < end - start; k++) numBytes[k] = data[start + k];
+                for (uint256 k = 0; k < end - start; k++) {
+                    numBytes[k] = data[start + k];
+                }
                 return _strToUint(string(numBytes));
             }
         }
@@ -557,21 +563,21 @@ contract BilateralProof is Script {
     function _loadManifest() internal view returns (Manifest memory m) {
         string memory raw = vm.readFile(MANIFEST_PATH);
 
-        m.accessManager         = _parseJsonAddr(bytes(raw), '"accessManager": "');
-        m.wpas                  = _parseJsonAddr(bytes(raw), '"wpas": "');
-        m.usdc                  = _parseJsonAddr(bytes(raw), '"usdcMock": "');
-        m.oracle                = _parseJsonAddr(bytes(raw), '"manualOracle": "');
-        m.policyStore           = _parseJsonAddr(bytes(raw), '"governancePolicyStore": "');
-        m.riskGateway           = _parseJsonAddr(bytes(raw), '"riskGateway": "');
-        m.debtPool              = _parseJsonAddr(bytes(raw), '"debtPool": "');
-        m.hookRegistry          = _parseJsonAddr(bytes(raw), '"liquidationHookRegistry": "');
+        m.accessManager = _parseJsonAddr(bytes(raw), '"accessManager": "');
+        m.wpas = _parseJsonAddr(bytes(raw), '"wpas": "');
+        m.usdc = _parseJsonAddr(bytes(raw), '"usdcMock": "');
+        m.oracle = _parseJsonAddr(bytes(raw), '"manualOracle": "');
+        m.policyStore = _parseJsonAddr(bytes(raw), '"governancePolicyStore": "');
+        m.riskGateway = _parseJsonAddr(bytes(raw), '"riskGateway": "');
+        m.debtPool = _parseJsonAddr(bytes(raw), '"debtPool": "');
+        m.hookRegistry = _parseJsonAddr(bytes(raw), '"liquidationHookRegistry": "');
         m.xcmLiquidationNotifier = _parseJsonAddr(bytes(raw), '"xcmLiquidationNotifier": "');
-        m.lendingEngine         = _parseJsonAddr(bytes(raw), '"lendingEngine": "');
-        m.lendingRouter         = _parseJsonAddr(bytes(raw), '"lendingRouter": "');
-        m.xcmInbox              = _parseJsonAddr(bytes(raw), '"xcmInbox": "');
-        m.govToken              = _parseJsonAddr(bytes(raw), '"governanceToken": "');
-        m.timelock              = _parseJsonAddr(bytes(raw), '"timelockController": "');
-        m.governor              = _parseJsonAddr(bytes(raw), '"dualVMGovernor": "');
+        m.lendingEngine = _parseJsonAddr(bytes(raw), '"lendingEngine": "');
+        m.lendingRouter = _parseJsonAddr(bytes(raw), '"lendingRouter": "');
+        m.xcmInbox = _parseJsonAddr(bytes(raw), '"xcmInbox": "');
+        m.govToken = _parseJsonAddr(bytes(raw), '"governanceToken": "');
+        m.timelock = _parseJsonAddr(bytes(raw), '"timelockController": "');
+        m.governor = _parseJsonAddr(bytes(raw), '"dualVMGovernor": "');
     }
 
     function _parseJsonAddr(bytes memory data, string memory key) internal pure returns (address) {
@@ -580,14 +586,17 @@ contract BilateralProof is Script {
         for (uint256 i = 0; i + keyLen <= data.length; i++) {
             bool found = true;
             for (uint256 j = 0; j < keyLen; j++) {
-                if (data[i + j] != keyBytes[j]) { found = false; break; }
+                if (data[i + j] != keyBytes[j]) found = false;
+                break;
             }
             if (found) {
                 uint256 start = i + keyLen;
                 // Read 42 chars (0x + 40 hex)
                 require(data.length >= start + 42, "BilateralProof: address too short");
                 bytes memory addrBytes = new bytes(42);
-                for (uint256 k = 0; k < 42; k++) addrBytes[k] = data[start + k];
+                for (uint256 k = 0; k < 42; k++) {
+                    addrBytes[k] = data[start + k];
+                }
                 return _hexToAddr(string(addrBytes));
             }
         }
@@ -601,8 +610,8 @@ contract BilateralProof is Script {
         for (uint256 i = 2; i < 42; i++) {
             result <<= 4;
             uint8 c = uint8(b[i]);
-            if (c >= 48 && c <= 57)       result |= c - 48;
-            else if (c >= 65 && c <= 70)  result |= c - 55;
+            if (c >= 48 && c <= 57) result |= c - 48;
+            else if (c >= 65 && c <= 70) result |= c - 55;
             else if (c >= 97 && c <= 102) result |= c - 87;
             else revert("BilateralProof: invalid hex char");
         }
@@ -625,31 +634,67 @@ contract BilateralProof is Script {
         bool allGoverned
     ) internal {
         string memory json = string.concat(
-            '{\n',
-            '  "generatedAt": "', _timestamp(), '",\n',
+            "{\n",
+            '  "generatedAt": "',
+            _timestamp(),
+            '",\n',
             '  "network": "Polkadot Hub TestNet (chain 420420417)",\n',
-            '  "deployer": "', vm.toString(deployer), '",\n',
-            '  "governanceProposalId": "', vm.toString(proposalId), '",\n',
+            '  "deployer": "',
+            vm.toString(deployer),
+            '",\n',
+            '  "governanceProposalId": "',
+            vm.toString(proposalId),
+            '",\n',
             '  "contracts": {\n',
-            '    "accessManager": "', vm.toString(m.accessManager), '",\n',
-            '    "lendingEngine": "', vm.toString(m.lendingEngine), '",\n',
-            '    "riskGateway": "', vm.toString(m.riskGateway), '",\n',
-            '    "debtPool": "', vm.toString(m.debtPool), '",\n',
-            '    "oracle": "', vm.toString(m.oracle), '",\n',
-            '    "policyStore": "', vm.toString(m.policyStore), '",\n',
-            '    "hookRegistry": "', vm.toString(m.hookRegistry), '",\n',
-            '    "xcmInbox": "', vm.toString(m.xcmInbox), '",\n',
-            '    "xcmLiquidationNotifier": "', vm.toString(m.xcmLiquidationNotifier), '"\n',
-            '  },\n',
+            '    "accessManager": "',
+            vm.toString(m.accessManager),
+            '",\n',
+            '    "lendingEngine": "',
+            vm.toString(m.lendingEngine),
+            '",\n',
+            '    "riskGateway": "',
+            vm.toString(m.riskGateway),
+            '",\n',
+            '    "debtPool": "',
+            vm.toString(m.debtPool),
+            '",\n',
+            '    "oracle": "',
+            vm.toString(m.oracle),
+            '",\n',
+            '    "policyStore": "',
+            vm.toString(m.policyStore),
+            '",\n',
+            '    "hookRegistry": "',
+            vm.toString(m.hookRegistry),
+            '",\n',
+            '    "xcmInbox": "',
+            vm.toString(m.xcmInbox),
+            '",\n',
+            '    "xcmLiquidationNotifier": "',
+            vm.toString(m.xcmLiquidationNotifier),
+            '"\n',
+            "  },\n",
             '  "proof": {\n',
-            '    "borrowCorrelationId": "', vm.toString(borrowCorrId), '",\n',
-            '    "liquidateCorrelationId": "', vm.toString(liquidateCorrId), '",\n',
-            '    "hookRegistryDispatched": ', hookExecuted ? 'true' : 'false', ',\n',
-            '    "xcmLiquidationNotified": ', xcmSent ? 'true' : 'false', ',\n',
-            '    "xcmInboxDuplicateReverted": ', duplicateReverted ? 'true' : 'false', ',\n',
-            '    "allContractsGoverned": ', allGoverned ? 'true' : 'false', '\n',
-            '  }\n',
-            '}\n'
+            '    "borrowCorrelationId": "',
+            vm.toString(borrowCorrId),
+            '",\n',
+            '    "liquidateCorrelationId": "',
+            vm.toString(liquidateCorrId),
+            '",\n',
+            '    "hookRegistryDispatched": ',
+            hookExecuted ? "true" : "false",
+            ",\n",
+            '    "xcmLiquidationNotified": ',
+            xcmSent ? "true" : "false",
+            ",\n",
+            '    "xcmInboxDuplicateReverted": ',
+            duplicateReverted ? "true" : "false",
+            ",\n",
+            '    "allContractsGoverned": ',
+            allGoverned ? "true" : "false",
+            "\n",
+            "  }\n",
+            "}\n"
         );
         vm.writeFile(ARTIFACTS_PATH, json);
     }

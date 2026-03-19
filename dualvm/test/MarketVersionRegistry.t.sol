@@ -35,12 +35,7 @@ contract MarketVersionRegistryTest is BaseTest {
         accessManager.setTargetFunctionRole(address(riskGateway), quoteSelectors, ROLE_LENDING_CORE);
 
         // Register the initial version
-        marketRegistry.registerVersion(
-            address(lendingEngine),
-            address(debtPool),
-            address(oracle),
-            address(riskGateway)
-        );
+        marketRegistry.registerVersion(address(lendingEngine), address(debtPool), address(oracle), address(riskGateway));
         marketRegistry.activateVersion(1);
     }
 
@@ -115,9 +110,7 @@ contract MarketVersionRegistryTest is BaseTest {
     function test_RegisterVersion_UnauthorizedReverts() public {
         vm.prank(outsider);
         vm.expectRevert();
-        marketRegistry.registerVersion(
-            address(lendingEngine), address(debtPool), address(oracle), address(riskGateway)
-        );
+        marketRegistry.registerVersion(address(lendingEngine), address(debtPool), address(oracle), address(riskGateway));
     }
 
     function test_GetVersion_ReturnsCorrectData() public view {
@@ -182,16 +175,8 @@ contract MarketVersionRegistryTest is BaseTest {
             liquidationBonusBps: LIQUIDATION_BONUS_BPS
         });
 
-        newEngine = new LendingEngine(
-            address(accessManager),
-            wpas,
-            usdc,
-            newPool,
-            newOracle,
-            newRisk,
-            coreConfig,
-            address(0)
-        );
+        newEngine =
+            new LendingEngine(address(accessManager), wpas, usdc, newPool, newOracle, newRisk, coreConfig, address(0));
 
         newPool.setLendingCore(address(newEngine));
 
@@ -201,11 +186,6 @@ contract MarketVersionRegistryTest is BaseTest {
         quoteSelectors[0] = newRisk.quoteViaTicket.selector;
         accessManager.setTargetFunctionRole(address(newRisk), quoteSelectors, ROLE_LENDING_CORE);
 
-        marketRegistry.registerVersion(
-            address(newEngine),
-            address(newPool),
-            address(newOracle),
-            address(newRisk)
-        );
+        marketRegistry.registerVersion(address(newEngine), address(newPool), address(newOracle), address(newRisk));
     }
 }

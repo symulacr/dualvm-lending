@@ -67,16 +67,13 @@ contract RiskGateway is IRiskAdapter, AccessManaged {
     /// @param quoteEngine_  Optional PVM quote engine for cross-VM verification (address(0) = disabled).
     /// @param policyStore_  Optional governance policy override store (address(0) = disabled).
     /// @param config_       Immutable risk model parameters.
-    constructor(
-        address authority_,
-        address quoteEngine_,
-        address policyStore_,
-        RiskModelConfig memory config_
-    ) AccessManaged(authority_) {
+    constructor(address authority_, address quoteEngine_, address policyStore_, RiskModelConfig memory config_)
+        AccessManaged(authority_)
+    {
         if (
-            config_.kinkBps == 0 || config_.kinkBps >= BPS
-                || config_.healthyMaxLtvBps == 0 || config_.healthyMaxLtvBps >= BPS
-                || config_.stressedMaxLtvBps == 0 || config_.stressedMaxLtvBps > config_.healthyMaxLtvBps
+            config_.kinkBps == 0 || config_.kinkBps >= BPS || config_.healthyMaxLtvBps == 0
+                || config_.healthyMaxLtvBps >= BPS || config_.stressedMaxLtvBps == 0
+                || config_.stressedMaxLtvBps > config_.healthyMaxLtvBps
                 || config_.healthyLiquidationThresholdBps <= config_.healthyMaxLtvBps
                 || config_.healthyLiquidationThresholdBps > BPS
                 || config_.stressedLiquidationThresholdBps <= config_.stressedMaxLtvBps
@@ -213,8 +210,7 @@ contract RiskGateway is IRiskAdapter, AccessManaged {
     function _verifyCrossVM(bytes32 ticketId, QuoteInput calldata input, QuoteOutput memory expected) private {
         try quoteEngine.quote(input) returns (QuoteOutput memory actual) {
             if (
-                actual.borrowRateBps == expected.borrowRateBps
-                    && actual.maxLtvBps == expected.maxLtvBps
+                actual.borrowRateBps == expected.borrowRateBps && actual.maxLtvBps == expected.maxLtvBps
                     && actual.liquidationThresholdBps == expected.liquidationThresholdBps
             ) {
                 emit QuoteVerified(ticketId, "cross-vm-match");
@@ -231,9 +227,7 @@ contract RiskGateway is IRiskAdapter, AccessManaged {
         } catch {
             // PVM call failed — log but do not revert; inline result is canonical
             emit CrossVMDivergence(
-                expected.borrowRateBps, 0,
-                expected.maxLtvBps, 0,
-                expected.liquidationThresholdBps, 0
+                expected.borrowRateBps, 0, expected.maxLtvBps, 0, expected.liquidationThresholdBps, 0
             );
         }
     }
@@ -289,7 +283,9 @@ contract RiskGateway is IRiskAdapter, AccessManaged {
     }
 
     function _quoteInputHash(QuoteInput calldata input) private pure returns (bytes32) {
-        return keccak256(abi.encode(input.utilizationBps, input.collateralRatioBps, input.oracleAgeSeconds, input.oracleFresh));
+        return keccak256(
+            abi.encode(input.utilizationBps, input.collateralRatioBps, input.oracleAgeSeconds, input.oracleFresh)
+        );
     }
 
     function _quoteOutputHash(QuoteOutput memory output) private pure returns (bytes32) {

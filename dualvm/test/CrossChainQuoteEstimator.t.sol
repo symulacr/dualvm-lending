@@ -15,7 +15,8 @@ contract CrossChainQuoteEstimatorTest is Test {
     /// @dev SCALE-encoded destination: V5 relay chain parent
     bytes internal constant SAMPLE_DESTINATION = hex"050100";
     /// @dev A minimal valid SCALE-encoded XCM V5 message
-    bytes internal constant SAMPLE_XCM_MESSAGE = hex"05080a2c000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f";
+    bytes internal constant SAMPLE_XCM_MESSAGE =
+        hex"05080a2c000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f";
 
     function setUp() public {
         estimator = new CrossChainQuoteEstimator();
@@ -82,11 +83,7 @@ contract CrossChainQuoteEstimatorTest is Test {
         uint64 mockProofSize = 32_768;
         IXcm.Weight memory mockWeight = IXcm.Weight(mockRefTime, mockProofSize);
 
-        vm.mockCall(
-            XCM_PRECOMPILE_ADDRESS,
-            abi.encodeWithSelector(IXcm.weighMessage.selector),
-            abi.encode(mockWeight)
-        );
+        vm.mockCall(XCM_PRECOMPILE_ADDRESS, abi.encodeWithSelector(IXcm.weighMessage.selector), abi.encode(mockWeight));
 
         (uint64 refTime, uint64 proofSize) = estimator.estimateCrossChainQuoteCost(SAMPLE_XCM_MESSAGE);
         assertEq(refTime, mockRefTime);
@@ -101,11 +98,7 @@ contract CrossChainQuoteEstimatorTest is Test {
         uint64 refTime = 1_000_000;
         uint64 proofSize = 65_536;
 
-        vm.mockCall(
-            XCM_PRECOMPILE_ADDRESS,
-            abi.encodeWithSelector(IXcm.execute.selector),
-            abi.encode()
-        );
+        vm.mockCall(XCM_PRECOMPILE_ADDRESS, abi.encodeWithSelector(IXcm.execute.selector), abi.encode());
 
         vm.expectEmit(true, false, false, true, address(estimator));
         emit CrossChainQuoteEstimator.XcmExecuted(address(this), refTime, proofSize);
@@ -117,11 +110,7 @@ contract CrossChainQuoteEstimatorTest is Test {
     // -------------------------------------------------------------------------
 
     function test_SendCrossChainNotification_EmitsXcmSentEvent() public {
-        vm.mockCall(
-            XCM_PRECOMPILE_ADDRESS,
-            abi.encodeWithSelector(IXcm.send.selector),
-            abi.encode()
-        );
+        vm.mockCall(XCM_PRECOMPILE_ADDRESS, abi.encodeWithSelector(IXcm.send.selector), abi.encode());
 
         vm.expectEmit(true, false, false, false, address(estimator));
         emit CrossChainQuoteEstimator.XcmSent(address(this), SAMPLE_DESTINATION);

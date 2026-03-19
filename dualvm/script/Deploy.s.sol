@@ -63,66 +63,66 @@ contract Deploy is Script {
     // -------------------------------------------------------------------------
     // Role IDs (must match BaseTest.sol and deployGovernedSystem.ts)
     // -------------------------------------------------------------------------
-    uint64 internal constant ROLE_EMERGENCY    = 1;
-    uint64 internal constant ROLE_RISK_ADMIN   = 2;
-    uint64 internal constant ROLE_TREASURY     = 3;
-    uint64 internal constant ROLE_MINTER       = 4;
-    uint64 internal constant ROLE_GOVERNANCE   = 5;
-    uint64 internal constant ROLE_MIGRATION    = 6;
+    uint64 internal constant ROLE_EMERGENCY = 1;
+    uint64 internal constant ROLE_RISK_ADMIN = 2;
+    uint64 internal constant ROLE_TREASURY = 3;
+    uint64 internal constant ROLE_MINTER = 4;
+    uint64 internal constant ROLE_GOVERNANCE = 5;
+    uint64 internal constant ROLE_MIGRATION = 6;
     uint64 internal constant ROLE_LENDING_CORE = 7;
-    uint64 internal constant ROLE_ROUTER       = 8;
+    uint64 internal constant ROLE_ROUTER = 8;
     uint64 internal constant ROLE_RELAY_CALLER = 9;
 
     // -------------------------------------------------------------------------
     // Risk model parameters (kinked utilization model)
     // -------------------------------------------------------------------------
-    uint256 internal constant BASE_RATE_BPS                  = 200;    // 2%
-    uint256 internal constant SLOPE1_BPS                     = 800;    // 8% below kink
-    uint256 internal constant SLOPE2_BPS                     = 3_000;  // 30% above kink
-    uint256 internal constant KINK_BPS                       = 8_000;  // 80% utilization kink
-    uint256 internal constant HEALTHY_MAX_LTV_BPS            = 7_500;  // 75% healthy LTV
-    uint256 internal constant STRESSED_MAX_LTV_BPS           = 6_500;  // 65% stressed LTV
-    uint256 internal constant HEALTHY_LIQ_THRESHOLD_BPS      = 8_500;  // 85% healthy liquidation threshold
-    uint256 internal constant STRESSED_LIQ_THRESHOLD_BPS     = 7_800;  // 78% stressed liquidation threshold
-    uint256 internal constant STALE_BORROW_RATE_PENALTY_BPS  = 1_000;  // +10% penalty on stale oracle
-    uint256 internal constant STRESSED_COLLATERAL_RATIO_BPS  = 14_000; // 140% — below this → stressed mode
+    uint256 internal constant BASE_RATE_BPS = 200; // 2%
+    uint256 internal constant SLOPE1_BPS = 800; // 8% below kink
+    uint256 internal constant SLOPE2_BPS = 3_000; // 30% above kink
+    uint256 internal constant KINK_BPS = 8_000; // 80% utilization kink
+    uint256 internal constant HEALTHY_MAX_LTV_BPS = 7_500; // 75% healthy LTV
+    uint256 internal constant STRESSED_MAX_LTV_BPS = 6_500; // 65% stressed LTV
+    uint256 internal constant HEALTHY_LIQ_THRESHOLD_BPS = 8_500; // 85% healthy liquidation threshold
+    uint256 internal constant STRESSED_LIQ_THRESHOLD_BPS = 7_800; // 78% stressed liquidation threshold
+    uint256 internal constant STALE_BORROW_RATE_PENALTY_BPS = 1_000; // +10% penalty on stale oracle
+    uint256 internal constant STRESSED_COLLATERAL_RATIO_BPS = 14_000; // 140% — below this → stressed mode
 
     // -------------------------------------------------------------------------
     // Market parameters
     // -------------------------------------------------------------------------
-    uint256 internal constant ORACLE_MAX_AGE              = 1_800;            // 30 minutes
-    uint256 internal constant ORACLE_INITIAL_PRICE_WAD    = 1_000 * 1e18;    // 1000 USDC per WPAS
-    uint256 internal constant ORACLE_MIN_PRICE_WAD        = 1 * 1e18;        // 1 USDC min
-    uint256 internal constant ORACLE_MAX_PRICE_WAD        = 10_000 * 1e18;   // 10000 USDC max
-    uint256 internal constant ORACLE_MAX_PRICE_CHANGE_BPS = 2_500;           // 25% max price change
+    uint256 internal constant ORACLE_MAX_AGE = 1_800; // 30 minutes
+    uint256 internal constant ORACLE_INITIAL_PRICE_WAD = 1_000 * 1e18; // 1000 USDC per WPAS
+    uint256 internal constant ORACLE_MIN_PRICE_WAD = 1 * 1e18; // 1 USDC min
+    uint256 internal constant ORACLE_MAX_PRICE_WAD = 10_000 * 1e18; // 10000 USDC max
+    uint256 internal constant ORACLE_MAX_PRICE_CHANGE_BPS = 2_500; // 25% max price change
 
-    uint256 internal constant POOL_SUPPLY_CAP         = 5_000_000 * 1e18; // 5M USDC supply cap
-    uint256 internal constant BORROW_CAP              = 4_000_000 * 1e18; // 4M USDC borrow cap
-    uint256 internal constant MIN_BORROW_AMOUNT       = 100 * 1e18;       // 100 USDC minimum borrow
-    uint256 internal constant RESERVE_FACTOR_BPS      = 1_000;            // 10% reserve factor
-    uint256 internal constant MAX_LTV_BPS             = 7_000;            // 70% max LTV
-    uint256 internal constant LIQUIDATION_THRESHOLD_BPS = 8_000;          // 80% liquidation threshold
-    uint256 internal constant LIQUIDATION_BONUS_BPS   = 500;              // 5% liquidation bonus
+    uint256 internal constant POOL_SUPPLY_CAP = 5_000_000 * 1e18; // 5M USDC supply cap
+    uint256 internal constant BORROW_CAP = 4_000_000 * 1e18; // 4M USDC borrow cap
+    uint256 internal constant MIN_BORROW_AMOUNT = 100 * 1e18; // 100 USDC minimum borrow
+    uint256 internal constant RESERVE_FACTOR_BPS = 1_000; // 10% reserve factor
+    uint256 internal constant MAX_LTV_BPS = 7_000; // 70% max LTV
+    uint256 internal constant LIQUIDATION_THRESHOLD_BPS = 8_000; // 80% liquidation threshold
+    uint256 internal constant LIQUIDATION_BONUS_BPS = 500; // 5% liquidation bonus
 
     // -------------------------------------------------------------------------
     // Governance parameters (demo-friendly: short delays for hackathon)
     // -------------------------------------------------------------------------
-    uint48  internal constant VOTING_DELAY        = 1;          // 1 second
-    uint32  internal constant VOTING_PERIOD       = 300;        // 5 minutes
-    uint256 internal constant TIMELOCK_MIN_DELAY  = 60;         // 60 seconds
-    uint256 internal constant QUORUM_NUMERATOR    = 4;          // 4% quorum
-    uint256 internal constant INITIAL_GOV_SUPPLY  = 1_000_000 * 1e18;  // 1M governance tokens
+    uint48 internal constant VOTING_DELAY = 1; // 1 second
+    uint32 internal constant VOTING_PERIOD = 300; // 5 minutes
+    uint256 internal constant TIMELOCK_MIN_DELAY = 60; // 60 seconds
+    uint256 internal constant QUORUM_NUMERATOR = 4; // 4% quorum
+    uint256 internal constant INITIAL_GOV_SUPPLY = 1_000_000 * 1e18; // 1M governance tokens
 
     // -------------------------------------------------------------------------
     // AccessManager execution delays for roles (0 = immediate for Timelock
     //   since Timelock itself enforces its own delay)
     // -------------------------------------------------------------------------
-    uint32 internal constant EMERGENCY_DELAY  = 0;
-    uint32 internal constant RISK_ADMIN_DELAY = 0;  // Timelock enforces delay
-    uint32 internal constant TREASURY_DELAY   = 0;
-    uint32 internal constant MINTER_DELAY     = 0;
+    uint32 internal constant EMERGENCY_DELAY = 0;
+    uint32 internal constant RISK_ADMIN_DELAY = 0; // Timelock enforces delay
+    uint32 internal constant TREASURY_DELAY = 0;
+    uint32 internal constant MINTER_DELAY = 0;
     uint32 internal constant GOVERNANCE_DELAY = 0;
-    uint32 internal constant MIGRATION_DELAY  = 0;
+    uint32 internal constant MIGRATION_DELAY = 0;
 
     // -------------------------------------------------------------------------
     // Manifest output path
@@ -207,14 +207,16 @@ contract Deploy is Script {
         // -----------------------------------------------------------------
         // 3. ManualOracle (maxAge=1800s — 30 minute freshness)
         // -----------------------------------------------------------------
-        a.oracle = address(new ManualOracle(
-            a.accessManager,
-            ORACLE_INITIAL_PRICE_WAD,
-            ORACLE_MAX_AGE,
-            ORACLE_MIN_PRICE_WAD,
-            ORACLE_MAX_PRICE_WAD,
-            ORACLE_MAX_PRICE_CHANGE_BPS
-        ));
+        a.oracle = address(
+            new ManualOracle(
+                a.accessManager,
+                ORACLE_INITIAL_PRICE_WAD,
+                ORACLE_MAX_AGE,
+                ORACLE_MIN_PRICE_WAD,
+                ORACLE_MAX_PRICE_WAD,
+                ORACLE_MAX_PRICE_CHANGE_BPS
+            )
+        );
         console.log("ManualOracle:               ", a.oracle);
 
         // -----------------------------------------------------------------
@@ -229,18 +231,20 @@ contract Deploy is Script {
         //    If PVM_QUOTE_ENGINE_ADDRESS is set, skip EVM deployment (PVM is used instead).
         // -----------------------------------------------------------------
         if (pvmQuoteEngineAddress == address(0)) {
-            a.evmRiskModel = address(new DeterministicRiskModel(
-                BASE_RATE_BPS,
-                SLOPE1_BPS,
-                SLOPE2_BPS,
-                KINK_BPS,
-                HEALTHY_MAX_LTV_BPS,
-                STRESSED_MAX_LTV_BPS,
-                HEALTHY_LIQ_THRESHOLD_BPS,
-                STRESSED_LIQ_THRESHOLD_BPS,
-                STALE_BORROW_RATE_PENALTY_BPS,
-                STRESSED_COLLATERAL_RATIO_BPS
-            ));
+            a.evmRiskModel = address(
+                new DeterministicRiskModel(
+                    BASE_RATE_BPS,
+                    SLOPE1_BPS,
+                    SLOPE2_BPS,
+                    KINK_BPS,
+                    HEALTHY_MAX_LTV_BPS,
+                    STRESSED_MAX_LTV_BPS,
+                    HEALTHY_LIQ_THRESHOLD_BPS,
+                    STRESSED_LIQ_THRESHOLD_BPS,
+                    STALE_BORROW_RATE_PENALTY_BPS,
+                    STRESSED_COLLATERAL_RATIO_BPS
+                )
+            );
             console.log("DeterministicRiskModel (EVM):", a.evmRiskModel);
         } else {
             // Skip EVM deployment; use PVM address for both fields
@@ -252,26 +256,26 @@ contract Deploy is Script {
         // 6. RiskGateway (inline deterministic math + optional PVM cross-VM verification)
         //    Use PVM quoteEngine if PVM_QUOTE_ENGINE_ADDRESS is set; otherwise use EVM version.
         // -----------------------------------------------------------------
-        a.pvmRiskModel = (pvmQuoteEngineAddress != address(0))
-            ? pvmQuoteEngineAddress
-            : a.evmRiskModel;
-        a.riskGateway = address(new RiskGateway(
-            a.accessManager,
-            a.pvmRiskModel,
-            a.policyStore,
-            RiskGateway.RiskModelConfig({
-                baseRateBps:                     BASE_RATE_BPS,
-                slope1Bps:                       SLOPE1_BPS,
-                slope2Bps:                       SLOPE2_BPS,
-                kinkBps:                         KINK_BPS,
-                healthyMaxLtvBps:                HEALTHY_MAX_LTV_BPS,
-                stressedMaxLtvBps:               STRESSED_MAX_LTV_BPS,
-                healthyLiquidationThresholdBps:  HEALTHY_LIQ_THRESHOLD_BPS,
-                stressedLiquidationThresholdBps: STRESSED_LIQ_THRESHOLD_BPS,
-                staleBorrowRatePenaltyBps:       STALE_BORROW_RATE_PENALTY_BPS,
-                stressedCollateralRatioBps:      STRESSED_COLLATERAL_RATIO_BPS
-            })
-        ));
+        a.pvmRiskModel = (pvmQuoteEngineAddress != address(0)) ? pvmQuoteEngineAddress : a.evmRiskModel;
+        a.riskGateway = address(
+            new RiskGateway(
+                a.accessManager,
+                a.pvmRiskModel,
+                a.policyStore,
+                RiskGateway.RiskModelConfig({
+                    baseRateBps: BASE_RATE_BPS,
+                    slope1Bps: SLOPE1_BPS,
+                    slope2Bps: SLOPE2_BPS,
+                    kinkBps: KINK_BPS,
+                    healthyMaxLtvBps: HEALTHY_MAX_LTV_BPS,
+                    stressedMaxLtvBps: STRESSED_MAX_LTV_BPS,
+                    healthyLiquidationThresholdBps: HEALTHY_LIQ_THRESHOLD_BPS,
+                    stressedLiquidationThresholdBps: STRESSED_LIQ_THRESHOLD_BPS,
+                    staleBorrowRatePenaltyBps: STALE_BORROW_RATE_PENALTY_BPS,
+                    stressedCollateralRatioBps: STRESSED_COLLATERAL_RATIO_BPS
+                })
+            )
+        );
         console.log("RiskGateway:                ", a.riskGateway);
 
         // -----------------------------------------------------------------
@@ -302,23 +306,25 @@ contract Deploy is Script {
         // -----------------------------------------------------------------
         // 10. LendingEngine (liquidationNotifier = hookRegistry)
         // -----------------------------------------------------------------
-        a.lendingEngine = address(new LendingEngine(
-            a.accessManager,
-            WPAS(payable(a.wpas)),
-            USDCMock(a.usdc),
-            DebtPool(a.debtPool),
-            ManualOracle(a.oracle),
-            RiskGateway(a.riskGateway),
-            LendingEngine.MarketConfig({
-                borrowCap:                 BORROW_CAP,
-                minBorrowAmount:           MIN_BORROW_AMOUNT,
-                reserveFactorBps:          RESERVE_FACTOR_BPS,
-                maxLtvBps:                 MAX_LTV_BPS,
-                liquidationThresholdBps:   LIQUIDATION_THRESHOLD_BPS,
-                liquidationBonusBps:       LIQUIDATION_BONUS_BPS
-            }),
-            a.hookRegistry  // liquidationNotifier
-        ));
+        a.lendingEngine = address(
+            new LendingEngine(
+                a.accessManager,
+                WPAS(payable(a.wpas)),
+                USDCMock(a.usdc),
+                DebtPool(a.debtPool),
+                ManualOracle(a.oracle),
+                RiskGateway(a.riskGateway),
+                LendingEngine.MarketConfig({
+                    borrowCap: BORROW_CAP,
+                    minBorrowAmount: MIN_BORROW_AMOUNT,
+                    reserveFactorBps: RESERVE_FACTOR_BPS,
+                    maxLtvBps: MAX_LTV_BPS,
+                    liquidationThresholdBps: LIQUIDATION_THRESHOLD_BPS,
+                    liquidationBonusBps: LIQUIDATION_BONUS_BPS
+                }),
+                a.hookRegistry // liquidationNotifier
+            )
+        );
         console.log("LendingEngine:              ", a.lendingEngine);
 
         // Wire DebtPool to LendingEngine (admin-protected by default, deployer is admin)
@@ -334,10 +340,8 @@ contract Deploy is Script {
         // 12. Register XcmNotifierAdapter as DEFAULT_HOOK_TYPE
         //     Must happen BEFORE we restrict registerHook to ROLE_GOVERNANCE
         // -----------------------------------------------------------------
-        LiquidationHookRegistry(a.hookRegistry).registerHook(
-            LiquidationHookRegistry(a.hookRegistry).DEFAULT_HOOK_TYPE(),
-            a.xcmAdapter
-        );
+        LiquidationHookRegistry(a.hookRegistry)
+            .registerHook(LiquidationHookRegistry(a.hookRegistry).DEFAULT_HOOK_TYPE(), a.xcmAdapter);
         console.log("XcmNotifierAdapter registered as DEFAULT_HOOK_TYPE");
 
         // -----------------------------------------------------------------
@@ -350,21 +354,21 @@ contract Deploy is Script {
         // 14. MarketVersionRegistry + MarketMigrationCoordinator
         // -----------------------------------------------------------------
         a.marketRegistry = address(new MarketVersionRegistry(a.accessManager));
-        a.coordinator = address(new MarketMigrationCoordinator(
-            a.accessManager,
-            IMarketVersionRegistry(a.marketRegistry)
-        ));
+        a.coordinator =
+            address(new MarketMigrationCoordinator(a.accessManager, IMarketVersionRegistry(a.marketRegistry)));
         console.log("MarketVersionRegistry:      ", a.marketRegistry);
         console.log("MarketMigrationCoordinator: ", a.coordinator);
 
         // -----------------------------------------------------------------
         // 15. Governance: GovernanceToken + TimelockController + DualVMGovernor
         // -----------------------------------------------------------------
-        a.govToken = address(new GovernanceToken(
-            a.accessManager,
-            deployer,       // initial token holder — gives deployer voting power for demo
-            INITIAL_GOV_SUPPLY
-        ));
+        a.govToken = address(
+            new GovernanceToken(
+                a.accessManager,
+                deployer, // initial token holder — gives deployer voting power for demo
+                INITIAL_GOV_SUPPLY
+            )
+        );
         console.log("GovernanceToken:            ", a.govToken);
 
         // Deploy TimelockController with deployer as initial admin
@@ -372,32 +376,34 @@ contract Deploy is Script {
             address[] memory proposers = new address[](0);
             address[] memory executors = new address[](1);
             executors[0] = address(0); // anyone can execute (after queue delay)
-            a.timelock = address(new TimelockController(
-                TIMELOCK_MIN_DELAY,
-                proposers,
-                executors,
-                deployer              // initial admin — renounced at end
-            ));
+            a.timelock = address(
+                new TimelockController(
+                    TIMELOCK_MIN_DELAY,
+                    proposers,
+                    executors,
+                    deployer // initial admin — renounced at end
+                )
+            );
         }
         console.log("TimelockController:         ", a.timelock);
 
         // Deploy DualVMGovernor
-        a.governor = address(new DualVMGovernor(
-            IVotes(a.govToken),
-            TimelockController(payable(a.timelock)),
-            VOTING_DELAY,
-            VOTING_PERIOD,
-            QUORUM_NUMERATOR
-        ));
+        a.governor = address(
+            new DualVMGovernor(
+                IVotes(a.govToken),
+                TimelockController(payable(a.timelock)),
+                VOTING_DELAY,
+                VOTING_PERIOD,
+                QUORUM_NUMERATOR
+            )
+        );
         console.log("DualVMGovernor:             ", a.governor);
 
         // Wire Governor as proposer + canceller on TimelockController
-        TimelockController(payable(a.timelock)).grantRole(
-            TimelockController(payable(a.timelock)).PROPOSER_ROLE(), a.governor
-        );
-        TimelockController(payable(a.timelock)).grantRole(
-            TimelockController(payable(a.timelock)).CANCELLER_ROLE(), a.governor
-        );
+        TimelockController(payable(a.timelock))
+            .grantRole(TimelockController(payable(a.timelock)).PROPOSER_ROLE(), a.governor);
+        TimelockController(payable(a.timelock))
+            .grantRole(TimelockController(payable(a.timelock)).CANCELLER_ROLE(), a.governor);
 
         // -----------------------------------------------------------------
         // 16. Wire AccessManager roles
@@ -407,25 +413,20 @@ contract Deploy is Script {
         // -----------------------------------------------------------------
         // 17. Grant AccessManager admin to TimelockController
         // -----------------------------------------------------------------
-        DualVMAccessManager(a.accessManager).grantRole(
-            DualVMAccessManager(a.accessManager).ADMIN_ROLE(), a.timelock, 0
-        );
+        DualVMAccessManager(a.accessManager).grantRole(DualVMAccessManager(a.accessManager).ADMIN_ROLE(), a.timelock, 0);
         console.log("AccessManager admin granted to TimelockController");
 
         // -----------------------------------------------------------------
         // 18. Deployer renounces admin on AccessManager
         // -----------------------------------------------------------------
-        DualVMAccessManager(a.accessManager).renounceRole(
-            DualVMAccessManager(a.accessManager).ADMIN_ROLE(), deployer
-        );
+        DualVMAccessManager(a.accessManager).renounceRole(DualVMAccessManager(a.accessManager).ADMIN_ROLE(), deployer);
         console.log("Deployer renounced AccessManager admin");
 
         // -----------------------------------------------------------------
         // 19. Deployer renounces DEFAULT_ADMIN_ROLE on TimelockController
         // -----------------------------------------------------------------
-        TimelockController(payable(a.timelock)).renounceRole(
-            TimelockController(payable(a.timelock)).DEFAULT_ADMIN_ROLE(), deployer
-        );
+        TimelockController(payable(a.timelock))
+            .renounceRole(TimelockController(payable(a.timelock)).DEFAULT_ADMIN_ROLE(), deployer);
         console.log("Deployer renounced TimelockController admin");
 
         vm.stopBroadcast();
@@ -443,9 +444,7 @@ contract Deploy is Script {
         // Read the GovernanceToken address via staticcall to governor.token().
         // This avoids Foundry's sensitive-value censoring: staticcall results are
         // not tracked as "broadcast" outputs and should not be redacted in the manifest.
-        (bool ok, bytes memory tokenData) = a.governor.staticcall(
-            abi.encodeWithSignature("token()")
-        );
+        (bool ok, bytes memory tokenData) = a.governor.staticcall(abi.encodeWithSignature("token()"));
         require(ok, "Deploy: governor.token() staticcall failed");
         address govTokenAddr = abi.decode(tokenData, (address));
 
@@ -472,25 +471,25 @@ contract Deploy is Script {
     }
 
     function _wireLabelsAndGrants(DualVMAccessManager am, Addresses memory a) internal {
-        am.labelRole(ROLE_EMERGENCY,    "EMERGENCY");
-        am.labelRole(ROLE_RISK_ADMIN,   "RISK_ADMIN");
-        am.labelRole(ROLE_TREASURY,     "TREASURY");
-        am.labelRole(ROLE_MINTER,       "MINTER");
-        am.labelRole(ROLE_GOVERNANCE,   "GOVERNANCE");
-        am.labelRole(ROLE_MIGRATION,    "MIGRATION");
+        am.labelRole(ROLE_EMERGENCY, "EMERGENCY");
+        am.labelRole(ROLE_RISK_ADMIN, "RISK_ADMIN");
+        am.labelRole(ROLE_TREASURY, "TREASURY");
+        am.labelRole(ROLE_MINTER, "MINTER");
+        am.labelRole(ROLE_GOVERNANCE, "GOVERNANCE");
+        am.labelRole(ROLE_MIGRATION, "MIGRATION");
         am.labelRole(ROLE_LENDING_CORE, "LENDING_CORE");
-        am.labelRole(ROLE_ROUTER,       "ROUTER");
+        am.labelRole(ROLE_ROUTER, "ROUTER");
         am.labelRole(ROLE_RELAY_CALLER, "RELAY_CALLER");
-        am.grantRole(ROLE_EMERGENCY,    a.timelock, EMERGENCY_DELAY);
-        am.grantRole(ROLE_RISK_ADMIN,   a.timelock, RISK_ADMIN_DELAY);
-        am.grantRole(ROLE_TREASURY,     a.timelock, TREASURY_DELAY);
-        am.grantRole(ROLE_MINTER,       a.timelock, MINTER_DELAY);
-        am.grantRole(ROLE_GOVERNANCE,   a.timelock, GOVERNANCE_DELAY);
-        am.grantRole(ROLE_MIGRATION,    a.timelock, MIGRATION_DELAY);
+        am.grantRole(ROLE_EMERGENCY, a.timelock, EMERGENCY_DELAY);
+        am.grantRole(ROLE_RISK_ADMIN, a.timelock, RISK_ADMIN_DELAY);
+        am.grantRole(ROLE_TREASURY, a.timelock, TREASURY_DELAY);
+        am.grantRole(ROLE_MINTER, a.timelock, MINTER_DELAY);
+        am.grantRole(ROLE_GOVERNANCE, a.timelock, GOVERNANCE_DELAY);
+        am.grantRole(ROLE_MIGRATION, a.timelock, MIGRATION_DELAY);
         am.grantRole(ROLE_RELAY_CALLER, a.timelock, 0);
         am.grantRole(ROLE_LENDING_CORE, a.lendingEngine, 0);
-        am.grantRole(ROLE_ROUTER,       a.lendingRouter, 0);
-        am.grantRole(ROLE_MIGRATION,    a.coordinator,   0);
+        am.grantRole(ROLE_ROUTER, a.lendingRouter, 0);
+        am.grantRole(ROLE_MIGRATION, a.coordinator, 0);
     }
 
     function _wireLendingEngineFns(DualVMAccessManager am, address lendingEngineAddr) internal {
@@ -595,32 +594,76 @@ contract Deploy is Script {
     function _writeManifest(Addresses memory a) internal {
         // Split into two halves to stay within Solidity stack depth (non-via_ir)
         string memory part1 = string.concat(
-            '{\n',
-            '  "chainId": ',    vm.toString(block.chainid),   ',\n',
-            '  "deployedAt": ', vm.toString(block.timestamp),  ',\n',
-            '  "accessManager": "',              _addrHex(a.accessManager),    '",\n',
-            '  "wpas": "',                       _addrHex(a.wpas),              '",\n',
-            '  "usdcMock": "',                   _addrHex(a.usdc),              '",\n',
-            '  "manualOracle": "',               _addrHex(a.oracle),            '",\n',
-            '  "governancePolicyStore": "',      _addrHex(a.policyStore),       '",\n',
-            '  "deterministicRiskModel": "',     _addrHex(a.evmRiskModel),      '",\n',
-            '  "pvmDeterministicRiskModel": "',  _addrHex(a.pvmRiskModel),      '",\n',
-            '  "riskGateway": "',                _addrHex(a.riskGateway),       '",\n'
+            "{\n",
+            '  "chainId": ',
+            vm.toString(block.chainid),
+            ",\n",
+            '  "deployedAt": ',
+            vm.toString(block.timestamp),
+            ",\n",
+            '  "accessManager": "',
+            _addrHex(a.accessManager),
+            '",\n',
+            '  "wpas": "',
+            _addrHex(a.wpas),
+            '",\n',
+            '  "usdcMock": "',
+            _addrHex(a.usdc),
+            '",\n',
+            '  "manualOracle": "',
+            _addrHex(a.oracle),
+            '",\n',
+            '  "governancePolicyStore": "',
+            _addrHex(a.policyStore),
+            '",\n',
+            '  "deterministicRiskModel": "',
+            _addrHex(a.evmRiskModel),
+            '",\n',
+            '  "pvmDeterministicRiskModel": "',
+            _addrHex(a.pvmRiskModel),
+            '",\n',
+            '  "riskGateway": "',
+            _addrHex(a.riskGateway),
+            '",\n'
         );
         string memory part2 = string.concat(
-            '  "debtPool": "',                   _addrHex(a.debtPool),          '",\n',
-            '  "liquidationHookRegistry": "',   _addrHex(a.hookRegistry),      '",\n',
-            '  "xcmLiquidationNotifier": "',    _addrHex(a.xcmNotifier),       '",\n',
-            '  "xcmNotifierAdapter": "',        _addrHex(a.xcmAdapter),        '",\n',
-            '  "lendingEngine": "',             _addrHex(a.lendingEngine),     '",\n',
-            '  "lendingRouter": "',             _addrHex(a.lendingRouter),     '",\n',
-            '  "xcmInbox": "',                  _addrHex(a.xcmInbox),          '",\n',
-            '  "marketVersionRegistry": "',     _addrHex(a.marketRegistry),    '",\n',
-            '  "marketMigrationCoordinator": "',_addrHex(a.coordinator),       '",\n',
-            '  "governanceToken": "',           _addrHex(a.govToken),          '",\n',
-            '  "timelockController": "',        _addrHex(a.timelock),          '",\n',
-            '  "dualVMGovernor": "',            _addrHex(a.governor),          '"\n',
-            '}\n'
+            '  "debtPool": "',
+            _addrHex(a.debtPool),
+            '",\n',
+            '  "liquidationHookRegistry": "',
+            _addrHex(a.hookRegistry),
+            '",\n',
+            '  "xcmLiquidationNotifier": "',
+            _addrHex(a.xcmNotifier),
+            '",\n',
+            '  "xcmNotifierAdapter": "',
+            _addrHex(a.xcmAdapter),
+            '",\n',
+            '  "lendingEngine": "',
+            _addrHex(a.lendingEngine),
+            '",\n',
+            '  "lendingRouter": "',
+            _addrHex(a.lendingRouter),
+            '",\n',
+            '  "xcmInbox": "',
+            _addrHex(a.xcmInbox),
+            '",\n',
+            '  "marketVersionRegistry": "',
+            _addrHex(a.marketRegistry),
+            '",\n',
+            '  "marketMigrationCoordinator": "',
+            _addrHex(a.coordinator),
+            '",\n',
+            '  "governanceToken": "',
+            _addrHex(a.govToken),
+            '",\n',
+            '  "timelockController": "',
+            _addrHex(a.timelock),
+            '",\n',
+            '  "dualVMGovernor": "',
+            _addrHex(a.governor),
+            '"\n',
+            "}\n"
         );
         vm.writeFile(MANIFEST_PATH, string.concat(part1, part2));
     }
@@ -636,8 +679,8 @@ contract Deploy is Script {
         result[1] = "x";
         bytes16 hexChars = "0123456789abcdef";
         for (uint256 i = 0; i < 20; i++) {
-            result[2 + i * 2]     = hexChars[uint8(b[i]) >> 4];
-            result[3 + i * 2]     = hexChars[uint8(b[i]) & 0x0f];
+            result[2 + i * 2] = hexChars[uint8(b[i]) >> 4];
+            result[3 + i * 2] = hexChars[uint8(b[i]) & 0x0f];
         }
         return string(result);
     }

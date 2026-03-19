@@ -36,43 +36,37 @@ contract XcmSetTopicTest is Test {
 
     function test_XcmMessage_HasCorrectVersion() public pure {
         bytes32 corrId = keccak256("test");
-        bytes memory message =
-            abi.encodePacked(bytes1(0x05), bytes1(0x08), bytes1(0x0a), bytes1(0x2c), corrId);
+        bytes memory message = abi.encodePacked(bytes1(0x05), bytes1(0x08), bytes1(0x0a), bytes1(0x2c), corrId);
         assertEq(message[0], bytes1(0x05), "V5 prefix required");
     }
 
     function test_XcmMessage_HasTwoInstructions() public pure {
         bytes32 corrId = keccak256("test");
-        bytes memory message =
-            abi.encodePacked(bytes1(0x05), bytes1(0x08), bytes1(0x0a), bytes1(0x2c), corrId);
+        bytes memory message = abi.encodePacked(bytes1(0x05), bytes1(0x08), bytes1(0x0a), bytes1(0x2c), corrId);
         assertEq(message[1], bytes1(0x08), "compact(2) = 2 instructions");
     }
 
     function test_XcmMessage_HasClearOriginInstruction() public pure {
         bytes32 corrId = keccak256("test");
-        bytes memory message =
-            abi.encodePacked(bytes1(0x05), bytes1(0x08), bytes1(0x0a), bytes1(0x2c), corrId);
+        bytes memory message = abi.encodePacked(bytes1(0x05), bytes1(0x08), bytes1(0x0a), bytes1(0x2c), corrId);
         assertEq(message[2], bytes1(0x0a), "ClearOrigin instruction opcode");
     }
 
     function test_XcmMessage_HasSetTopicInstruction() public pure {
         bytes32 corrId = keccak256("test");
-        bytes memory message =
-            abi.encodePacked(bytes1(0x05), bytes1(0x08), bytes1(0x0a), bytes1(0x2c), corrId);
+        bytes memory message = abi.encodePacked(bytes1(0x05), bytes1(0x08), bytes1(0x0a), bytes1(0x2c), corrId);
         assertEq(message[3], bytes1(0x2c), "SetTopic instruction opcode");
     }
 
     function test_XcmMessage_HasCorrectLength() public pure {
         bytes32 corrId = keccak256("test");
-        bytes memory message =
-            abi.encodePacked(bytes1(0x05), bytes1(0x08), bytes1(0x0a), bytes1(0x2c), corrId);
+        bytes memory message = abi.encodePacked(bytes1(0x05), bytes1(0x08), bytes1(0x0a), bytes1(0x2c), corrId);
         assertEq(message.length, 36, "4 bytes header + 32 bytes correlationId");
     }
 
     function test_XcmMessage_EmbeddsCorrelationId() public pure {
         bytes32 corrId = keccak256("bilateral-async-correlation");
-        bytes memory message =
-            abi.encodePacked(bytes1(0x05), bytes1(0x08), bytes1(0x0a), bytes1(0x2c), corrId);
+        bytes memory message = abi.encodePacked(bytes1(0x05), bytes1(0x08), bytes1(0x0a), bytes1(0x2c), corrId);
 
         // Last 32 bytes should be the correlationId
         bytes32 extracted;
@@ -150,8 +144,7 @@ contract XcmSetTopicTest is Test {
     // -------------------------------------------------------------------------
 
     function testFuzz_SetTopicMessage_AlwaysHasCorrectStructure(bytes32 correlationId) public pure {
-        bytes memory message =
-            abi.encodePacked(bytes1(0x05), bytes1(0x08), bytes1(0x0a), bytes1(0x2c), correlationId);
+        bytes memory message = abi.encodePacked(bytes1(0x05), bytes1(0x08), bytes1(0x0a), bytes1(0x2c), correlationId);
 
         assertEq(message[0], bytes1(0x05), "V5 prefix");
         assertEq(message[1], bytes1(0x08), "2 instructions");

@@ -21,7 +21,9 @@ contract ManualOracle is AccessManaged, Pausable {
 
     event PriceUpdated(uint256 priceWad, uint256 timestamp, uint256 oracleEpoch);
     event MaxAgeUpdated(uint256 maxAge, uint256 oracleEpoch);
-    event CircuitBreakerUpdated(uint256 minPriceWad, uint256 maxPriceWad, uint256 maxPriceChangeBps, uint256 oracleEpoch);
+    event CircuitBreakerUpdated(
+        uint256 minPriceWad, uint256 maxPriceWad, uint256 maxPriceChangeBps, uint256 oracleEpoch
+    );
     event OraclePauseStateUpdated(bool paused, uint256 oracleEpoch);
 
     constructor(
@@ -102,14 +104,7 @@ contract ManualOracle is AccessManaged, Pausable {
     function currentStateHash() public view returns (bytes32) {
         return keccak256(
             abi.encode(
-                oracleEpoch,
-                priceWad,
-                lastUpdatedAt,
-                maxAge,
-                minPriceWad,
-                maxPriceWad,
-                maxPriceChangeBps,
-                paused()
+                oracleEpoch, priceWad, lastUpdatedAt, maxAge, minPriceWad, maxPriceWad, maxPriceChangeBps, paused()
             )
         );
     }
@@ -154,7 +149,8 @@ contract ManualOracle is AccessManaged, Pausable {
             return;
         }
 
-        uint256 delta = previousPriceWad > nextPriceWad ? previousPriceWad - nextPriceWad : nextPriceWad - previousPriceWad;
+        uint256 delta =
+            previousPriceWad > nextPriceWad ? previousPriceWad - nextPriceWad : nextPriceWad - previousPriceWad;
         uint256 deltaBps = (delta * 10_000) / previousPriceWad;
         if (deltaBps > currentMaxPriceChangeBps) {
             revert OraclePriceDeltaTooLarge(previousPriceWad, nextPriceWad, currentMaxPriceChangeBps);

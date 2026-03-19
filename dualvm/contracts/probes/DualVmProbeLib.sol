@@ -29,7 +29,9 @@ library DualVmProbeLib {
     }
 
     function hashQuoteInput(IRiskEngine.QuoteInput calldata input) internal pure returns (bytes32) {
-        return keccak256(abi.encode(input.utilizationBps, input.collateralRatioBps, input.oracleAgeSeconds, input.oracleFresh));
+        return keccak256(
+            abi.encode(input.utilizationBps, input.collateralRatioBps, input.oracleAgeSeconds, input.oracleFresh)
+        );
     }
 
     function hashQuoteOutput(IRiskEngine.QuoteOutput memory output) internal pure returns (bytes32) {
@@ -38,7 +40,11 @@ library DualVmProbeLib {
 
     /// @dev Mirrors the deployed DualVM default risk parameters so deterministic probe runs can compare
     /// honest PVM execution against the currently live REVM-centered configuration.
-    function quote(IRiskEngine.QuoteInput calldata input) internal pure returns (IRiskEngine.QuoteOutput memory output) {
+    function quote(IRiskEngine.QuoteInput calldata input)
+        internal
+        pure
+        returns (IRiskEngine.QuoteOutput memory output)
+    {
         output.borrowRateBps = _borrowRate(input.utilizationBps);
 
         if (!input.oracleFresh) {

@@ -3,25 +3,25 @@ pragma solidity ^0.8.28;
 
 import "forge-std/Test.sol";
 
-import {DualVMAccessManager}    from "../contracts/DualVMAccessManager.sol";
-import {WPAS}                   from "../contracts/WPAS.sol";
-import {USDCMock}               from "../contracts/USDCMock.sol";
-import {ManualOracle}           from "../contracts/ManualOracle.sol";
+import {DualVMAccessManager} from "../contracts/DualVMAccessManager.sol";
+import {WPAS} from "../contracts/WPAS.sol";
+import {USDCMock} from "../contracts/USDCMock.sol";
+import {ManualOracle} from "../contracts/ManualOracle.sol";
 import {DeterministicRiskModel} from "../contracts/pvm/DeterministicRiskModel.sol";
-import {GovernancePolicyStore}  from "../contracts/GovernancePolicyStore.sol";
-import {RiskGateway}            from "../contracts/RiskGateway.sol";
-import {DebtPool}               from "../contracts/DebtPool.sol";
+import {GovernancePolicyStore} from "../contracts/GovernancePolicyStore.sol";
+import {RiskGateway} from "../contracts/RiskGateway.sol";
+import {DebtPool} from "../contracts/DebtPool.sol";
 import {LiquidationHookRegistry} from "../contracts/LiquidationHookRegistry.sol";
 import {XcmLiquidationNotifier} from "../contracts/precompiles/XcmLiquidationNotifier.sol";
-import {XcmNotifierAdapter}     from "../contracts/XcmNotifierAdapter.sol";
-import {LendingEngine}          from "../contracts/LendingEngine.sol";
-import {LendingRouter}          from "../contracts/LendingRouter.sol";
-import {XcmInbox}               from "../contracts/XcmInbox.sol";
+import {XcmNotifierAdapter} from "../contracts/XcmNotifierAdapter.sol";
+import {LendingEngine} from "../contracts/LendingEngine.sol";
+import {LendingRouter} from "../contracts/LendingRouter.sol";
+import {XcmInbox} from "../contracts/XcmInbox.sol";
 import {MockLiquidationNotifier} from "../contracts/test/MockLiquidationNotifier.sol";
 import {IXcm, XCM_PRECOMPILE_ADDRESS} from "../contracts/precompiles/IXcm.sol";
-import {IERC20}                 from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {IRiskAdapter}           from "../contracts/interfaces/IRiskAdapter.sol";
-import {IRiskEngine}            from "../contracts/interfaces/IRiskEngine.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {IRiskAdapter} from "../contracts/interfaces/IRiskAdapter.sol";
+import {IRiskEngine} from "../contracts/interfaces/IRiskEngine.sol";
 
 /// @title BilateralFlow Integration Test
 /// @notice Proves the full M11 bilateral async pipeline end-to-end on local anvil.
@@ -42,40 +42,40 @@ contract BilateralFlowTest is Test {
     uint256 internal constant WAD = 1e18;
 
     // Role IDs (match Deploy.s.sol)
-    uint64 internal constant ROLE_EMERGENCY    = 1;
-    uint64 internal constant ROLE_RISK_ADMIN   = 2;
-    uint64 internal constant ROLE_TREASURY     = 3;
-    uint64 internal constant ROLE_MINTER       = 4;
-    uint64 internal constant ROLE_GOVERNANCE   = 5;
+    uint64 internal constant ROLE_EMERGENCY = 1;
+    uint64 internal constant ROLE_RISK_ADMIN = 2;
+    uint64 internal constant ROLE_TREASURY = 3;
+    uint64 internal constant ROLE_MINTER = 4;
+    uint64 internal constant ROLE_GOVERNANCE = 5;
     uint64 internal constant ROLE_LENDING_CORE = 7;
-    uint64 internal constant ROLE_ROUTER       = 8;
+    uint64 internal constant ROLE_ROUTER = 8;
     uint64 internal constant ROLE_RELAY_CALLER = 9;
 
     // Risk parameters (match Deploy.s.sol)
-    uint256 internal constant BASE_RATE_BPS   = 200;
-    uint256 internal constant SLOPE1_BPS      = 800;
-    uint256 internal constant SLOPE2_BPS      = 3_000;
-    uint256 internal constant KINK_BPS        = 8_000;
-    uint256 internal constant HEALTHY_MAX_LTV_BPS            = 7_500;
-    uint256 internal constant STRESSED_MAX_LTV_BPS           = 6_500;
-    uint256 internal constant HEALTHY_LIQ_THRESHOLD_BPS      = 8_500;
-    uint256 internal constant STRESSED_LIQ_THRESHOLD_BPS     = 7_800;
-    uint256 internal constant STALE_BORROW_RATE_PENALTY_BPS  = 1_000;
-    uint256 internal constant STRESSED_COLLATERAL_RATIO_BPS  = 14_000;
+    uint256 internal constant BASE_RATE_BPS = 200;
+    uint256 internal constant SLOPE1_BPS = 800;
+    uint256 internal constant SLOPE2_BPS = 3_000;
+    uint256 internal constant KINK_BPS = 8_000;
+    uint256 internal constant HEALTHY_MAX_LTV_BPS = 7_500;
+    uint256 internal constant STRESSED_MAX_LTV_BPS = 6_500;
+    uint256 internal constant HEALTHY_LIQ_THRESHOLD_BPS = 8_500;
+    uint256 internal constant STRESSED_LIQ_THRESHOLD_BPS = 7_800;
+    uint256 internal constant STALE_BORROW_RATE_PENALTY_BPS = 1_000;
+    uint256 internal constant STRESSED_COLLATERAL_RATIO_BPS = 14_000;
 
-    uint256 internal constant ORACLE_PRICE_WAD             = 1_000 * WAD;
-    uint256 internal constant ORACLE_MAX_AGE_SECONDS       = 6 hours;
-    uint256 internal constant ORACLE_MIN_PRICE_WAD         = 1 * WAD;
-    uint256 internal constant ORACLE_MAX_PRICE_WAD         = 10_000 * WAD;
-    uint256 internal constant ORACLE_MAX_PRICE_CHANGE_BPS  = 2_500;
+    uint256 internal constant ORACLE_PRICE_WAD = 1_000 * WAD;
+    uint256 internal constant ORACLE_MAX_AGE_SECONDS = 6 hours;
+    uint256 internal constant ORACLE_MIN_PRICE_WAD = 1 * WAD;
+    uint256 internal constant ORACLE_MAX_PRICE_WAD = 10_000 * WAD;
+    uint256 internal constant ORACLE_MAX_PRICE_CHANGE_BPS = 2_500;
 
-    uint256 internal constant POOL_SUPPLY_CAP         = 5_000_000 * WAD;
-    uint256 internal constant BORROW_CAP              = 4_000_000 * WAD;
-    uint256 internal constant MIN_BORROW_AMOUNT       = 100 * WAD;
-    uint256 internal constant RESERVE_FACTOR_BPS      = 1_000;
-    uint256 internal constant MAX_LTV_BPS             = 7_000;
-    uint256 internal constant LIQ_THRESHOLD_BPS       = 8_000;
-    uint256 internal constant LIQ_BONUS_BPS           = 500;
+    uint256 internal constant POOL_SUPPLY_CAP = 5_000_000 * WAD;
+    uint256 internal constant BORROW_CAP = 4_000_000 * WAD;
+    uint256 internal constant MIN_BORROW_AMOUNT = 100 * WAD;
+    uint256 internal constant RESERVE_FACTOR_BPS = 1_000;
+    uint256 internal constant MAX_LTV_BPS = 7_000;
+    uint256 internal constant LIQ_THRESHOLD_BPS = 8_000;
+    uint256 internal constant LIQ_BONUS_BPS = 500;
 
     // -------------------------------------------------------------------------
     // Accounts
@@ -89,30 +89,30 @@ contract BilateralFlowTest is Test {
     // -------------------------------------------------------------------------
     // Contracts
     // -------------------------------------------------------------------------
-    DualVMAccessManager     internal accessManager;
-    WPAS                    internal wpas;
-    USDCMock                internal usdc;
-    ManualOracle            internal oracle;
-    DeterministicRiskModel  internal quoteEngine;
-    GovernancePolicyStore   internal policyStore;
-    RiskGateway             internal riskGateway;
-    DebtPool                internal debtPool;
+    DualVMAccessManager internal accessManager;
+    WPAS internal wpas;
+    USDCMock internal usdc;
+    ManualOracle internal oracle;
+    DeterministicRiskModel internal quoteEngine;
+    GovernancePolicyStore internal policyStore;
+    RiskGateway internal riskGateway;
+    DebtPool internal debtPool;
     LiquidationHookRegistry internal hookRegistry;
-    XcmLiquidationNotifier  internal xcmNotifier;
-    XcmNotifierAdapter      internal xcmAdapter;
-    LendingEngine           internal lendingEngine;
-    LendingRouter           internal lendingRouter;
-    XcmInbox                internal xcmInbox;
+    XcmLiquidationNotifier internal xcmNotifier;
+    XcmNotifierAdapter internal xcmAdapter;
+    LendingEngine internal lendingEngine;
+    LendingRouter internal lendingRouter;
+    XcmInbox internal xcmInbox;
 
     // -------------------------------------------------------------------------
     // setUp
     // -------------------------------------------------------------------------
     function setUp() public {
-        deployer  = address(this);
-        lender    = makeAddr("lender");
-        user      = makeAddr("user");
+        deployer = address(this);
+        lender = makeAddr("lender");
+        user = makeAddr("user");
         liquidator = makeAddr("liquidator");
-        outsider  = makeAddr("outsider");
+        outsider = makeAddr("outsider");
 
         vm.deal(user, 1_000 ether);
         vm.deal(lender, 100 ether);
@@ -143,10 +143,16 @@ contract BilateralFlowTest is Test {
 
         // 4. DeterministicRiskModel (same math as PVM version)
         quoteEngine = new DeterministicRiskModel(
-            BASE_RATE_BPS, SLOPE1_BPS, SLOPE2_BPS, KINK_BPS,
-            HEALTHY_MAX_LTV_BPS, STRESSED_MAX_LTV_BPS,
-            HEALTHY_LIQ_THRESHOLD_BPS, STRESSED_LIQ_THRESHOLD_BPS,
-            STALE_BORROW_RATE_PENALTY_BPS, STRESSED_COLLATERAL_RATIO_BPS
+            BASE_RATE_BPS,
+            SLOPE1_BPS,
+            SLOPE2_BPS,
+            KINK_BPS,
+            HEALTHY_MAX_LTV_BPS,
+            STRESSED_MAX_LTV_BPS,
+            HEALTHY_LIQ_THRESHOLD_BPS,
+            STRESSED_LIQ_THRESHOLD_BPS,
+            STALE_BORROW_RATE_PENALTY_BPS,
+            STRESSED_COLLATERAL_RATIO_BPS
         );
 
         // 5. GovernancePolicyStore (M11)
@@ -158,16 +164,16 @@ contract BilateralFlowTest is Test {
             address(quoteEngine),
             address(policyStore),
             RiskGateway.RiskModelConfig({
-                baseRateBps:                     BASE_RATE_BPS,
-                slope1Bps:                       SLOPE1_BPS,
-                slope2Bps:                       SLOPE2_BPS,
-                kinkBps:                         KINK_BPS,
-                healthyMaxLtvBps:                HEALTHY_MAX_LTV_BPS,
-                stressedMaxLtvBps:               STRESSED_MAX_LTV_BPS,
-                healthyLiquidationThresholdBps:  HEALTHY_LIQ_THRESHOLD_BPS,
+                baseRateBps: BASE_RATE_BPS,
+                slope1Bps: SLOPE1_BPS,
+                slope2Bps: SLOPE2_BPS,
+                kinkBps: KINK_BPS,
+                healthyMaxLtvBps: HEALTHY_MAX_LTV_BPS,
+                stressedMaxLtvBps: STRESSED_MAX_LTV_BPS,
+                healthyLiquidationThresholdBps: HEALTHY_LIQ_THRESHOLD_BPS,
                 stressedLiquidationThresholdBps: STRESSED_LIQ_THRESHOLD_BPS,
-                staleBorrowRatePenaltyBps:        STALE_BORROW_RATE_PENALTY_BPS,
-                stressedCollateralRatioBps:       STRESSED_COLLATERAL_RATIO_BPS
+                staleBorrowRatePenaltyBps: STALE_BORROW_RATE_PENALTY_BPS,
+                stressedCollateralRatioBps: STRESSED_COLLATERAL_RATIO_BPS
             })
         );
 
@@ -179,7 +185,7 @@ contract BilateralFlowTest is Test {
 
         // 9. XCM hook chain (M11)
         xcmNotifier = new XcmLiquidationNotifier();
-        xcmAdapter  = new XcmNotifierAdapter(address(xcmNotifier));
+        xcmAdapter = new XcmNotifierAdapter(address(xcmNotifier));
 
         // 10. LendingEngine with hookRegistry as notifier (M11)
         lendingEngine = new LendingEngine(
@@ -190,12 +196,12 @@ contract BilateralFlowTest is Test {
             oracle,
             riskGateway,
             LendingEngine.MarketConfig({
-                borrowCap:               BORROW_CAP,
-                minBorrowAmount:         MIN_BORROW_AMOUNT,
-                reserveFactorBps:        RESERVE_FACTOR_BPS,
-                maxLtvBps:               MAX_LTV_BPS,
+                borrowCap: BORROW_CAP,
+                minBorrowAmount: MIN_BORROW_AMOUNT,
+                reserveFactorBps: RESERVE_FACTOR_BPS,
+                maxLtvBps: MAX_LTV_BPS,
                 liquidationThresholdBps: LIQ_THRESHOLD_BPS,
-                liquidationBonusBps:     LIQ_BONUS_BPS
+                liquidationBonusBps: LIQ_BONUS_BPS
             }),
             address(hookRegistry)
         );
@@ -236,7 +242,7 @@ contract BilateralFlowTest is Test {
             am.setTargetFunctionRole(address(oracle), s, ROLE_EMERGENCY);
         }
         am.grantRole(ROLE_RISK_ADMIN, deployer, 0);
-        am.grantRole(ROLE_EMERGENCY,  deployer, 0);
+        am.grantRole(ROLE_EMERGENCY, deployer, 0);
 
         // ── PolicyStore (RISK_ADMIN) ──────────────────────────────────────────
         {
@@ -343,7 +349,8 @@ contract BilateralFlowTest is Test {
         assertEq(routerCol, 0, "router has no collateral position");
 
         // CollateralDeposited correlationId is non-zero
-        bytes32 depositCorrId = _corrId(depositLogs, address(lendingEngine), LendingEngine.CollateralDeposited.selector, 2);
+        bytes32 depositCorrId =
+            _corrId(depositLogs, address(lendingEngine), LendingEngine.CollateralDeposited.selector, 2);
         assertNotEq(depositCorrId, bytes32(0), "deposit correlationId non-zero");
 
         // ─── 2. Borrow — Borrowed event + QuoteVerified (VAL-BILATERAL-005) ──
@@ -358,8 +365,10 @@ contract BilateralFlowTest is Test {
         assertNotEq(borrowCorrId, bytes32(0), "borrow correlationId non-zero");
 
         // QuoteVerified emitted (PVM cross-VM verification succeeded)
-        assertTrue(_hasLog(borrowLogs, address(riskGateway), RiskGateway.QuoteVerified.selector),
-            "QuoteVerified should fire during borrow");
+        assertTrue(
+            _hasLog(borrowLogs, address(riskGateway), RiskGateway.QuoteVerified.selector),
+            "QuoteVerified should fire during borrow"
+        );
 
         // ─── 3. GovernancePolicyStore.setPolicy via authorized caller ─────────
         bytes32 policyKey = riskGateway.POLICY_MAX_LTV();
@@ -397,18 +406,24 @@ contract BilateralFlowTest is Test {
         assertNotEq(liqCorrId, bytes32(0), "Liquidated correlationId non-zero");
 
         // (b) LiquidationHookRegistry dispatched
-        assertTrue(_hasLog(liqLogs, address(hookRegistry), LiquidationHookRegistry.HookExecuted.selector),
-            "HookExecuted should fire from LiquidationHookRegistry");
+        assertTrue(
+            _hasLog(liqLogs, address(hookRegistry), LiquidationHookRegistry.HookExecuted.selector),
+            "HookExecuted should fire from LiquidationHookRegistry"
+        );
 
         // (c) XcmLiquidationNotifier emitted LiquidationNotified with same correlationId
         // LiquidationNotified(address indexed borrower, uint256, uint256, bytes32 indexed correlationId)
         // topics: [0]=selector, [1]=borrower, [2]=correlationId
-        bytes32 notifiedCorrId = _corrId(liqLogs, address(xcmNotifier), XcmLiquidationNotifier.LiquidationNotified.selector, 2);
+        bytes32 notifiedCorrId =
+            _corrId(liqLogs, address(xcmNotifier), XcmLiquidationNotifier.LiquidationNotified.selector, 2);
         assertNotEq(notifiedCorrId, bytes32(0), "LiquidationNotified correlationId non-zero");
 
         // (d) correlationId is identical from LendingEngine to XcmLiquidationNotifier (VAL-BILATERAL-002)
-        assertEq(liqCorrId, notifiedCorrId,
-            "correlationId must match: LendingEngine.Liquidated == XcmLiquidationNotifier.LiquidationNotified");
+        assertEq(
+            liqCorrId,
+            notifiedCorrId,
+            "correlationId must match: LendingEngine.Liquidated == XcmLiquidationNotifier.LiquidationNotified"
+        );
 
         // ─── 6. XcmInbox.receiveReceipt(correlationId, data) ─────────────────
         bytes memory receiptData = abi.encode("liquidation-confirmed");
@@ -420,9 +435,9 @@ contract BilateralFlowTest is Test {
         // ReceiptReceived event emitted (VAL-BILATERAL-006)
         bool foundReceiptReceived = false;
         for (uint256 i = 0; i < inboxLogs.length; i++) {
-            if (inboxLogs[i].emitter == address(xcmInbox)
-                && inboxLogs[i].topics[0] == XcmInbox.ReceiptReceived.selector)
-            {
+            if (
+                inboxLogs[i].emitter == address(xcmInbox) && inboxLogs[i].topics[0] == XcmInbox.ReceiptReceived.selector
+            ) {
                 assertEq(inboxLogs[i].topics[1], liqCorrId, "inbox correlationId matches");
                 foundReceiptReceived = true;
             }
@@ -436,13 +451,13 @@ contract BilateralFlowTest is Test {
 
         // ─── 8. AccessManager governs all contracts (VAL-BILATERAL-007) ───────
         assertEq(_authority(address(lendingEngine)), address(accessManager), "LendingEngine authority");
-        assertEq(_authority(address(riskGateway)),   address(accessManager), "RiskGateway authority");
-        assertEq(_authority(address(debtPool)),      address(accessManager), "DebtPool authority");
-        assertEq(_authority(address(oracle)),        address(accessManager), "Oracle authority");
-        assertEq(_authority(address(policyStore)),   address(accessManager), "PolicyStore authority");
-        assertEq(_authority(address(hookRegistry)),  address(accessManager), "HookRegistry authority");
-        assertEq(_authority(address(xcmInbox)),      address(accessManager), "XcmInbox authority");
-        assertEq(_authority(address(usdc)),          address(accessManager), "USDCMock authority");
+        assertEq(_authority(address(riskGateway)), address(accessManager), "RiskGateway authority");
+        assertEq(_authority(address(debtPool)), address(accessManager), "DebtPool authority");
+        assertEq(_authority(address(oracle)), address(accessManager), "Oracle authority");
+        assertEq(_authority(address(policyStore)), address(accessManager), "PolicyStore authority");
+        assertEq(_authority(address(hookRegistry)), address(accessManager), "HookRegistry authority");
+        assertEq(_authority(address(xcmInbox)), address(accessManager), "XcmInbox authority");
+        assertEq(_authority(address(usdc)), address(accessManager), "USDCMock authority");
 
         // Verify unauthorized calls revert (AccessManagedUnauthorized)
         vm.prank(outsider);
@@ -458,13 +473,15 @@ contract BilateralFlowTest is Test {
         vm.recordLogs();
         vm.prank(user);
         lendingRouter.depositCollateralFromPAS{value: 1 * WAD}();
-        bytes32 id1 = _corrId(vm.getRecordedLogs(), address(lendingEngine), LendingEngine.CollateralDeposited.selector, 2);
+        bytes32 id1 =
+            _corrId(vm.getRecordedLogs(), address(lendingEngine), LendingEngine.CollateralDeposited.selector, 2);
 
         vm.roll(block.number + 1);
         vm.recordLogs();
         vm.prank(user);
         lendingRouter.depositCollateralFromPAS{value: 1 * WAD}();
-        bytes32 id2 = _corrId(vm.getRecordedLogs(), address(lendingEngine), LendingEngine.CollateralDeposited.selector, 2);
+        bytes32 id2 =
+            _corrId(vm.getRecordedLogs(), address(lendingEngine), LendingEngine.CollateralDeposited.selector, 2);
 
         assertNotEq(id1, bytes32(0));
         assertNotEq(id2, bytes32(0));
@@ -529,10 +546,14 @@ contract BilateralFlowTest is Test {
         lendingEngine.liquidate(user, type(uint256).max);
         Vm.Log[] memory logs = vm.getRecordedLogs();
 
-        assertTrue(_hasLog(logs, address(hookRegistry), LiquidationHookRegistry.HookFailed.selector),
-            "HookFailed emitted on hook revert");
-        assertTrue(_hasLog(logs, address(lendingEngine), LendingEngine.Liquidated.selector),
-            "Liquidated emitted despite hook failure");
+        assertTrue(
+            _hasLog(logs, address(hookRegistry), LiquidationHookRegistry.HookFailed.selector),
+            "HookFailed emitted on hook revert"
+        );
+        assertTrue(
+            _hasLog(logs, address(lendingEngine), LendingEngine.Liquidated.selector),
+            "Liquidated emitted despite hook failure"
+        );
     }
 
     function test_HookRegistry_Deregister() public {
@@ -606,13 +627,13 @@ contract BilateralFlowTest is Test {
 
     function test_AccessManager_GovernsAllContracts() public view {
         assertEq(_authority(address(lendingEngine)), address(accessManager));
-        assertEq(_authority(address(riskGateway)),   address(accessManager));
-        assertEq(_authority(address(debtPool)),      address(accessManager));
-        assertEq(_authority(address(oracle)),        address(accessManager));
-        assertEq(_authority(address(policyStore)),   address(accessManager));
-        assertEq(_authority(address(hookRegistry)),  address(accessManager));
-        assertEq(_authority(address(xcmInbox)),      address(accessManager));
-        assertEq(_authority(address(usdc)),          address(accessManager));
+        assertEq(_authority(address(riskGateway)), address(accessManager));
+        assertEq(_authority(address(debtPool)), address(accessManager));
+        assertEq(_authority(address(oracle)), address(accessManager));
+        assertEq(_authority(address(policyStore)), address(accessManager));
+        assertEq(_authority(address(hookRegistry)), address(accessManager));
+        assertEq(_authority(address(xcmInbox)), address(accessManager));
+        assertEq(_authority(address(usdc)), address(accessManager));
     }
 
     function test_AccessManager_UnauthorizedCallsRevert() public {
@@ -668,7 +689,8 @@ contract BilateralFlowTest is Test {
         vm.recordLogs();
         vm.prank(user);
         lendingRouter.depositCollateralFromPAS{value: 10 * WAD}();
-        bytes32 depositId = _corrId(vm.getRecordedLogs(), address(lendingEngine), LendingEngine.CollateralDeposited.selector, 2);
+        bytes32 depositId =
+            _corrId(vm.getRecordedLogs(), address(lendingEngine), LendingEngine.CollateralDeposited.selector, 2);
 
         // Borrow
         vm.roll(block.number + 1);
@@ -699,13 +721,13 @@ contract BilateralFlowTest is Test {
 
         // All non-zero and unique
         assertNotEq(depositId, bytes32(0));
-        assertNotEq(borrowId,  bytes32(0));
-        assertNotEq(repayId,   bytes32(0));
-        assertNotEq(liqId,     bytes32(0));
+        assertNotEq(borrowId, bytes32(0));
+        assertNotEq(repayId, bytes32(0));
+        assertNotEq(liqId, bytes32(0));
 
         assertNotEq(depositId, borrowId);
-        assertNotEq(borrowId,  repayId);
-        assertNotEq(repayId,   liqId);
+        assertNotEq(borrowId, repayId);
+        assertNotEq(repayId, liqId);
         assertNotEq(depositId, liqId);
     }
 
@@ -760,7 +782,7 @@ contract BilateralFlowTest is Test {
             bytes1(0x08), // compact(2) — 2 instructions
             bytes1(0x0a), // ClearOrigin
             bytes1(0x2c), // SetTopic
-            corrId        // 32-byte topic = correlationId
+            corrId // 32-byte topic = correlationId
         );
 
         vm.mockCall(
@@ -788,8 +810,10 @@ contract BilateralFlowTest is Test {
         Vm.Log[] memory logs = vm.getRecordedLogs();
 
         // RiskGateway emits QuoteVerified when PVM result matches inline result
-        assertTrue(_hasLog(logs, address(riskGateway), RiskGateway.QuoteVerified.selector),
-            "QuoteVerified must fire (cross-VM verification pathway)");
+        assertTrue(
+            _hasLog(logs, address(riskGateway), RiskGateway.QuoteVerified.selector),
+            "QuoteVerified must fire (cross-VM verification pathway)"
+        );
     }
 
     // =========================================================================
@@ -799,7 +823,9 @@ contract BilateralFlowTest is Test {
     /// @dev Extract bytes32 correlationId from an event at the given topic index.
     ///      topicIndex: 1=first indexed, 2=second indexed, 3=third indexed.
     function _corrId(Vm.Log[] memory logs, address emitter, bytes32 selector_, uint256 topicIdx)
-        internal pure returns (bytes32)
+        internal
+        pure
+        returns (bytes32)
     {
         for (uint256 i = 0; i < logs.length; i++) {
             if (logs[i].emitter == emitter && logs[i].topics[0] == selector_) {
@@ -810,9 +836,7 @@ contract BilateralFlowTest is Test {
     }
 
     /// @dev Returns true if any log entry matches emitter + selector.
-    function _hasLog(Vm.Log[] memory logs, address emitter, bytes32 selector_)
-        internal pure returns (bool)
-    {
+    function _hasLog(Vm.Log[] memory logs, address emitter, bytes32 selector_) internal pure returns (bool) {
         for (uint256 i = 0; i < logs.length; i++) {
             if (logs[i].emitter == emitter && logs[i].topics[0] == selector_) return true;
         }

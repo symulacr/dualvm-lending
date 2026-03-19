@@ -8,7 +8,6 @@ import {LendingEngine} from "../contracts/LendingEngine.sol";
 /// @title BatchLiquidationTest
 /// @notice Forge tests for batch liquidation — migrated from BatchLiquidation.ts
 contract BatchLiquidationTest is BaseTest {
-
     address internal borrower1;
     address internal borrower2;
     address internal borrower3;

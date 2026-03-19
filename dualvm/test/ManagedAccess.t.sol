@@ -12,7 +12,6 @@ import {DualVMAccessManager} from "../contracts/DualVMAccessManager.sol";
 /// @notice Forge tests for AccessManager role enforcement across all protocol contracts
 ///         Migrated from managedAccess.ts and expanded for Solidity-based testing
 contract ManagedAccessTest is BaseTest {
-
     // =========================================================================
     // Oracle access control
     // =========================================================================

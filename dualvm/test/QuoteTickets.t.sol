@@ -10,7 +10,6 @@ import {IRiskEngine} from "../contracts/interfaces/IRiskEngine.sol";
 /// @title QuoteTicketsTest
 /// @notice Forge tests for quote ticket and epoch flow — migrated from QuoteTickets.ts
 contract QuoteTicketsTest is BaseTest {
-
     // =========================================================================
     // Publish and reuse tickets
     // =========================================================================
@@ -25,7 +24,9 @@ contract QuoteTicketsTest is BaseTest {
 
         // Publish ticket as admin (test contract)
         vm.expectEmit(true, false, false, false, address(riskGateway));
-        emit IRiskAdapter.QuoteTicketPublished(ticketId, bytes32(0), bytes32(0), 0, 0, bytes32(0), bytes32(0), address(0));
+        emit IRiskAdapter.QuoteTicketPublished(
+            ticketId, bytes32(0), bytes32(0), 0, 0, bytes32(0), bytes32(0), address(0)
+        );
         lendingEngine.publishProjectedBorrowQuoteTicket(borrower, borrowAmount);
 
         // Retrieve and verify
@@ -55,7 +56,9 @@ contract QuoteTicketsTest is BaseTest {
 
         // Borrow should auto-publish a ticket
         vm.expectEmit(true, false, false, false, address(riskGateway));
-        emit IRiskAdapter.QuoteTicketPublished(ticketId, bytes32(0), bytes32(0), 0, 0, bytes32(0), bytes32(0), address(0));
+        emit IRiskAdapter.QuoteTicketPublished(
+            ticketId, bytes32(0), bytes32(0), 0, 0, bytes32(0), bytes32(0), address(0)
+        );
         _borrowAs(borrower, borrowAmount);
 
         IRiskAdapter.QuoteTicket memory ticket = riskGateway.getQuoteTicket(ticketId);

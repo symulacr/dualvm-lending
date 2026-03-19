@@ -39,7 +39,9 @@ contract DebtPool is ERC20, ERC4626, AccessManaged, Pausable, ReentrancyGuard {
         ERC4626(asset_)
         AccessManaged(authority_)
     {
-        if (address(asset_) == address(0) || supplyCap_ == 0) revert InvalidConfiguration();
+        if (address(asset_) == address(0) || supplyCap_ == 0) {
+            revert InvalidConfiguration();
+        }
         supplyCap = supplyCap_;
     }
 
@@ -67,24 +69,12 @@ contract DebtPool is ERC20, ERC4626, AccessManaged, Pausable, ReentrancyGuard {
         _unpause();
     }
 
-    function deposit(uint256 assets, address receiver)
-        public
-        override
-        nonReentrant
-        whenNotPaused
-        returns (uint256)
-    {
+    function deposit(uint256 assets, address receiver) public override nonReentrant whenNotPaused returns (uint256) {
         _enforceSupplyCap(assets);
         return super.deposit(assets, receiver);
     }
 
-    function mint(uint256 shares, address receiver)
-        public
-        override
-        nonReentrant
-        whenNotPaused
-        returns (uint256)
-    {
+    function mint(uint256 shares, address receiver) public override nonReentrant whenNotPaused returns (uint256) {
         uint256 assets = previewMint(shares);
         _enforceSupplyCap(assets);
         return super.mint(shares, receiver);

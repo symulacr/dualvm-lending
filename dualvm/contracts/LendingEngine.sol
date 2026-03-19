@@ -258,7 +258,11 @@ contract LendingEngine is AccessManaged, Pausable, ReentrancyGuard, IMigratableL
         riskEngine.quoteViaTicket(context, input);
     }
 
-    function publishProjectedBorrowQuoteTicket(address borrower, uint256 additionalDebt) external restricted returns (bytes32 ticketId) {
+    function publishProjectedBorrowQuoteTicket(address borrower, uint256 additionalDebt)
+        external
+        restricted
+        returns (bytes32 ticketId)
+    {
         IRiskEngine.QuoteInput memory input = projectedBorrowQuoteInput(borrower, additionalDebt);
         IRiskAdapter.QuoteContext memory context = currentQuoteContext();
         ticketId = riskEngine.quoteTicketId(context, input);
@@ -293,11 +297,7 @@ contract LendingEngine is AccessManaged, Pausable, ReentrancyGuard, IMigratableL
         }
 
         emit PositionMigratedOut(
-            borrower,
-            msg.sender,
-            position.collateralAmount,
-            position.principalDebt,
-            position.accruedInterest
+            borrower, msg.sender, position.collateralAmount, position.principalDebt, position.accruedInterest
         );
     }
 
@@ -307,8 +307,12 @@ contract LendingEngine is AccessManaged, Pausable, ReentrancyGuard, IMigratableL
         nonReentrant
     {
         Position storage destinationPosition = positions[borrower];
-        if (destinationPosition.collateralAmount != 0 || _currentDebt(destinationPosition) != 0) revert ExistingPosition();
-        if (position.collateralAmount == 0 && position.principalDebt == 0 && position.accruedInterest == 0) revert NoPosition();
+        if (destinationPosition.collateralAmount != 0 || _currentDebt(destinationPosition) != 0) {
+            revert ExistingPosition();
+        }
+        if (position.collateralAmount == 0 && position.principalDebt == 0 && position.accruedInterest == 0) {
+            revert NoPosition();
+        }
 
         if (position.collateralAmount != 0) {
             collateralAsset.safeTransferFrom(msg.sender, address(this), position.collateralAmount);
@@ -344,11 +348,7 @@ contract LendingEngine is AccessManaged, Pausable, ReentrancyGuard, IMigratableL
         }
 
         emit PositionMigratedIn(
-            borrower,
-            msg.sender,
-            position.collateralAmount,
-            position.principalDebt,
-            position.accruedInterest
+            borrower, msg.sender, position.collateralAmount, position.principalDebt, position.accruedInterest
         );
     }
 
@@ -542,7 +542,11 @@ contract LendingEngine is AccessManaged, Pausable, ReentrancyGuard, IMigratableL
         _liquidateOne(borrower, requestedRepayAmount);
     }
 
-    function batchLiquidate(address[] calldata borrowers, uint256[] calldata amounts) external nonReentrant whenNotPaused {
+    function batchLiquidate(address[] calldata borrowers, uint256[] calldata amounts)
+        external
+        nonReentrant
+        whenNotPaused
+    {
         if (borrowers.length != amounts.length) revert ArrayLengthMismatch();
         for (uint256 i = 0; i < borrowers.length; i++) {
             try this._liquidateOneDelegated(msg.sender, borrowers[i], amounts[i]) {}
@@ -593,10 +597,8 @@ contract LendingEngine is AccessManaged, Pausable, ReentrancyGuard, IMigratableL
         }
 
         uint256 collateralValue = _collateralValue(position.collateralAmount, price);
-        uint256 actualRepay = _min(
-            requestedRepayAmount,
-            _min(debt, (collateralValue * BPS) / (BPS + liquidationBonusBps))
-        );
+        uint256 actualRepay =
+            _min(requestedRepayAmount, _min(debt, (collateralValue * BPS) / (BPS + liquidationBonusBps)));
         if (actualRepay == 0) revert InvalidLiquidationAmount();
 
         uint256 collateralSeized = (actualRepay * (BPS + liquidationBonusBps) * WAD) / (price * BPS);
@@ -648,9 +650,9 @@ contract LendingEngine is AccessManaged, Pausable, ReentrancyGuard, IMigratableL
         // Post-liquidation hook: notify external contract if configured.
         // Wrapped in try/catch so a reverting notifier never blocks the liquidation.
         if (liquidationNotifier != address(0)) {
-            try ILiquidationNotifier(liquidationNotifier).notifyLiquidation(
-                borrower, actualRepay, collateralSeized, correlationId
-            ) {} catch {}
+            try ILiquidationNotifier(liquidationNotifier)
+                .notifyLiquidation(borrower, actualRepay, collateralSeized, correlationId) {}
+                catch {}
         }
     }
 
@@ -680,7 +682,9 @@ contract LendingEngine is AccessManaged, Pausable, ReentrancyGuard, IMigratableL
                 oracleFresh: true
             })
         );
-        return _healthFactor(position.collateralAmount, debt, price, _effectiveLiquidationThreshold(quote.liquidationThresholdBps));
+        return _healthFactor(
+            position.collateralAmount, debt, price, _effectiveLiquidationThreshold(quote.liquidationThresholdBps)
+        );
     }
 
     function availableToBorrow(address borrower) external view returns (uint256) {
@@ -854,7 +858,6 @@ contract LendingEngine is AccessManaged, Pausable, ReentrancyGuard, IMigratableL
             revert DebtBelowMinimum(debt, minBorrowAmount);
         }
     }
-
 
     function _min(uint256 a, uint256 b) private pure returns (uint256) {
         return a < b ? a : b;
