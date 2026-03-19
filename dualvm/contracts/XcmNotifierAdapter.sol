@@ -6,7 +6,7 @@ import {XcmLiquidationNotifier} from "./precompiles/XcmLiquidationNotifier.sol";
 
 /// @title XcmNotifierAdapter
 /// @notice Bridges the 3-arg ILiquidationNotifier interface expected by
-///         LiquidationHookRegistry (and LendingCoreV2) to the 4-arg
+///         LiquidationHookRegistry (and LendingEngine) to the 4-arg
 ///         XcmLiquidationNotifier.notifyLiquidation by injecting a hardcoded
 ///         relay-chain destination.
 ///

@@ -10,9 +10,9 @@ import {ILiquidationNotifier} from "./interfaces/ILiquidationNotifier.sol";
 /// Each hook type (a bytes32 key) maps to one handler address that implements
 /// ILiquidationNotifier.  Governance can register or deregister handlers at any time.
 /// executeHooks dispatches to the registered handler inside a try/catch so a
-/// reverting hook never propagates to the caller (e.g. LendingCoreV2 liquidation).
+/// reverting hook never propagates to the caller (e.g. LendingEngine liquidation).
 ///
-/// @dev Wire this contract as the liquidationNotifier on LendingCoreV2.  LendingCoreV2
+/// @dev Wire this contract as the liquidationNotifier on LendingEngine.  LendingEngine
 /// calls ILiquidationNotifier.notifyLiquidation(borrower, debtRepaid, collateralSeized),
 /// which hits this contract.  The registry then re-dispatches to each registered hook
 /// for the DEFAULT_HOOK_TYPE with the same 3-arg signature.
@@ -21,7 +21,7 @@ contract LiquidationHookRegistry is AccessManaged, ILiquidationNotifier {
     // Constants
     // -------------------------------------------------------------------------
 
-    /// @notice Default hook type used by LendingCoreV2 post-liquidation.
+    /// @notice Default hook type used by LendingEngine post-liquidation.
     bytes32 public constant DEFAULT_HOOK_TYPE = keccak256("LIQUIDATION");
 
     // -------------------------------------------------------------------------
