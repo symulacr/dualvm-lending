@@ -10,4 +10,6 @@ ignition/deployments/
 wallets/*.txt
 
 artifacts-pvm/
-cache-pvm/
+cache-pvm/out/
+foundry.lock
+bun.lock
