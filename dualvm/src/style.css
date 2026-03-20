@@ -168,7 +168,7 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 
 .mono { font-family: 'SF Mono', 'Fira Code', monospace; }
 .truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.data-refresh { animation: pulse 0.3s ease-out; }
+.data-refresh { animation: fadeIn 300ms ease-out; }
 
 /* ── Header Button ─────────────────────────────────────────────── */
 

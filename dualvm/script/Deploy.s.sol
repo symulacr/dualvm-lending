@@ -72,6 +72,7 @@ contract Deploy is Script {
     uint64 internal constant ROLE_LENDING_CORE = 7;
     uint64 internal constant ROLE_ROUTER = 8;
     uint64 internal constant ROLE_RELAY_CALLER = 9;
+    uint64 internal constant ROLE_USDC_MINTER = 10;
 
     // -------------------------------------------------------------------------
     // Risk model parameters (kinked utilization model)
@@ -90,11 +91,11 @@ contract Deploy is Script {
     // -------------------------------------------------------------------------
     // Market parameters
     // -------------------------------------------------------------------------
-    uint256 internal constant ORACLE_MAX_AGE = 1_800; // 30 minutes
+    uint256 internal constant ORACLE_MAX_AGE = 604_800; // 7 days (testnet-friendly)
     uint256 internal constant ORACLE_INITIAL_PRICE_WAD = 1_000 * 1e18; // 1000 USDC per WPAS
     uint256 internal constant ORACLE_MIN_PRICE_WAD = 1 * 1e18; // 1 USDC min
     uint256 internal constant ORACLE_MAX_PRICE_WAD = 10_000 * 1e18; // 10000 USDC max
-    uint256 internal constant ORACLE_MAX_PRICE_CHANGE_BPS = 2_500; // 25% max price change
+    uint256 internal constant ORACLE_MAX_PRICE_CHANGE_BPS = 10_000; // 100% max price change (testnet-friendly)
 
     uint256 internal constant POOL_SUPPLY_CAP = 5_000_000 * 1e18; // 5M USDC supply cap
     uint256 internal constant BORROW_CAP = 4_000_000 * 1e18; // 4M USDC borrow cap
@@ -108,8 +109,8 @@ contract Deploy is Script {
     // Governance parameters (demo-friendly: short delays for hackathon)
     // -------------------------------------------------------------------------
     uint48 internal constant VOTING_DELAY = 1; // 1 second
-    uint32 internal constant VOTING_PERIOD = 300; // 5 minutes
-    uint256 internal constant TIMELOCK_MIN_DELAY = 60; // 60 seconds
+    uint32 internal constant VOTING_PERIOD = 30; // 30 seconds (testnet-friendly)
+    uint256 internal constant TIMELOCK_MIN_DELAY = 10; // 10 seconds (testnet-friendly)
     uint256 internal constant QUORUM_NUMERATOR = 4; // 4% quorum
     uint256 internal constant INITIAL_GOV_SUPPLY = 1_000_000 * 1e18; // 1M governance tokens
 
@@ -371,6 +372,9 @@ contract Deploy is Script {
         );
         console.log("GovernanceToken:            ", a.govToken);
 
+        // Self-delegate for governance voting power
+        GovernanceToken(a.govToken).delegate(deployer);
+
         // Deploy TimelockController with deployer as initial admin
         {
             address[] memory proposers = new address[](0);
@@ -480,6 +484,7 @@ contract Deploy is Script {
         am.labelRole(ROLE_LENDING_CORE, "LENDING_CORE");
         am.labelRole(ROLE_ROUTER, "ROUTER");
         am.labelRole(ROLE_RELAY_CALLER, "RELAY_CALLER");
+        am.labelRole(ROLE_USDC_MINTER, "USDC_MINTER");
         am.grantRole(ROLE_EMERGENCY, a.timelock, EMERGENCY_DELAY);
         am.grantRole(ROLE_RISK_ADMIN, a.timelock, RISK_ADMIN_DELAY);
         am.grantRole(ROLE_TREASURY, a.timelock, TREASURY_DELAY);
@@ -490,6 +495,17 @@ contract Deploy is Script {
         am.grantRole(ROLE_LENDING_CORE, a.lendingEngine, 0);
         am.grantRole(ROLE_ROUTER, a.lendingRouter, 0);
         am.grantRole(ROLE_MIGRATION, a.coordinator, 0);
+
+        // Faucet: create dedicated USDC minter role (separate from governance token minter)
+        bytes4[] memory usdcMintFn = new bytes4[](1);
+        usdcMintFn[0] = USDCMock.mint.selector;
+        am.setTargetFunctionRole(a.usdc, usdcMintFn, ROLE_USDC_MINTER);
+
+        // Grant faucet relayer the USDC-only minter role
+        am.grantRole(ROLE_USDC_MINTER, 0xF5D29698aeaE6CCdD685035c8b90A1Df53Cd3713, 0);
+
+        // Grant deployer ROLE_RISK_ADMIN for oracle maintenance
+        am.grantRole(ROLE_RISK_ADMIN, msg.sender, 0);
     }
 
     function _wireLendingEngineFns(DualVMAccessManager am, address lendingEngineAddr) internal {
@@ -536,11 +552,6 @@ contract Deploy is Script {
             bytes4[] memory lendingCoreFns = new bytes4[](1);
             lendingCoreFns[0] = RiskGateway.quoteViaTicket.selector;
             am.setTargetFunctionRole(a.riskGateway, lendingCoreFns, ROLE_LENDING_CORE);
-        }
-        {
-            bytes4[] memory minterFns = new bytes4[](1);
-            minterFns[0] = USDCMock.mint.selector;
-            am.setTargetFunctionRole(a.usdc, minterFns, ROLE_MINTER);
         }
         {
             bytes4[] memory riskFns = new bytes4[](2);

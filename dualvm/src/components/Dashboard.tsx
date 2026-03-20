@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import type { MarketSnapshot } from "../lib/readModel/types";
 import { formatAddress } from "../lib/format";
 import { deploymentManifest } from "../lib/manifest";
@@ -22,12 +23,12 @@ function healthClass(numeric: number | null): string {
   return "health-danger";
 }
 
-function Metric({ value, sub, className }: { value: string; sub: string; className?: string }) {
+function Metric({ value, sub, className, fresh }: { value: string; sub: string; className?: string; fresh?: boolean }) {
   const { num, unit } = splitValue(value);
   const subText = unit ? `${sub} · ${unit}` : sub;
   return (
     <div className="dashboard-metric">
-      <span className={`dashboard-value ${className ?? ""}`}>{num}</span>
+      <span className={`dashboard-value ${className ?? ""} ${fresh ? "data-refresh" : ""}`}>{num}</span>
       <span className="dashboard-sub">{subText}</span>
     </div>
   );
@@ -46,6 +47,15 @@ export function Dashboard({
   const explorerBase = deploymentManifest.polkadotHubTestnet.explorerUrl.replace(/\/$/, "");
   const obs = snapshot?.observer ?? null;
   const loading = isLoading && !snapshot;
+
+  const [fresh, setFresh] = useState(false);
+  useEffect(() => {
+    if (snapshot) {
+      setFresh(true);
+      const t = setTimeout(() => setFresh(false), 300);
+      return () => clearTimeout(t);
+    }
+  }, [snapshot?.totalAssets, snapshot?.utilization, snapshot?.oraclePrice]);
 
   // Merge user txHistory (first) + on-chain activity, cap at 5
   const feed = [
@@ -85,8 +95,8 @@ export function Dashboard({
             </>
           ) : (
             <>
-              <Metric value={snapshot?.totalAssets ?? "—"} sub="TVL" />
-              <Metric value={snapshot?.utilization ?? "—"} sub="Utilization" />
+              <Metric value={snapshot?.totalAssets ?? "—"} sub="TVL" fresh={fresh} />
+              <Metric value={snapshot?.utilization ?? "—"} sub="Utilization" fresh={fresh} />
               <Metric
                 value={(() => {
                   const raw = snapshot?.oraclePrice ?? "—";
@@ -100,6 +110,7 @@ export function Dashboard({
                   const clean = unit.replace(/-test/g, "");
                   return clean ? `Oracle · ${clean}` : "Oracle Price";
                 })()}
+                fresh={fresh}
               />
             </>
           )}
@@ -118,8 +129,8 @@ export function Dashboard({
             </>
           ) : (
             <>
-              <Metric value={obs?.currentDebt ?? "—"} sub="Debt" />
-              <Metric value={obs?.availableToBorrow ?? "—"} sub="Borrow Capacity" />
+              <Metric value={obs?.currentDebt ?? "—"} sub="Debt" fresh={fresh} />
+              <Metric value={obs?.availableToBorrow ?? "—"} sub="Borrow Capacity" fresh={fresh} />
               <Metric
                 value={(() => {
                   const hf = obs?.healthFactor ?? "—";
@@ -134,6 +145,7 @@ export function Dashboard({
                   return "Health Factor";
                 })()}
                 className={obs ? healthClass(obs.healthFactorNumeric) : ""}
+                fresh={fresh}
               />
             </>
           )}

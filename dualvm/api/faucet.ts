@@ -30,11 +30,11 @@ interface ApiResponse {
 // --- Constants ---
 
 const RPC_URL = "https://eth-rpc-testnet.polkadot.io/";
-const USDC_ADDRESS: Address = "0x2d7e60571b478f8de5f25a8b494e7f4527310d34";
-const WPAS_ADDRESS: Address = "0x5e18c7708d492c66d8ebd92ae208b74c069f18fc";
+const USDC_ADDRESS: Address = "0x01868956435d3cb32e1db821fd0a3ddc5981fea8";
+const WPAS_ADDRESS: Address = "0x1f2d8c3dba6727403aed9855f42c1748307ffa3e";
 
 const ALLOWED_ORIGINS = ["https://dualvm.vercel.app", "http://localhost:4173"];
-const RATE_LIMIT_MS = 24 * 60 * 60 * 1000; // 24 hours
+const RATE_LIMIT_MS = 5 * 60 * 1000; // 5 minutes
 
 // In-memory rate limit (resets on cold starts — acceptable for hackathon testnet)
 const claimTimestamps = new Map<string, number>();
@@ -117,10 +117,10 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
   const lastClaim = claimTimestamps.get(normalizedAddress);
   if (lastClaim && Date.now() - lastClaim < RATE_LIMIT_MS) {
     const remainingMs = RATE_LIMIT_MS - (Date.now() - lastClaim);
-    const remainingHours = Math.ceil(remainingMs / (60 * 60 * 1000));
+    const remainingMin = Math.ceil(remainingMs / (60 * 1000));
     res
       .status(429)
-      .json({ error: `Rate limited. Try again in ~${remainingHours} hour(s).` });
+      .json({ error: `Rate limited. Try again in ~${remainingMin} minute(s).` });
     return;
   }
 

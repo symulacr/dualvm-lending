@@ -46,9 +46,24 @@ export default function App() {
     };
   }, [trackedAddress, refreshKey]);
 
+  // Auto-poll every 15 seconds for real-time feel
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setRefreshKey((k) => k + 1);
+    }, 15_000);
+    return () => clearInterval(interval);
+  }, []);
+
   const handleWriteSuccess = useCallback(() => {
     setRefreshKey((k) => k + 1);
   }, []);
+
+  // Refresh data after faucet claim
+  useEffect(() => {
+    if (faucet.state === "success") {
+      handleWriteSuccess();
+    }
+  }, [faucet.state, handleWriteSuccess]);
 
   return (
     <>

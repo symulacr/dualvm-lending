@@ -63,18 +63,18 @@
     }
   },
   "contracts": {
-    "accessManager": "0xc126951a58644bd3d5e23c781263873c4305ccc8",
-    "wpas": "0x5e18c7708d492c66d8ebd92ae208b74c069f18fc",
-    "usdc": "0x2d7e60571b478f8de5f25a8b494e7f4527310d34",
-    "oracle": "0xfe5636f2b5be3f97a604958161030874e2e70810",
+    "accessManager": "0xb7e11e2f663527f539569f8550612b1e73745606",
+    "wpas": "0x1f2d8c3dba6727403aed9855f42c1748307ffa3e",
+    "usdc": "0x01868956435d3cb32e1db821fd0a3ddc5981fea8",
+    "oracle": "0x72b9340c315ad5d9277bcb67b694af12d3bd6592",
     "riskEngine": "0x1e6903a816be0bc013291bbed547df45bdc9e86c",
-    "marketRegistry": "0x4860ff44679c964ef0294a1a3e9b1c12ac7ed658",
-    "governanceToken": "0xfb99fea8c91b10c2e1747a537ac8aa6ab68adf21",
-    "governor": "0x27918831aac573f57e874999b983296226524856",
-    "governanceTimelock": "0x7b8f6f367a7f30df1cdff3e635ff200a20352525",
-    "debtPool": "0xff42db4e29de3ccb206162fe51bc38a0283f652b",
-    "lendingEngine": "0x11bf643d87b3f754b0852ff5243e795815765e7d",
-    "lendingRouter": "0x1b86e0103702ae58000e77cd415e2a1299a0c59c",
+    "marketRegistry": "0x058cc621d11663d70256dedddb47b12469d83627",
+    "governanceToken": "0xd09fcf18c894fb4dc0fa52ae3f1fc2cff5c8240b",
+    "governor": "0x8c141c2c75e13d220f00d535fd40235971fe583a",
+    "governanceTimelock": "0x46e6b2df427a35545eee65e5d6df2f86815f3108",
+    "debtPool": "0xb51948f16fe34304b587ce3a2156557517a2ca06",
+    "lendingEngine": "0x19a8491f03c87709b21fe49d47fa9e417a42062d",
+    "lendingRouter": "0x75a1ea1a8b525ea95c47246d7d1441ad96382a6f",
     "pvmDeterministicRiskModel": "0x1e6903a816be0bc013291bbed547df45bdc9e86c"
   }
 }

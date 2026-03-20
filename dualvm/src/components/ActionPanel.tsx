@@ -63,14 +63,17 @@ export function ActionPanel({ snapshot, trackedAddress: _tracked, onWriteSuccess
   const { address } = useAccount();
 
   /* ── balance reads ────────────────────────────────────────────── */
-  const { data: pasBalance } = useBalance({ address });
+  const { data: pasBalance } = useBalance({
+    address,
+    query: { refetchInterval: 15_000 },
+  });
 
   const { data: usdcRaw } = useReadContract({
     address: contracts.usdc as `0x${string}`,
     abi: erc20Abi,
     functionName: "balanceOf",
     args: address ? [address] : undefined,
-    query: { enabled: !!address },
+    query: { enabled: !!address, refetchInterval: 15_000 },
   });
 
   const { data: wpasRaw } = useReadContract({
@@ -78,7 +81,7 @@ export function ActionPanel({ snapshot, trackedAddress: _tracked, onWriteSuccess
     abi: erc20Abi,
     functionName: "balanceOf",
     args: address ? [address] : undefined,
-    query: { enabled: !!address },
+    query: { enabled: !!address, refetchInterval: 15_000 },
   });
 
   const approveFlow = useWriteFlow();

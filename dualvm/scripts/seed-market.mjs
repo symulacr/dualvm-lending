@@ -49,6 +49,7 @@ const ADDRESSES = {
 const WALLET1_KEY = process.env.FAUCET_RELAYER_PRIVATE_KEY;
 if (!WALLET1_KEY) throw new Error("Set FAUCET_RELAYER_PRIVATE_KEY in .env");
 const wallet1Account = privateKeyToAccount(WALLET1_KEY);
+const WALLET1_ADDRESS = wallet1Account.address;
 const wallet1Client = createWalletClient({ account: wallet1Account, chain, transport: http(RPC_URL) });
 
 // ── Amounts ──────────────────────────────────────────────────────────────────
@@ -94,9 +95,9 @@ async function main() {
   await waitForTx(oracleTx);
   console.log(`[${ts()}]   TX: ${oracleTx}`);
 
-  // 2. Mint USDC to deployer
-  console.log(`\n[${ts()}] Step 2: Minting 500K USDC to deployer...`);
-  const mintTx = await deployerWallet.writeContract({
+  // 2. Mint USDC to deployer (relayer has ROLE_USDC_MINTER)
+  console.log(`\n[${ts()}] Step 2: Minting 500K USDC to deployer (via relayer)...`);
+  const mintTx = await wallet1Client.writeContract({
     address: ADDRESSES.usdc,
     abi: erc20Abi,
     functionName: "mint",
