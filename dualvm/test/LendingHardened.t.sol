@@ -373,7 +373,7 @@ contract LendingHardenedTest is BaseTest {
         uint256 victimDeposit = 1_000 * WAD;
         freshUsdc.mint(attacker, victimDeposit);
         vm.prank(attacker);
-        freshUsdc.transfer(address(freshPool), victimDeposit);
+        assertTrue(freshUsdc.transfer(address(freshPool), victimDeposit));
 
         // Step 3: Victim deposits
         freshUsdc.mint(victim, victimDeposit);

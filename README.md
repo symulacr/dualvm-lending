@@ -494,6 +494,12 @@ To enable WalletConnect modal for mobile and non-injected wallets:
 1. Register a free project at [cloud.walletconnect.com](https://cloud.walletconnect.com)
 2. Set `VITE_WALLETCONNECT_PROJECT_ID` in your `.env` file
 
+## Demo Video
+
+Demo video: [Upload pending — see `docs/dualvm/demo-video.webm` for local playback]
+
+See `docs/dualvm/demo_guide.md` for the full annotated demo walkthrough with screenshots.
+
 ## Demo Path
 
 1. **Fund wallet**: Get PAS from the [faucet](https://faucet.polkadot.io/) (Network: Polkadot testnet Paseo, Chain: Hub smart contracts)

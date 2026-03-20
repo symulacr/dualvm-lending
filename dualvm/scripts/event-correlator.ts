@@ -29,7 +29,7 @@
  * Status/error messages go to stderr.
  */
 
-import { createPublicClient, http, parseAbiItem, decodeEventLog } from "viem";
+import { createPublicClient, http, parseAbiItem } from "viem";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { POLKADOT_HUB_TESTNET } from "../lib/config/marketConfig";

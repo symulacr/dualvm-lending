@@ -8,6 +8,7 @@ export default {
     port: 4173,
   },
   build: {
+    chunkSizeWarningLimit: 1000,
     sourcemap: false,
     rollupOptions: {
       output: {

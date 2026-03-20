@@ -60,9 +60,9 @@ contract GovernorLifecycleTest is Test {
         timelock.grantRole(timelock.CANCELLER_ROLE(), address(governor));
 
         // Distribute tokens
-        govToken.transfer(voter1, 200_000 * 1e18);
-        govToken.transfer(voter2, 150_000 * 1e18);
-        govToken.transfer(voter3, 50_000 * 1e18);
+        assertTrue(govToken.transfer(voter1, 200_000 * 1e18));
+        assertTrue(govToken.transfer(voter2, 150_000 * 1e18));
+        assertTrue(govToken.transfer(voter3, 50_000 * 1e18));
 
         // Self-delegate to activate voting power
         govToken.delegate(admin);
@@ -105,7 +105,7 @@ contract GovernorLifecycleTest is Test {
     function test_GovernanceToken_UndelegatedHolderHasZeroVotes() public {
         // Transfer to outsider without delegating
         vm.prank(admin);
-        govToken.transfer(outsider, 10_000 * 1e18);
+        assertTrue(govToken.transfer(outsider, 10_000 * 1e18));
         // outsider hasn't delegated — no voting power
         assertEq(govToken.getVotes(outsider), 0);
     }
