@@ -24,10 +24,11 @@ export const polkadotHubTestnet = {
 /**
  * WalletConnect project ID.
  * MetaMask and other injected wallets work without a valid projectId.
- * For WalletConnect modal support, replace this with a real ID from
- * https://cloud.walletconnect.com/
+ * For WalletConnect modal support, set VITE_WALLETCONNECT_PROJECT_ID
+ * in your .env file with a real ID from https://cloud.walletconnect.com/
  */
-const WALLETCONNECT_PROJECT_ID = "DUALVM_LENDING_HACKATHON";
+const WALLETCONNECT_PROJECT_ID =
+  import.meta.env.VITE_WALLETCONNECT_PROJECT_ID || "DUALVM_LENDING_HACKATHON";
 
 /**
  * Wagmi configuration for DualVM Lending.

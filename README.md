@@ -488,6 +488,12 @@ npx tsc --noEmit      # TypeScript typecheck (frontend + scripts)
 npm run build:app     # Build frontend only
 ```
 
+### WalletConnect Configuration
+
+To enable WalletConnect modal for mobile and non-injected wallets:
+1. Register a free project at [cloud.walletconnect.com](https://cloud.walletconnect.com)
+2. Set `VITE_WALLETCONNECT_PROJECT_ID` in your `.env` file
+
 ## Demo Path
 
 1. **Fund wallet**: Get PAS from the [faucet](https://faucet.polkadot.io/) (Network: Polkadot testnet Paseo, Chain: Hub smart contracts)
@@ -711,3 +717,27 @@ docs/dualvm/                    # Proof artifacts and evidence
 6. **Forge build** — `forge build`
 7. **Frontend build** — `npm run build:app`
 8. **Testnet smoke** — `node scripts/ci-smoke.mjs` (read-only, continue-on-error)
+
+## Roadmap
+
+This MVP demonstrates a production-minded architecture on Polkadot Hub TestNet. The following milestones project the path from hackathon prototype to production-ready protocol.
+
+### Q2 2026 — Oracle & Asset Integration
+- Replace ManualOracle with Chainlink or DIA price feeds for automated, tamper-resistant pricing
+- Integrate native DOT/USDC via XCM asset transfers (replacing mock ERC-20s)
+- Add SubWallet and Talisman wallet connectors for native Polkadot ecosystem UX
+
+### Q3 2026 — Multi-Market & Governance Activation
+- Extend to multiple isolated lending markets (ETH/USDC, DOT/USDC) via MarketVersionRegistry
+- Activate Governor timelock delays for risk parameter changes (currently zero for testnet agility)
+- Deploy GovernancePolicyStore-driven risk parameter governance with community voting
+
+### Q4 2026 — Cross-Chain & Scaling
+- Enable bilateral XCM asset settlement between Polkadot Hub and Asset Hub parachains
+- Implement cross-chain liquidation receipts via XcmInbox with relay chain delivery
+- Pursue W3F (Web3 Foundation) grant for production audit and mainnet deployment
+
+### Long-Term Vision
+- Full PVM Stage 2 integration when platform callbacks stabilize (currently blocked by pallet-revive)
+- Multi-collateral vaults with cross-market risk correlation via DeterministicRiskModel extensions
+- DAO-governed protocol parameters with on-chain governance voting and execution
