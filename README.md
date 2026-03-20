@@ -496,19 +496,19 @@ To enable WalletConnect modal for mobile and non-injected wallets:
 
 ## Demo Video
 
-Demo video: [Upload pending — see `docs/dualvm/demo-video.webm` for local playback]
+[![Demo Video](https://img.shields.io/badge/Watch-Demo-blue)](https://streamable.com/f8i32h)
 
-See `docs/dualvm/demo_guide.md` for the full annotated demo walkthrough with screenshots.
+**[Watch the full demo on Streamable](https://streamable.com/f8i32h)**
 
 ## Demo Path
 
-1. **Fund wallet**: Get PAS from the [faucet](https://faucet.polkadot.io/) (Network: Polkadot testnet Paseo, Chain: Hub smart contracts)
-2. **Connect wallet**: Open the frontend, connect via RainbowKit to chain 420420417
-3. **Supply liquidity**: Mint USDC-test (if minter) → approve → deposit to DebtPool
-4. **Deposit collateral**: Wrap PAS → WPAS → approve → depositCollateral to LendingEngine
-5. **Borrow**: Enter amount → LendingEngine.borrow() → receive USDC-test
-6. **Repay**: Approve USDC-test → LendingEngine.repay() → debt decreases
-7. **Liquidate**: (If position is underwater) Enter borrower + amount → LendingEngine.liquidate()
+1. **Open app**: Visit [dualvm-lending.vercel.app](https://dualvm-lending.vercel.app)
+2. **Connect wallet**: Click "Connect Wallet" in the top bar — RainbowKit modal supports MetaMask, Rainbow, WalletConnect
+3. **Get tokens**: Click "Get Tokens" in the top bar — the gasless faucet sends PAS + USDC + WPAS directly to your wallet (no gas needed)
+4. **Deposit collateral**: Select "Deposit" in the sidebar → enter PAS amount → approve → deposit (auto-wraps PAS to WPAS)
+5. **Borrow**: Select "Borrow" in the sidebar → enter USDC amount → borrow against your collateral
+6. **Repay**: Select "Repay" → enter amount → approve USDC → repay debt
+7. **Liquidate**: Select "Liquidate" → enter borrower address (or click "Use my address") → liquidate underwater positions
 8. **Verify**: Check all transactions on [Blockscout](https://blockscout-testnet.polkadot.io/)
 
 ## Developer Commands
@@ -691,9 +691,7 @@ dualvm/                          # Application root (Foundry project)
 ├── src/                        # React frontend (wagmi + RainbowKit)
 ├── foundry.toml                # Foundry configuration
 └── SPEC.md                     # Current system specification
-docs/dualvm/                    # Proof artifacts and evidence
-├── demo_guide.md              # Annotated demo walkthrough
-└── screenshots/                # Visual evidence
+docs/dualvm/                    # Evidence directory (screenshots removed — see live app)
 ```
 
 ## Proof Artifacts
