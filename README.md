@@ -692,9 +692,7 @@ dualvm/                          # Application root (Foundry project)
 ├── foundry.toml                # Foundry configuration
 └── SPEC.md                     # Current system specification
 docs/dualvm/                    # Proof artifacts and evidence
-├── dualvm_vm_interop_proof.md  # PVM interop probe results with TX hashes
-├── dualvm_migration_format_proof.md  # Migration format local proof
-├── dualvm_submission_final.md  # DoraHacks submission document
+├── demo_guide.md              # Annotated demo walkthrough
 └── screenshots/                # Visual evidence
 ```
 
@@ -711,7 +709,6 @@ docs/dualvm/                    # Proof artifacts and evidence
 | XCM proof | `dualvm/deployments/polkadot-hub-testnet-xcm-proof.json` |
 | Gas benchmarks | `dualvm/deployments/gas-benchmarks.json` |
 | Event correlator | `dualvm/scripts/event-correlator.ts` |
-| VM interop narrative | `docs/dualvm/dualvm_vm_interop_proof.md` |
 
 ## CI
 
