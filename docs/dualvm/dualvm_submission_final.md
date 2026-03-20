@@ -12,8 +12,8 @@ DualVM Lending is a fully functional lending protocol deployed on Polkadot Hub T
 
 What makes this project distinctive is its honest, live integration of Polkadot's dual-VM architecture:
 
-- The **risk engine** is a PVM-compiled smart contract (compiled via `resolc`) that serves the product-path LendingCore with deterministic risk parameters through cross-VM calls
-- A **4-stage interop proof package** independently verifies REVM↔PVM cross-VM capability: echo, quote, roundtrip settlement, and XCM precompile interaction
+- The **risk engine** is a PVM-compiled **DeterministicRiskModel** (compiled via `resolc`) that serves as the PRIMARY risk computation source through **RiskGateway**, with REVM inline math as the fallback. The PVM model accepts governance policy overrides and produces different output when policies are active.
+- **Provable XCM execution** via `XcmLiquidationNotifier` using `ClearOrigin + SetTopic(correlationId)` — verified on-chain with end-to-end correlationId propagation from lending events through to XCM topics
 - **Governor-based governance** using 5 composed OpenZeppelin Governor extensions controls the entire protocol through a propose/vote/queue/execute lifecycle
 
 The protocol is public-testnet-validated with 12 deployed contracts (11 explorer-verified on Blockscout), 300 passing Foundry tests, and a browser-based frontend with full read/write capability.
@@ -45,7 +45,7 @@ A complete lending market on Polkadot Hub TestNet with:
 - **LendingCore**: Immutable market version handling collateral deposits, borrowing, repayment, and liquidation with configurable parameters (max LTV 70%, liquidation threshold 80%, liquidation bonus 5%)
 - **DebtPool**: ERC-4626 LP vault where liquidity providers earn yield from borrower interest. Includes OpenZeppelin's inflation-attack protection.
 - **ManualOracle**: Governed price feed with circuit breaker (min/max price bounds, maximum price delta per update, staleness rejection)
-- **RiskAdapter**: Quote ticket publication and consumption, bridging the REVM market with the PVM risk engine
+- **RiskGateway**: Routes risk queries to the PVM DeterministicRiskModel (primary) with REVM fallback, bridging the market with the PVM risk engine
 - **MarketVersionRegistry**: On-chain version activation boundary for replacing entire market versions through governance
 
 ### Live Proof
@@ -64,30 +64,46 @@ A complete lending market on Polkadot Hub TestNet with:
 
 ## Track 2: PVM Smart Contract — PVM Experiments & Precompiles
 
-### PVM Integration (Live, Not Decorative)
+### PVM-Primary Risk Architecture
 
-The PVM risk engine is a **production-path component**, not a proof-of-concept:
+The PVM risk engine is a **production-path primary component** — not a proof-of-concept or fallback:
 
-1. **PvmQuoteProbe** is compiled via `resolc` (Polkadot's Solidity-to-PolkaVM compiler) and deployed on-chain at `0x9a78F65b00E0AeD0830063eD0ea66a0B5d8876DE`
-2. **RiskAdapter** in the product-path LendingCore calls this PVM contract for risk quotes (borrow rate, max LTV, liquidation threshold)
-3. PVM code hash `0xba8fe2a621062a30bba558a3846d0a18bfb2e9a09bfaed656b123e698b59af5b` verified via `revive.accountInfoOf`
+1. **RiskGateway** at `0x5c66f69a04f3a460b1fabf971b8b4d2d18141bd4` routes all risk queries to the PVM-deployed **DeterministicRiskModel** as the PRIMARY risk computation source. REVM inline math serves as the fallback only when PVM is unavailable.
+2. **DeterministicRiskModel** is compiled via `resolc` (Polkadot's Solidity-to-PolkaVM compiler) and deployed on-chain at `0x1e6903a816be0bc013291bbed547df45bdc9e86c`. This is real PVM bytecode, not EVM bytecode.
+3. **QuoteInput** carries 7 fields including 3 governance policy overrides (`policyMaxLtvBps`, `policyLiqThresholdBps`, `policyBorrowRateFloorBps`). DeterministicRiskModel applies these overrides, producing output that **differs from the REVM fallback** when governance policies are active — proving the PVM computation is substantive, not decorative.
+4. **GovernancePolicyStore** at `0x0c8c0c8e2180c90798822ab85de176fe4d8c86cf` persists governance-set risk policy overrides that flow through the QuoteInput pipeline.
 
-### Interop Proof Package (4 Stages)
+### XCM Integration
 
-| Stage | What It Proves | TX Hash |
-|-------|----------------|---------|
-| Echo | REVM sends bytes32 to PVM, receives identical bytes back | [0x282f3253...](https://blockscout-testnet.polkadot.io/tx/0x282f32532f1bc337266e7a0d849edb1153449be7fad9d4b9feacec8aded641d0) |
-| Quote | PVM returns deterministic risk params (700bps borrow rate, 7500bps maxLTV) | [0x4f55eac1...](https://blockscout-testnet.polkadot.io/tx/0x4f55eac1f75b6540e3d81d3618a8857574551809fce2b08bfc4e11a4b15b5698) |
-| Roundtrip Settlement | REVM stores debt state derived from PVM-computed borrow rate (⚠️ accumulated state — see probe-results.json) | [0x4284ace5...](https://blockscout-testnet.polkadot.io/tx/0x4284ace5171ead5bea7c5795ee78528ac815b5d65d450b6f85de06b56ebe2ad5) |
-| XCM Precompile | `weighMessage` call returns refTime=979880000, proofSize=10943 | [0xc147ac14...](https://blockscout-testnet.polkadot.io/tx/0xc147ac140cc9591bcdd444478ed27d72ce4fd05312d5f8ef16f4e6dfe7439cc0) |
+**XcmLiquidationNotifier** at `0x9ce976675c3a859f2ad57d7976e6363fda22e825` uses XCM `execute()` for provable local XCM execution with `ClearOrigin + SetTopic(correlationId)`. This replaced the broken `send()` approach (which fails on ETH-RPC testnet due to absent relay infrastructure).
 
-### Precompile Usage
-**CrossChainQuoteEstimator** at `0x5bC4e5BbF72b67Acb202546e88849dAcF8985A7F` calls the XCM precompile at `0x00000000000000000000000000000000000A0000` to estimate cross-chain risk quote costs via `weighMessage`. This demonstrates real Polkadot-native precompile access for potential cross-chain risk computation.
+The correlationId propagates end-to-end: **LendingEngine** events → **LiquidationHookRegistry** → **XcmNotifierAdapter** → **XcmLiquidationNotifier** → XCM `SetTopic`. This creates an auditable, on-chain correlation trail between lending events and XCM notifications.
 
-### Honest Limitations
-- PVM callback probe (Stage 2) reverts on-chain due to platform-level cross-VM callback limitations — documented transparently
-- PVM roundtrip settlement (Stage 3) shows accumulated on-chain state from prior probe runs; PVM-derived quote values are correct
-- PvmQuoteProbe cannot be Blockscout-verified (compiled via `resolc` for PolkaVM, not standard Solidity) — PVM code hash confirmed via substrate API
+### On-Chain Verification (6/6 Pass)
+
+| Test | Result | Evidence |
+|------|--------|----------|
+| PVM quote (no policy) | borrowRate=700, maxLtv=7500, liqThreshold=8500 | `cast call` on `0x1e6903a...` |
+| PVM quote (with policy 6000,8000,500) | maxLtv=6000, liqThreshold=8000 | Governance overrides applied by PVM |
+| RiskGateway.quoteEngine() | Points to PVM DeterministicRiskModel | `0x1e6903a...` |
+| XCM weighMessage (ClearOrigin+SetTopic) | refTime=1,810,000 | Valid XCM V5 program |
+| XCM execute | TX [0xa05693ff...](https://blockscout-testnet.polkadot.io/tx/0xa05693ff9b9af12fbf38f5f786240486137194923160d953fb1607a1f212ef8a) block 6595576 | On-chain proof, status=success |
+| executeLocalNotification | TX [0xb35f468a...](https://blockscout-testnet.polkadot.io/tx/0xb35f468a3d235e05df38e361e461710b79da14246f5815c9ba0fc5c9f18092d9) block 6595577 | LocalXcmExecuted event with correlationId |
+
+### Key Deployment Addresses
+
+| Contract | Address |
+|----------|---------|
+| DeterministicRiskModel (PVM) | `0x1e6903a816be0bc013291bbed547df45bdc9e86c` |
+| RiskGateway | `0x5c66f69a04f3a460b1fabf971b8b4d2d18141bd4` |
+| LendingEngine | `0x11bf643d87b3f754b0852ff5243e795815765e7d` |
+| XcmLiquidationNotifier | `0x9ce976675c3a859f2ad57d7976e6363fda22e825` |
+| GovernancePolicyStore | `0x0c8c0c8e2180c90798822ab85de176fe4d8c86cf` |
+
+### Platform Limitations (Honest)
+- **PVM→REVM callbacks**: StackUnderflow error (pallet-revive platform limitation). The architecture works around this via adapter patterns — RiskGateway calls PVM, but PVM cannot call back into REVM contracts.
+- **XCM send() to relay chain**: Fails on ETH-RPC testnet (no relay infrastructure). Replaced with `execute()` for provable local XCM execution, which succeeds on-chain.
+- These are **documented, not hidden**. The architecture was designed around known platform constraints rather than pretending they don't exist.
 
 ## OpenZeppelin Sponsor Track — Non-Trivial OZ Composition
 
@@ -137,7 +153,7 @@ This project targets **all 3 prize tracks**:
 | Track | Category | Justification |
 |-------|----------|---------------|
 | **Track 1: EVM Smart Contract** | DeFi / Stablecoin-enabled dApp | Complete lending market with deposit, borrow, repay, liquidation, ERC-4626 LP vault, oracle, kinked interest rate model — all live on Polkadot Hub TestNet |
-| **Track 2: PVM Smart Contract** | PVM experiments + precompiles | Live PVM risk engine (resolc-compiled), 4-stage REVM↔PVM interop proof package, XCM precompile interaction (`weighMessage`), PVM code hash verified via substrate API |
+| **Track 2: PVM Smart Contract** | PVM experiments + precompiles | PVM DeterministicRiskModel as PRIMARY risk engine (resolc-compiled), governance-aware policy overrides via 7-field QuoteInput, RiskGateway routing with REVM fallback, provable XCM execution (`execute` with ClearOrigin+SetTopic), 6/6 on-chain verification tests passing |
 | **OpenZeppelin Sponsor** | Non-trivial OZ composition | 12+ OZ contracts composed: AccessManager + Governor (5 extensions) + TimelockController + ERC20Votes + ERC4626 + SafeERC20 + Pausable + ReentrancyGuard, with deployer admin renunciation and non-zero role execution delays |
 
 ## Technical Details
