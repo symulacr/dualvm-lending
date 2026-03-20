@@ -111,7 +111,7 @@ sequenceDiagram
     participant MO as ManualOracle
     participant RG as RiskGateway
     participant GPS as GovernancePolicyStore
-    participant DRM as DeterministicRiskModel (PVM)
+    participant DRM as DeterministicRiskModel PVM
     participant DP as DebtPool
     U->>LE: 1. borrow(amount)
     LE->>LE: correlationId = keccak256(chainid, block, sender, nonce++)
@@ -122,7 +122,7 @@ sequenceDiagram
     RG->>GPS: 4a. getPolicy() [governance overrides, view]
     RG->>DRM: 4b. quoteEngine.quote(input) [PVM primary, governance-aware]
     DRM-->>RG: QuoteOutput (borrowRate, maxLtv, liqThreshold with policy applied)
-    RG-->>LE: QuoteTicket (PVM result is authoritative; REVM inline is fallback)
+    RG-->>LE: QuoteTicket - PVM authoritative, REVM fallback
     LE->>LE: 5. healthFactor >= threshold?
     LE->>DP: 6. drawDebt(amount)
     DP-->>U: 7. USDC-test tokens
@@ -188,7 +188,7 @@ graph LR
         QE["DeterministicRiskModel (governance-aware)"]
     end
     RG -->|PVM result is authoritative| LE
-    RG -->|primary: quoteEngine.quote(7-field input)| QE
+    RG -->|"primary: quoteEngine.quote(7-field input)"| QE
     QE -->|risk params with governance overrides| RG
     GPS -->|policy params (maxLtv, liqThreshold, rateFloor)| RG
 ```
