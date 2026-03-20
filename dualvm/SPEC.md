@@ -11,7 +11,7 @@ Full architecture documentation is in **[README.md](../README.md)**, which cover
 
 ## PVM Interop Verdicts
 
-Probe verdicts: **A=true** (REVM→PVM compute), **B=true** (roundtrip settlement), **C=true** (callback proven in earlier runs), **D=false** (interop is defensible).
+Probe verdicts: **A=true** (REVM→PVM compute), **B=true** (roundtrip settlement), **C=false** (platform callback limitation — PVM→REVM callbacks revert with StackUnderflow; see probe-results.json), **D=false** (interop is defensible).
 
 - Stage 2 (PVM→REVM callback) reverts on the public testnet — platform-level cross-VM callback limitation.
 - Stage 3 (roundtrip settlement) shows accumulated on-chain state from multiple probe runs; PVM-derived quote values are correct.

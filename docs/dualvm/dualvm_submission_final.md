@@ -16,7 +16,7 @@ What makes this project distinctive is its honest, live integration of Polkadot'
 - A **4-stage interop proof package** independently verifies REVM↔PVM cross-VM capability: echo, quote, roundtrip settlement, and XCM precompile interaction
 - **Governor-based governance** using 5 composed OpenZeppelin Governor extensions controls the entire protocol through a propose/vote/queue/execute lifecycle
 
-The protocol is public-testnet-validated with 12 deployed contracts (11 explorer-verified on Blockscout), 81 passing Hardhat tests, and a browser-based frontend with full read/write capability.
+The protocol is public-testnet-validated with 12 deployed contracts (11 explorer-verified on Blockscout), 300 passing Foundry tests, and a browser-based frontend with full read/write capability.
 
 ## GitHub Repository
 https://github.com/parity-asia/hackathon-2026-03-polkadot-solidity/dualvm
@@ -144,7 +144,7 @@ This project targets **all 3 prize tracks**:
 
 - **Network**: Polkadot Hub TestNet (chain ID 420420417)
 - **Contracts**: 12 deployed (11 explorer-verified on Blockscout)
-- **Tests**: 81 Hardhat tests passing
+- **Tests**: 300 Foundry tests passing
 - **Frontend**: React 18 + Vite + wagmi v2 + RainbowKit
 - **Manifest**: `dualvm/deployments/polkadot-hub-testnet-canonical.json`
 - **Explorer**: [Blockscout](https://blockscout-testnet.polkadot.io/)

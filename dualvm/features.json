@@ -153,12 +153,12 @@
     },
     {
       "id": "test-suite",
-      "title": "81 Hardhat tests: lending lifecycle, governance, reentrancy, oracle, ERC-4626",
+      "title": "300 Foundry tests: lending lifecycle, governance, reentrancy, oracle, ERC-4626",
       "status": "done",
       "evidence": [
-        "test/LendingCore.ts",
-        "test/GovernorLifecycle.ts",
-        "test/LendingHardened.ts"
+        "test/LendingCore.t.sol",
+        "test/GovernorLifecycle.t.sol",
+        "test/LendingHardened.t.sol"
       ]
     }
   ]
