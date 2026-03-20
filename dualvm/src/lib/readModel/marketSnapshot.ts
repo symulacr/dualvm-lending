@@ -4,6 +4,7 @@ import { formatTokenAmount, formatTimestamp } from "../format";
 import { deploymentManifest, hasLivePolkadotHubTestnetDeployment } from "../manifest";
 import { loadRecentActivityFeed, describeRecentActivityWindow } from "./activity";
 import { loadObserverSnapshot } from "./observer";
+import { perf } from "../perf";
 import type { MarketSnapshot } from "./types";
 
 const CACHE_TTL_MS = 10_000;
@@ -35,6 +36,8 @@ export async function loadMarketSnapshot(
     return snapshotCache.value;
   }
 
+  const snapId = perf.snapshot.start(observerAddress ?? undefined);
+
   const client = createPublicClient({
     transport: http(deploymentManifest.polkadotHubTestnet.rpcUrl),
   });
@@ -42,6 +45,19 @@ export async function loadMarketSnapshot(
   const registryAddress = deploymentManifest.contracts.marketRegistry;
   const activeDebtPool = deploymentManifest.contracts.debtPool;
   const activeLendingCore = deploymentManifest.contracts.lendingEngine;
+
+  // Instrumented contract read helper
+  async function tracedRead<T>(contract: string, fn: string, call: () => Promise<T>): Promise<T> {
+    const id = perf.contractRead.start(fn, contract);
+    try {
+      const result = await call();
+      perf.contractRead.end(id, { result: typeof result === "bigint" ? result.toString() : result });
+      return result;
+    } catch (err) {
+      perf.contractRead.fail(id, err);
+      throw err;
+    }
+  }
 
   const [
     totalAssets,
@@ -62,90 +78,58 @@ export async function loadMarketSnapshot(
     recentActivity,
     versionInfo,
   ] = await Promise.all([
-    client.readContract({
-      address: activeDebtPool,
-      abi: debtPoolAbi,
-      functionName: "totalAssets",
-    }),
-    client.readContract({
-      address: activeDebtPool,
-      abi: debtPoolAbi,
-      functionName: "availableLiquidity",
-    }),
-    client.readContract({
-      address: activeDebtPool,
-      abi: debtPoolAbi,
-      functionName: "outstandingPrincipal",
-    }),
-    client.readContract({
-      address: activeDebtPool,
-      abi: debtPoolAbi,
-      functionName: "reserveBalance",
-    }),
-    client.readContract({
-      address: activeLendingCore,
-      abi: lendingCoreAbi,
-      functionName: "borrowCap",
-    }),
-    client.readContract({
-      address: activeLendingCore,
-      abi: lendingCoreAbi,
-      functionName: "minBorrowAmount",
-    }),
-    client.readContract({
-      address: activeLendingCore,
-      abi: lendingCoreAbi,
-      functionName: "liquidationBonusBps",
-    }),
-    client.readContract({
-      address: deploymentManifest.contracts.oracle,
-      abi: manualOracleAbi,
-      functionName: "priceWad",
-    }),
-    client.readContract({
-      address: deploymentManifest.contracts.oracle,
-      abi: manualOracleAbi,
-      functionName: "isFresh",
-    }),
-    client.readContract({
-      address: deploymentManifest.contracts.oracle,
-      abi: manualOracleAbi,
-      functionName: "lastUpdatedAt",
-    }),
-    client.readContract({
-      address: deploymentManifest.contracts.oracle,
-      abi: manualOracleAbi,
-      functionName: "maxAge",
-    }),
-    client.readContract({
-      address: deploymentManifest.contracts.oracle,
-      abi: manualOracleAbi,
-      functionName: "minPriceWad",
-    }),
-    client.readContract({
-      address: deploymentManifest.contracts.oracle,
-      abi: manualOracleAbi,
-      functionName: "maxPriceWad",
-    }),
-    client.readContract({
-      address: deploymentManifest.contracts.oracle,
-      abi: manualOracleAbi,
-      functionName: "maxPriceChangeBps",
-    }),
+    tracedRead("DebtPool", "totalAssets", () => client.readContract({
+      address: activeDebtPool, abi: debtPoolAbi, functionName: "totalAssets",
+    })),
+    tracedRead("DebtPool", "availableLiquidity", () => client.readContract({
+      address: activeDebtPool, abi: debtPoolAbi, functionName: "availableLiquidity",
+    })),
+    tracedRead("DebtPool", "outstandingPrincipal", () => client.readContract({
+      address: activeDebtPool, abi: debtPoolAbi, functionName: "outstandingPrincipal",
+    })),
+    tracedRead("DebtPool", "reserveBalance", () => client.readContract({
+      address: activeDebtPool, abi: debtPoolAbi, functionName: "reserveBalance",
+    })),
+    tracedRead("LendingEngine", "borrowCap", () => client.readContract({
+      address: activeLendingCore, abi: lendingCoreAbi, functionName: "borrowCap",
+    })),
+    tracedRead("LendingEngine", "minBorrowAmount", () => client.readContract({
+      address: activeLendingCore, abi: lendingCoreAbi, functionName: "minBorrowAmount",
+    })),
+    tracedRead("LendingEngine", "liquidationBonusBps", () => client.readContract({
+      address: activeLendingCore, abi: lendingCoreAbi, functionName: "liquidationBonusBps",
+    })),
+    tracedRead("Oracle", "priceWad", () => client.readContract({
+      address: deploymentManifest.contracts.oracle, abi: manualOracleAbi, functionName: "priceWad",
+    })),
+    tracedRead("Oracle", "isFresh", () => client.readContract({
+      address: deploymentManifest.contracts.oracle, abi: manualOracleAbi, functionName: "isFresh",
+    })),
+    tracedRead("Oracle", "lastUpdatedAt", () => client.readContract({
+      address: deploymentManifest.contracts.oracle, abi: manualOracleAbi, functionName: "lastUpdatedAt",
+    })),
+    tracedRead("Oracle", "maxAge", () => client.readContract({
+      address: deploymentManifest.contracts.oracle, abi: manualOracleAbi, functionName: "maxAge",
+    })),
+    tracedRead("Oracle", "minPriceWad", () => client.readContract({
+      address: deploymentManifest.contracts.oracle, abi: manualOracleAbi, functionName: "minPriceWad",
+    })),
+    tracedRead("Oracle", "maxPriceWad", () => client.readContract({
+      address: deploymentManifest.contracts.oracle, abi: manualOracleAbi, functionName: "maxPriceWad",
+    })),
+    tracedRead("Oracle", "maxPriceChangeBps", () => client.readContract({
+      address: deploymentManifest.contracts.oracle, abi: manualOracleAbi, functionName: "maxPriceChangeBps",
+    })),
     loadObserverSnapshot(client, observerAddress),
     loadRecentActivityFeed(client),
     registryAddress
       ? Promise.all([
-          client.readContract({
-            address: registryAddress,
-            abi: marketRegistryAbi,
-            functionName: "activeVersionId",
-          }),
-          client.readContract({
-            address: registryAddress,
-            abi: marketRegistryAbi,
-            functionName: "latestVersionId",
-          }),
+          tracedRead("MarketRegistry", "activeVersionId", () => client.readContract({
+            address: registryAddress, abi: marketRegistryAbi, functionName: "activeVersionId",
+          })),
+          tracedRead("MarketRegistry", "latestVersionId", () => client.readContract({
+            address: registryAddress, abi: marketRegistryAbi, functionName: "latestVersionId",
+          })),
         ]).catch(() => null)
       : Promise.resolve(null),
   ]);
@@ -180,6 +164,15 @@ export async function loadMarketSnapshot(
     expiresAt: Date.now() + CACHE_TTL_MS,
     value: snapshot,
   };
+
+  perf.snapshot.end(snapId, {
+    totalAssets: snapshot.totalAssets,
+    utilization: snapshot.utilization,
+    oracleFresh: snapshot.oracleFresh,
+    hasObserver: !!snapshot.observer,
+    activityCount: snapshot.recentActivity.length,
+    activitySource: snapshot.recentActivitySource,
+  });
 
   return snapshot;
 }

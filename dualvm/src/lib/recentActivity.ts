@@ -3,6 +3,8 @@ export interface RecentActivity {
   detail: string;
   txHash: string;
   blockNumber: string;
+  /** Lowercase addresses involved in this event (for wallet filtering). */
+  involvedAddresses?: string[];
 }
 
 export interface ParsedFallbackRecentActivity {

@@ -25,7 +25,7 @@ interface ApiResponse {
 const RPC_URL = "https://eth-rpc-testnet.polkadot.io/";
 
 // NOTE: This address will change after contract redeploy — update accordingly.
-const ORACLE_ADDRESS: Address = "0x72b9340c315ad5d9277bcb67b694af12d3bd6592";
+const ORACLE_ADDRESS: Address = "0x35cca91b3fb1b28deb80fc827a7930f414d04c58";
 
 // --- Chain ---
 

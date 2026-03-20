@@ -1,5 +1,24 @@
 import { formatUnits } from "viem";
 
+/**
+ * Extract the numeric portion from a formatted string like "500,000.00 USDC-test".
+ * Strips unit suffixes and commas. Returns "0" if NaN for arithmetic safety,
+ * or "" for display logic (use the second parameter).
+ */
+export function extractNumeric(formatted: string, fallback: "zero" | "dash" = "zero"): string {
+  const parts = formatted.trim().split(" ");
+  const raw = (parts[0] ?? "").replace(/,/g, "");
+  if (!raw || Number.isNaN(Number(raw))) return fallback === "zero" ? "0" : "";
+  return raw;
+}
+
+/** Safe display: returns the numeric part or "—" if NaN */
+export function safeDisplay(formatted: string | undefined | null): string {
+  if (!formatted) return "—";
+  const num = extractNumeric(formatted, "dash");
+  return num || "—";
+}
+
 export function formatAddress(address: string): string {
   return `${address.slice(0, 6)}…${address.slice(-4)}`;
 }

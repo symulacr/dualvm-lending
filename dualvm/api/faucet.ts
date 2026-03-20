@@ -30,8 +30,8 @@ interface ApiResponse {
 // --- Constants ---
 
 const RPC_URL = "https://eth-rpc-testnet.polkadot.io/";
-const USDC_ADDRESS: Address = "0x01868956435d3cb32e1db821fd0a3ddc5981fea8";
-const WPAS_ADDRESS: Address = "0x1f2d8c3dba6727403aed9855f42c1748307ffa3e";
+const USDC_ADDRESS: Address = "0x1ca879059326f4d98a42e087ef8c829024ee097f";
+const WPAS_ADDRESS: Address = "0xd4c0d7da71d44aa8654639256138cc96a00980ba";
 
 const ALLOWED_ORIGINS = ["https://dualvm.vercel.app", "http://localhost:4173"];
 const RATE_LIMIT_MS = 5 * 60 * 1000; // 5 minutes
@@ -131,22 +131,21 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     return;
   }
 
-  const account = privateKeyToAccount(privateKey as Hex);
-
-  const publicClient = createPublicClient({
-    chain: polkadotHubTestnet,
-    transport: http(RPC_URL),
-  });
-
-  const walletClient = createWalletClient({
-    account,
-    chain: polkadotHubTestnet,
-    transport: http(RPC_URL),
-  });
-
   const txHashes: { pas?: Hash; usdc?: Hash; wpas?: Hash } = {};
 
   try {
+    const account = privateKeyToAccount(privateKey as Hex);
+
+    const publicClient = createPublicClient({
+      chain: polkadotHubTestnet,
+      transport: http(RPC_URL),
+    });
+
+    const walletClient = createWalletClient({
+      account,
+      chain: polkadotHubTestnet,
+      transport: http(RPC_URL),
+    });
     // Get nonce for sequential tx management
     const nonce = await publicClient.getTransactionCount({
       address: account.address,
