@@ -522,7 +522,8 @@ From `dualvm/`:
 | `forge test -vvv` | Verbose test output with traces |
 | `npx tsc --noEmit` | TypeScript typecheck (frontend + scripts) |
 | `npm run build:app` | Build frontend only (Vite) |
-| `npm run lint` | Forge format check (`forge fmt --check`) |
+| `npm run lint` | ESLint (`eslint .`) |
+| `forge fmt --check` | Forge format check |
 | `forge script script/Deploy.s.sol --rpc-url $RPC_URL --broadcast --private-key $PRIVATE_KEY` | Deploy to testnet |
 | `node scripts/ci-smoke.mjs` | Read-only testnet contract existence check |
 
@@ -718,7 +719,7 @@ docs/dualvm/                    # Proof artifacts and evidence
 1. **Install Foundry** — `foundry-rs/foundry-toolchain@v1`
 2. **Install Node.js deps** — `npm ci` (frontend + TypeScript scripts)
 3. **TypeScript typecheck** — `npx tsc --noEmit`
-4. **Lint** — `npm run lint` (`forge fmt --check`)
+4. **Lint** — `npm run lint` (ESLint) + `forge fmt --check` (Forge formatter)
 5. **Forge tests** — `forge test`
 6. **Forge build** — `forge build`
 7. **Frontend build** — `npm run build:app`

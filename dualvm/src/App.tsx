@@ -1,136 +1,81 @@
-import { FormEvent, useCallback, useEffect, useState } from "react";
-import { ConnectButton } from "@rainbow-me/rainbowkit";
+import { useState, useEffect, useCallback } from "react";
 import { useAccount } from "wagmi";
-import { DEFAULT_OBSERVER_ADDRESS, humanizeReadError } from "./appCopy";
-import { ManifestSection } from "./components/sections/ManifestSection";
-import { ObserverSection } from "./components/sections/ObserverSection";
-import { OverviewSections } from "./components/sections/OverviewSections";
-import { ReadLayerSection } from "./components/sections/ReadLayerSection";
-import { RecentActivitySection } from "./components/sections/RecentActivitySection";
-import { SecuritySection } from "./components/sections/SecuritySection";
-import { WritePathSection, type TxHistoryEntry } from "./components/sections/WritePathSection";
-import { CompactMarketSnapshot } from "./components/CompactMarketSnapshot";
-import { TxHistoryList } from "./components/TxHistoryList";
-import { TabNav, type TabId } from "./components/TabNav";
-import { deploymentManifest, hasLivePolkadotHubTestnetDeployment } from "./lib/manifest";
-import { loadMarketSnapshot, type MarketSnapshot } from "./lib/readModel";
+import { Header } from "./components/Header";
+import { Footer } from "./components/Footer";
+import { ActionPanel } from "./components/ActionPanel";
+import { Dashboard } from "./components/Dashboard";
+import { loadMarketSnapshot } from "./lib/readModel/marketSnapshot";
+import type { MarketSnapshot } from "./lib/readModel/types";
+import { useFaucet } from "./hooks/useFaucet";
 
 export default function App() {
-  const { address } = useAccount();
+  const { address, isConnected } = useAccount();
+  const faucet = useFaucet();
   const [snapshot, setSnapshot] = useState<MarketSnapshot | null>(null);
-  const [readError, setReadError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [observerInput, setObserverInput] = useState(DEFAULT_OBSERVER_ADDRESS);
-  const [trackedAddress, setTrackedAddress] = useState(DEFAULT_OBSERVER_ADDRESS);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [trackedAddress, setTrackedAddress] = useState("");
   const [refreshKey, setRefreshKey] = useState(0);
-  const [activeTab, setActiveTab] = useState<TabId>("lend-borrow");
-  const [txHistory, setTxHistory] = useState<TxHistoryEntry[]>([]);
+  const [txStatus, setTxStatus] = useState<"idle" | "pending" | "confirming" | "confirmed" | "error">("idle");
+  const [txHistory, setTxHistory] = useState<Array<{ label: string; hash: string; status: string }>>([]);
 
+  // Set tracked address when wallet connects
   useEffect(() => {
-    if (address) {
-      setObserverInput(address);
-      setTrackedAddress(address);
-    }
-  }, [address]);
+    if (address && !trackedAddress) setTrackedAddress(address);
+  }, [address, trackedAddress]);
 
+  // Fetch market snapshot
   useEffect(() => {
     let cancelled = false;
-    async function refreshMarketSnapshot() {
-      if (!hasLivePolkadotHubTestnetDeployment) return;
-      setIsLoading(true);
-      setReadError(null);
-      try {
-        const nextSnapshot = await loadMarketSnapshot(trackedAddress, {
-          forceRefresh: refreshKey > 0,
-        });
-        if (!cancelled) setSnapshot(nextSnapshot);
-      } catch (error) {
-        if (!cancelled) setReadError(error instanceof Error ? error.message : "Unknown read-layer error");
-      } finally {
+    setIsLoading(true);
+    loadMarketSnapshot(trackedAddress || undefined, { forceRefresh: refreshKey > 0 })
+      .then((data) => {
+        if (!cancelled) {
+          setSnapshot(data);
+          setError(null);
+        }
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) setError(err instanceof Error ? err.message : "Unknown error");
+      })
+      .finally(() => {
         if (!cancelled) setIsLoading(false);
-      }
-    }
-    void refreshMarketSnapshot();
-    return () => { cancelled = true; };
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [trackedAddress, refreshKey]);
 
-  const contractRows = Object.entries(deploymentManifest.contracts).map(([name, address]) => ({ name, address }));
-
-  const readStatus = hasLivePolkadotHubTestnetDeployment
-    ? isLoading
-      ? "Loading live Polkadot Hub TestNet reads"
-      : readError
-        ? `Read failed: ${humanizeReadError(readError)}`
-        : snapshot
-          ? "Live Polkadot Hub TestNet reads enabled"
-          : "No live data returned"
-    : "Dry-run manifest only. Deploy to Polkadot Hub TestNet to enable live reads.";
-
-  function handleTrackAddress(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setTrackedAddress(observerInput);
-    setRefreshKey((current) => current + 1);
-  }
-
-  function refreshObserver() {
-    setRefreshKey((current) => current + 1);
-  }
-
   const handleWriteSuccess = useCallback(() => {
-    setRefreshKey((current) => current + 1);
-  }, []);
-
-  const handleTxHistoryEntry = useCallback((entry: TxHistoryEntry) => {
-    setTxHistory((prev) => {
-      if (prev.some((e) => e.txHash === entry.txHash)) return prev;
-      return [...prev, entry];
-    });
+    setRefreshKey((k) => k + 1);
   }, []);
 
   return (
-    <main className="page-shell">
-      <header className="app-header">
-        <span className="app-header-title">DualVM Lending</span>
-        <ConnectButton />
-      </header>
-
-      <TxHistoryList entries={txHistory} />
-      <TabNav activeTab={activeTab} onTabChange={setActiveTab} />
-
-      {activeTab === "lend-borrow" && (
-        <div className="tab-content">
-          <CompactMarketSnapshot snapshot={snapshot} isLoading={isLoading} />
-          <WritePathSection onWriteSuccess={handleWriteSuccess} observer={snapshot?.observer} onTxHistoryEntry={handleTxHistoryEntry} />
-          <ObserverSection
-            snapshot={snapshot}
-            observerInput={observerInput}
-            setObserverInput={setObserverInput}
-            onTrackAddress={handleTrackAddress}
-            onRefresh={refreshObserver}
-          />
-        </div>
-      )}
-
-      {activeTab === "market-data" && (
-        <div className="tab-content">
-          <ReadLayerSection readStatus={readStatus} snapshot={snapshot} />
-          <RecentActivitySection
-            snapshot={snapshot}
-            explorerUrl={deploymentManifest.polkadotHubTestnet.explorerUrl}
-          />
-        </div>
-      )}
-
-      {activeTab === "protocol-info" && (
-        <div className="tab-content">
-          <OverviewSections network={deploymentManifest.polkadotHubTestnet} />
-          <ManifestSection
-            explorerUrl={deploymentManifest.polkadotHubTestnet.explorerUrl}
-            contractRows={contractRows}
-          />
-          <SecuritySection />
-        </div>
-      )}
-    </main>
+    <>
+      <Header
+        txStatus={txStatus}
+        oraclePrice={snapshot?.oraclePrice}
+        faucetState={faucet.state}
+        onFaucetClaim={faucet.claim}
+        isConnected={isConnected}
+      />
+      <main className="app-main">
+        <ActionPanel
+          snapshot={snapshot}
+          trackedAddress={trackedAddress}
+          onWriteSuccess={handleWriteSuccess}
+        />
+        <Dashboard
+          snapshot={snapshot}
+          isLoading={isLoading}
+          error={error}
+          txHistory={txHistory}
+        />
+      </main>
+      <Footer
+        trackedAddress={trackedAddress}
+        onTrackedAddressChange={setTrackedAddress}
+      />
+    </>
   );
 }

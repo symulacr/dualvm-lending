@@ -1,17 +1,11 @@
 import { createPublicClient, formatUnits, isAddress } from "viem";
 import { lendingCoreAbi } from "../abi";
-import { formatTokenAmount } from "../format";
+import { formatHealthFactor, formatTokenAmount } from "../format";
 import { deploymentManifest } from "../manifest";
 import type { ObserverSnapshot } from "./types";
 
 const WAD = 10n ** 18n;
 const BPS = 10_000n;
-
-function formatHealthFactor(value: bigint): string {
-  if (value === 0n) return "0.00";
-  if (value > 10n ** 30n) return "∞";
-  return formatTokenAmount(value, 18);
-}
 
 function healthFactorNumeric(value: bigint): number | null {
   if (value === 0n) return 0;
@@ -42,7 +36,7 @@ export async function loadObserverSnapshot(
   }
 
   const trackedAddress = observerAddress as `0x${string}`;
-  const lendingCore = deploymentManifest.contracts.lendingCoreV2 ?? deploymentManifest.contracts.lendingCore;
+  const lendingCore = deploymentManifest.contracts.lendingEngine;
 
   const [currentDebt, availableToBorrow, healthFactor, position, liquidationThresholdBps] = await Promise.all([
     client.readContract({

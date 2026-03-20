@@ -63,22 +63,18 @@
     }
   },
   "contracts": {
-    "accessManager": "0x32d0a9eb8F4Bd54F0610c31c277fD2E62e4ac2f0",
-    "wpas": "0x9b9e0c534E0Bfc938674238aFA44bCD1690F10F1",
-    "usdc": "0x75d47bd99ECd7188FB63e00cD07035CDBBf7Ef06",
-    "oracle": "0x1CCE5059dc39A7cf8f064f6DA6Be9da09279Ee04",
-    "riskEngine": "0x67D0B226b5aE56A29E206840Ecd389670718Af66",
-    "quoteEngine": "0x9a78F65b00E0AeD0830063eD0ea66a0B5d8876DE",
-    "marketRegistry": "0x47AE8aE7423bD8643Be8a86d4C0Df7fdcC57987d",
-    "governanceToken": "0x5C0201E6db2D4f1a97efeed09f4620A242116Bd1",
-    "governor": "0xa6d2c210f8A11F2D87b08efA8F832B4e64e521b3",
-    "governanceTimelock": "0x65712EEFD810F077c6C11Fd7c18988d3ce569C60",
-    "debtPool": "0xeEdA5d44810E09D8F881Fca537456E2a5eD437bB",
-    "lendingCore": "0x9faC289188229f40aBfaa4F8d720C14b8B448CF9",
-    "lendingCoreV2": "0xab2620577Aaf2BDB0Fdb582DaEB16dbc0f07213f",
-    "riskEngineV2": "0x0b7C5Dd3e9Bc5B23347b0850332117219a2b170E",
-    "debtPoolV2": "0xF55D74C74CFDb81194337D82181d48233C8a6426",
-    "lendingRouterV2": "0x08aace96441Cb320BC68b072D110169fbf38eb08",
-    "pvmDeterministicRiskModel": "0xC6907B609ba4b94C9e319570BaA35DaF587252f8"
+    "accessManager": "0xc126951a58644bd3d5e23c781263873c4305ccc8",
+    "wpas": "0x5e18c7708d492c66d8ebd92ae208b74c069f18fc",
+    "usdc": "0x2d7e60571b478f8de5f25a8b494e7f4527310d34",
+    "oracle": "0xfe5636f2b5be3f97a604958161030874e2e70810",
+    "riskEngine": "0x1e6903a816be0bc013291bbed547df45bdc9e86c",
+    "marketRegistry": "0x4860ff44679c964ef0294a1a3e9b1c12ac7ed658",
+    "governanceToken": "0xfb99fea8c91b10c2e1747a537ac8aa6ab68adf21",
+    "governor": "0x27918831aac573f57e874999b983296226524856",
+    "governanceTimelock": "0x7b8f6f367a7f30df1cdff3e635ff200a20352525",
+    "debtPool": "0xff42db4e29de3ccb206162fe51bc38a0283f652b",
+    "lendingEngine": "0x11bf643d87b3f754b0852ff5243e795815765e7d",
+    "lendingRouter": "0x1b86e0103702ae58000e77cd415e2a1299a0c59c",
+    "pvmDeterministicRiskModel": "0x1e6903a816be0bc013291bbed547df45bdc9e86c"
   }
 }

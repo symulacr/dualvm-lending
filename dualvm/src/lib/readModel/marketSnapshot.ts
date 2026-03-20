@@ -40,9 +40,8 @@ export async function loadMarketSnapshot(
   });
 
   const registryAddress = deploymentManifest.contracts.marketRegistry;
-  // Use V2 contracts when available (active market version)
-  const activeDebtPool = deploymentManifest.contracts.debtPoolV2 ?? deploymentManifest.contracts.debtPool;
-  const activeLendingCore = deploymentManifest.contracts.lendingCoreV2 ?? deploymentManifest.contracts.lendingCore;
+  const activeDebtPool = deploymentManifest.contracts.debtPool;
+  const activeLendingCore = deploymentManifest.contracts.lendingEngine;
 
   const [
     totalAssets,

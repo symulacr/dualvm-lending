@@ -19,7 +19,7 @@ What makes this project distinctive is its honest, live integration of Polkadot'
 The protocol is public-testnet-validated with 12 deployed contracts (11 explorer-verified on Blockscout), 300 passing Foundry tests, and a browser-based frontend with full read/write capability.
 
 ## GitHub Repository
-https://github.com/parity-asia/hackathon-2026-03-polkadot-solidity/dualvm
+https://github.com/symulacr/dualvm-lending
 
 ## Hosted Frontend
 - **Primary (Vercel):** [https://dualvm-lending.vercel.app](https://dualvm-lending.vercel.app)
@@ -42,7 +42,7 @@ All screenshots are in `docs/dualvm/screenshots/`:
 ### What We Built
 A complete lending market on Polkadot Hub TestNet with:
 
-- **LendingCore**: Immutable market version handling collateral deposits, borrowing, repayment, and liquidation with configurable parameters (max LTV 70%, liquidation threshold 80%, liquidation bonus 5%)
+- **LendingEngine**: Immutable market version handling collateral deposits, borrowing, repayment, and liquidation with configurable parameters (max LTV 70%, liquidation threshold 80%, liquidation bonus 5%)
 - **DebtPool**: ERC-4626 LP vault where liquidity providers earn yield from borrower interest. Includes OpenZeppelin's inflation-attack protection.
 - **ManualOracle**: Governed price feed with circuit breaker (min/max price bounds, maximum price delta per update, staleness rejection)
 - **RiskGateway**: Routes risk queries to the PVM DeterministicRiskModel (primary) with REVM fallback, bridging the market with the PVM risk engine
@@ -120,7 +120,7 @@ The correlationId propagates end-to-end: **LendingEngine** events → **Liquidat
 | **TimelockController** | Governance timelock | 60s minimum delay, holds AccessManager admin |
 | **ERC20Votes + ERC20Permit** | GovernanceToken | Delegated voting power, gasless approvals |
 | **ERC4626** | DebtPool | LP vault with virtual offset inflation-attack protection |
-| **SafeERC20** | LendingCore | Safe token transfers in all fund flows |
+| **SafeERC20** | LendingEngine | Safe token transfers in all fund flows |
 | **Pausable** | Core, Pool, Oracle | Emergency pause capability |
 | **ReentrancyGuard** | Core, Pool | Protection on all state-changing fund flows |
 
@@ -134,7 +134,7 @@ TimelockController (60s delay)
     ↓ admin role
 AccessManager (non-zero delays)
     ↓ role-function mapping
-LendingCore / DebtPool / Oracle / Registry
+LendingEngine / DebtPool / Oracle / Registry
 ```
 
 **Deployer has ZERO residual roles** after bootstrap — verified by on-chain role checks and tests.

@@ -8,8 +8,10 @@ pvm-artifacts/
 ignition/deployments/
 .env
 wallets/*.txt
+faucet-wallets.txt
 
 artifacts-pvm/
 cache-pvm/out/
 foundry.lock
 bun.lock
+.vercel

@@ -63,7 +63,7 @@ export interface DeploymentContracts {
   oracle: HexAddress;
   riskEngine: HexAddress;
   debtPool: HexAddress;
-  lendingCore: HexAddress;
+  lendingEngine: HexAddress;
   quoteEngine?: HexAddress;
   marketRegistry?: HexAddress;
   governanceToken?: HexAddress;
@@ -71,11 +71,6 @@ export interface DeploymentContracts {
   governanceMultisig?: HexAddress;
   governanceTimelock?: HexAddress;
   lendingRouter?: HexAddress;
-  // V2 contracts (market version V2)
-  lendingCoreV2?: HexAddress;
-  riskEngineV2?: HexAddress;
-  debtPoolV2?: HexAddress;
-  lendingRouterV2?: HexAddress;
   pvmDeterministicRiskModel?: HexAddress;
 }
 
@@ -188,8 +183,8 @@ export function parseDeploymentManifest(value: unknown): DeploymentManifest {
     readStrings((config.oracle as Record<string, unknown>).circuitBreaker as Record<string, unknown>, ["minPriceWad", "maxPriceWad", "maxPriceChangeBps"], "manifest.config.oracle.circuitBreaker");
   }
 
-  readAddresses(contracts, ["accessManager", "wpas", "usdc", "oracle", "riskEngine", "debtPool", "lendingCore"], "manifest.contracts");
-  readOptionalAddresses(contracts, ["quoteEngine", "marketRegistry", "governanceToken", "governor", "governanceMultisig", "governanceTimelock", "lendingRouter", "lendingCoreV2", "riskEngineV2", "debtPoolV2", "lendingRouterV2", "pvmDeterministicRiskModel"], "manifest.contracts");
+  readAddresses(contracts, ["accessManager", "wpas", "usdc", "oracle", "riskEngine", "debtPool", "lendingEngine"], "manifest.contracts");
+  readOptionalAddresses(contracts, ["quoteEngine", "marketRegistry", "governanceToken", "governor", "governanceMultisig", "governanceTimelock", "lendingRouter", "pvmDeterministicRiskModel"], "manifest.contracts");
 
   return value as unknown as DeploymentManifest;
 }
